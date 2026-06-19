@@ -1,0 +1,361 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  PROFESSOR
+  STUDENT
+}
+
+// ── Academia / LMS ──────────────────────────────────────────────────────────
+// Enums de la capa académica. Es independiente del marketing (Program/landing):
+// Course/CourseModule son entidades reales, no los textos de ProgramModule.
+
+enum CourseStatus {
+  DRAFT // en preparación, aún no visible para estudiantes
+  ACTIVE // en curso
+  FINISHED // concluido
+  ARCHIVED // archivado
+}
+
+enum ModuleStatus {
+  DRAFT
+  ACTIVE
+  FINISHED
+}
+
+enum EnrollmentStatus {
+  ACTIVE // cursando
+  WITHDRAWN // retirado
+  GRADUATED // egresado / curso concluido
+}
+
+enum ActivityType {
+  ASSIGNMENT // tarea
+  QUIZ // cuestionario
+  EXAM // examen
+  PROJECT // proyecto
+  FORUM // foro / participación
+}
+
+enum SubmissionStatus {
+  PENDING // sin entregar
+  SUBMITTED // entregada a tiempo
+  LATE // entregada con retraso
+  GRADED // calificada
+}
+
+enum MaterialType {
+  FILE // archivo subido (Garage/S3, ruta /files/...)
+  LINK // enlace externo
+  VIDEO // video (enlace o embebido)
+}
+
+enum ModuleGradeStatus {
+  IN_PROGRESS // en curso, sin nota final
+  PASSED // aprobado
+  FAILED // reprobado
+}
+
+// Configuración global de la landing (fila única / singleton). Guarda los
+// enlaces a las redes sociales; un valor null/ausente oculta su icono.
+model SiteSettings {
+  id        String   @id @default("singleton")
+  facebook  String?
+  instagram String?
+  linkedin  String?
+  youtube   String?
+  tiktok    String?
+  whatsapp  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      Role     @default(STUDENT)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones académicas (rol PROFESSOR / STUDENT). Un User puede tener
+  // varias de estas según su rol; todas son opcionales para ADMIN.
+  taughtModules     CourseModule[] @relation("ModuleTeacher")
+  enrollments       Enrollment[]
+  submissions       Submission[]
+  gradedSubmissions Submission[]   @relation("SubmissionGrader")
+  moduleGrades      ModuleGrade[]  @relation("StudentGrades")
+  gradedModules     ModuleGrade[]  @relation("ModuleGrader")
+
+  @@map("users")
+}
+
+model ProgramCategory {
+  id           String    @id @default(uuid())
+  name         String
+  slug         String    @unique
+  displayOrder Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  programs     Program[]
+
+  @@map("program_categories")
+}
+
+model Partner {
+  id           String   @id @default(uuid())
+  name         String
+  logoUrl      String   @unique // ruta pública servida por el frontend, ej. /landing/partners/2.webp
+  displayOrder Int      @default(0)
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@map("partners")
+}
+
+model Program {
+  id                String          @id @default(uuid())
+  slug              String          @unique
+  title             String
+  categoryId        String
+  category          ProgramCategory @relation(fields: [categoryId], references: [id])
+  flyerUrl          String // ruta pública servida por el frontend, ej. /landing/program/programa1.webp
+  objective         String
+  targetAudience    String
+  modality          String
+  startDate         DateTime
+  duration          String
+  schedule          String
+  requirements      String[]
+  enrollmentFee     Decimal         @db.Decimal(10, 2)
+  totalCost         Decimal         @db.Decimal(10, 2)
+  currency          String          @default("Bs")
+  paymentFacilities String?
+  isPublished       Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  modules  ProgramModule[]
+  teachers ProgramTeacher[]
+
+  @@index([categoryId, isPublished])
+  @@map("programs")
+}
+
+model ProgramModule {
+  id        String   @id @default(uuid())
+  programId String
+  order     Int
+  name      String
+  contents  String[]
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, order])
+  @@map("program_modules")
+}
+
+model ProgramTeacher {
+  id          String  @id @default(uuid())
+  programId   String
+  fullName    String
+  credentials String
+  photoUrl    String?
+  order       Int     @default(0)
+  program     Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@map("program_teachers")
+}
+
+// ── Academia / LMS ──────────────────────────────────────────────────────────
+// Capa académica real, separada del marketing de la landing. El admin crea
+// cursos y módulos, asigna docentes (User PROFESSOR) e inscribe estudiantes
+// (User STUDENT). El docente crea temas, materiales y actividades dentro de un
+// módulo. El estudiante accede a los módulos del curso en que está inscrito y
+// acumula notas por módulo (kárdex = sus ModuleGrade).
+
+// Curso académico. Entidad independiente de Program (landing). El admin lo crea.
+model Course {
+  id           String       @id @default(uuid())
+  code         String       @unique // código institucional, ej. "MBA-2026-I"
+  name         String
+  description  String?
+  modality     String? // ej. "Virtual con clases en vivo"
+  startDate    DateTime?
+  endDate      DateTime?
+  passingScore Decimal      @default(70) @db.Decimal(5, 2) // nota mínima de aprobación
+  status       CourseStatus @default(DRAFT)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  modules     CourseModule[]
+  enrollments Enrollment[]
+
+  @@index([status])
+  @@map("courses")
+}
+
+// Módulo académico dentro de un curso, dictado por un docente.
+model CourseModule {
+  id          String       @id @default(uuid())
+  courseId    String
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacherId   String? // docente asignado (User PROFESSOR); null hasta asignar
+  teacher     User?        @relation("ModuleTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  order       Int // posición del módulo en la malla del curso
+  name        String
+  description String?
+  credits     Int?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      ModuleStatus @default(DRAFT)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  topics     Topic[]
+  materials  Material[]
+  activities Activity[]
+  grades     ModuleGrade[]
+
+  @@unique([courseId, order])
+  @@index([teacherId])
+  @@map("course_modules")
+}
+
+// Inscripción de un estudiante a un curso. Le da acceso a todos sus módulos.
+model Enrollment {
+  id         String           @id @default(uuid())
+  studentId  String
+  student    User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId   String
+  course     Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  status     EnrollmentStatus @default(ACTIVE)
+  enrolledAt DateTime         @default(now())
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+// Tema dentro de un módulo. Creado por el docente.
+model Topic {
+  id          String       @id @default(uuid())
+  moduleId    String
+  module      CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  order       Int
+  title       String
+  description String?
+  content     String? // contenido enriquecido (HTML/markdown)
+  isPublished Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  materials  Material[]
+  activities Activity[]
+
+  @@unique([moduleId, order])
+  @@map("topics")
+}
+
+// Material de apoyo de un módulo (opcionalmente ligado a un tema).
+model Material {
+  id        String       @id @default(uuid())
+  moduleId  String
+  module    CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  topicId   String?
+  topic     Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  title     String
+  type      MaterialType @default(FILE)
+  url       String // ruta /files/... (subida) o enlace externo
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([moduleId])
+  @@index([topicId])
+  @@map("materials")
+}
+
+// Actividad evaluable de un módulo (tarea, examen, etc.). Creada por el docente.
+model Activity {
+  id           String       @id @default(uuid())
+  moduleId     String
+  module       CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  topicId      String?
+  topic        Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  type         ActivityType @default(ASSIGNMENT)
+  title        String
+  instructions String?
+  dueDate      DateTime?
+  maxScore     Decimal      @default(100) @db.Decimal(5, 2)
+  weight       Decimal      @default(0) @db.Decimal(5, 2) // peso (%) en la nota del módulo
+  isPublished  Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  submissions Submission[]
+
+  @@index([moduleId])
+  @@index([topicId])
+  @@map("activities")
+}
+
+// Entrega de un estudiante para una actividad. Calificada por el docente.
+model Submission {
+  id          String           @id @default(uuid())
+  activityId  String
+  activity    Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  content     String? // texto de la entrega
+  fileUrl     String? // archivo adjunto (ruta /files/...)
+  status      SubmissionStatus @default(PENDING)
+  score       Decimal?         @db.Decimal(5, 2)
+  feedback    String?
+  submittedAt DateTime?
+  gradedById  String?
+  gradedBy    User?            @relation("SubmissionGrader", fields: [gradedById], references: [id], onDelete: SetNull)
+  gradedAt    DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([activityId, studentId])
+  @@index([studentId])
+  @@map("submissions")
+}
+
+// Nota final de un estudiante en un módulo. El conjunto de las notas de un
+// estudiante conforma su kárdex.
+model ModuleGrade {
+  id           String            @id @default(uuid())
+  studentId    String
+  student      User              @relation("StudentGrades", fields: [studentId], references: [id], onDelete: Cascade)
+  moduleId     String
+  module       CourseModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  finalScore   Decimal?          @db.Decimal(5, 2)
+  status       ModuleGradeStatus @default(IN_PROGRESS)
+  observations String?
+  gradedById   String?
+  gradedBy     User?             @relation("ModuleGrader", fields: [gradedById], references: [id], onDelete: SetNull)
+  gradedAt     DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([studentId, moduleId])
+  @@index([moduleId])
+  @@map("module_grades")
+}

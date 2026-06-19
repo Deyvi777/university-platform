@@ -1,0 +1,21 @@
+# dependencias
+node_modules/
+.pnpm-store/
+
+# variables de entorno
+.env
+.env.local
+.env.production
+
+# next.js
+frontend/.next/
+frontend/out/
+
+# nest.js
+backend/dist/
+
+# sistema
+.DS_Store
+
+# garage
+garage.toml

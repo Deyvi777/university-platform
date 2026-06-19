@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: university_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: university_user
+      POSTGRES_PASSWORD: university_pass_2024
+      POSTGRES_DB: university_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - university_network
+
+  redis:
+    image: redis:8.8-alpine
+    container_name: university_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - university_network
+
+  garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: university_garage
+    restart: unless-stopped
+    command: /garage server --single-node --default-bucket
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: garage_access_key
+      GARAGE_DEFAULT_SECRET_KEY: garage_secret_key_2024
+      GARAGE_DEFAULT_BUCKET: university-files
+    ports:
+      - "3900:3900"
+      - "3901:3901"
+    volumes:
+      - garage_data:/var/lib/garage/data
+      - garage_meta:/var/lib/garage/meta
+      - ./garage.toml:/etc/garage.toml
+    networks:
+      - university_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  garage_data:
+  garage_meta:
+
+networks:
+  university_network:
+    driver: bridge

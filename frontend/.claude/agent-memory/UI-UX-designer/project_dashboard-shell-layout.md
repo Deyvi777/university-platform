@@ -1,0 +1,31 @@
+---
+name: dashboard-shell-layout
+description: Internal dashboard uses a 3-zone shell (sidebar + content + profile panel); key components, tints, and conventions for the authenticated panel home/layout
+metadata:
+  type: project
+---
+
+The internal dashboard (`src/app/dashboard/`) was redesigned from a top-horizontal-nav into a **3-zone shell** inspired by modern edu platforms, kept in the light institutional theme (navy `blue-950` + amber accent, NOT pastel-washed everything).
+
+**Why:** user wanted a more attractive/modern look (reference: left icon-pill sidebar, wide content, right profile/activity panel, big pastel category cards). Branding stays navy+amber per DESIGN.md; pastels are muted (`*-50/100`) and used only on home cards, never as section washes.
+
+**How to apply / key files:**
+
+- `layout.tsx` (server): `SidebarProvider` wraps a sticky top bar (brand + `SidebarTrigger` mobile-only + compact "Salir" under `xl`) and a grid `lg:grid-cols-[15rem_1fr]` / `xl:grid-cols-[15rem_1fr_20rem]` (sidebar · main · ProfilePanel). Max width `1400px`.
+- `dashboard-sidebar.tsx` (client): exports `SidebarProvider` (context for mobile-open state), `SidebarTrigger` (hamburger for header), `DashboardSidebar` (desktop sticky aside + mobile overlay). Active item = navy pill `bg-blue-950 text-white` with amber icon; uses `usePathname` (prefix match, exact for `/dashboard`). Render `DashboardSidebar` ONCE in the grid; trigger lives in header — they share state via context to avoid double-render.
+- `profile-panel.tsx` (server, `xl+` only): avatar from initials (no remote images — SSRF gotcha), navy header band, role label map (ADMIN→Administrador etc.), quick-links (nav items minus "Inicio"), and the logout form. Replaces the reference's "activity" panel — NO fake metrics since none exist per role.
+- `page.tsx` AdminHome: big display header (`font-heading text-3xl/4xl`), cards are large `rounded-3xl` with soft pastel tint per card (TINTS map: amber/sky/violet/emerald/rose → card bg + icon pill + hover border + focus ring), category pill top-left + count badge top-right, big title, description, hover arrow bottom-right. Role branching (`requireUser` → ADMIN/PROFESSOR/STUDENT) is UNCHANGED.
+- `coming-soon-home.tsx`: polished — navy band with amber glow + Sparkles, "Próximamente" badge, feature chips in `rounded-2xl`.
+
+**Full-width shell (updated 2026-06-17):** the shell is now **edge-to-edge** — sidebar hugs the left viewport edge, profile panel hugs the right. The old `mx-auto max-w-[1400px]` cap was removed from BOTH `dashboard-shell.tsx` (grid) and the header in `layout.tsx`; both now use `w-full` with minimal outer padding `px-3 sm:px-4 lg:px-5` (header padding mirrors the grid so brand aligns with sidebar and actions align with profile panel). Visual breathing room comes from the `gap-6` between columns + each zone's internal padding, not outer margins. The central `<main>` column absorbs all extra space (`minmax(0,1fr)`), but its content is wrapped in `<div className="mx-auto w-full max-w-6xl">` so lines/cards/forms don't sprawl on ultra-wide monitors (cap = 72rem, centered within the column). **Why:** user wanted more usable central width and the side panels pinned to the edges. **How to apply:** keep any new dashboard content inside that main column — it's already capped+centered; don't re-add a `max-w` cap to the outer grid.
+
+**Collapse behaviors (added 2026-06-17):** the shell supports two desktop toggles.
+
+- `dashboard-shell.tsx` (client) NOW owns the grid `<div>` (moved out of the server `layout.tsx`) so column widths react to context. It receives `sidebar`, `children`, `profilePanel` as **props** (Server Components composed into a Client Component — serialization-safe, no functions passed). It also exports `ProfileToggle` (header button, `xl+` only, `PanelRightClose/Open` icons).
+- `SidebarProvider` context (in `dashboard-sidebar.tsx`) was extended beyond `mobileOpen` to also hold `collapsed`/`toggleCollapsed` (sidebar → icon rail) and `profileOpen`/`toggleProfile` (right panel). `useSidebar` is now exported.
+- **Collapsed sidebar = icon rail:** width `4.5rem`, items become `size-11` centered icons, labels hidden, each link gets `title`+`aria-label` (native tooltip — chose this over adding shadcn `tooltip`, which isn't installed, to avoid a Radix provider just for this). Active item keeps navy pill + amber icon. Mobile overlay always shows labels (no rail).
+- **`CollapseToggle` = edge-anchored floating circle (updated 2026-06-17):** redesigned from an in-flow chevron button into a Notion-style "edge toggle" — a `size-7` `rounded-full` `bg-background border shadow-md` button absolutely positioned `-right-3.5 top-6 z-50` so it overhangs half over the sidebar/content division, near the top. Icons: `ChevronRight`=expand (collapsed), `ChevronLeft`=collapse (expanded). **Key structural point for flyout coexistence:** the desktop aside has an outer `sticky top-22` wrapper that is `relative` (the button's anchor) and is a SIBLING of the inner flyout `<div>`. The button is anchored to the STABLE wrapper, NOT the flyout — so when the collapsed flyout grows `w-18`→`w-60` on hover, the button does NOT shift. `z-50` keeps it above the flyout's `z-40`. Amber focus ring (`ring-amber-400/60`), `aria-pressed={collapsed}`, dynamic `aria-label`/`title`. **Why:** user wanted the premium edge-toggle look from a reference image. **How to apply:** never anchor edge controls to the flyout child; anchor to the sticky wrapper.
+- **Profile panel hide:** `profileOpen` false → wrapper `div` gets `xl:hidden` and grid drops the `20rem` column so `main` absorbs the space. Panel stays mounted (Server Component) — hidden via CSS, not unmounted.
+- **Persistence:** localStorage keys `dashboard:sidebar-collapsed` / `dashboard:profile-open` (values `"1"`/`"0"`), read in the `useState` initializer (`readStored`, SSR-safe) and written in toggle callbacks. No `useEffect` for state. Grid animates with `transition-[grid-template-columns]` so the post-mount correction isn't jarring.
+
+Fonts: headings auto-apply **Merriweather** via `globals.css` base rule (`h1..h6 { font-heading }`); body **Open Sans** (`font-sans`). Add `font-heading` explicitly only on non-heading display elements (e.g. brand wordmark, avatar initials).
