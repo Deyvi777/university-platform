@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { GraduationCap, Lock, ShieldCheck } from "lucide-react";
+import { Clock, GraduationCap, Lock, ShieldCheck } from "lucide-react";
 import { auth } from "@/auth";
 import { LoginForm } from "./login-form";
 
@@ -26,15 +26,19 @@ export default async function LoginPage({
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       {/* Panel de marca — azul oscuro institucional (el logo es blanco, solo va sobre oscuro). */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-blue-950 p-10 text-white lg:flex xl:p-14">
-        {/* Resplandor ámbar sutil de fondo, sin competir con el texto. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-24 -right-24 size-96 rounded-full bg-amber-400/10 blur-3xl"
+      <aside className="relative hidden flex-col justify-between overflow-hidden p-10 text-white lg:flex xl:p-14">
+        {/* Imagen de fondo */}
+        <Image
+          src="/landing/image-login.webp"
+          alt=""
+          fill
+          priority
+          className="object-cover"
         />
+        {/* Overlay oscuro para legibilidad del texto */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-32 -left-20 size-96 rounded-full bg-amber-400/[0.06] blur-3xl"
+          className="absolute inset-0 bg-blue-950/20"
         />
 
         <div className="relative">
@@ -60,30 +64,33 @@ export default async function LoginPage({
             Plataforma académica
           </span>
           <h1 className="mt-6 text-3xl font-bold tracking-tight leading-tight xl:text-4xl">
-            Bienvenido al panel de Certificate
+            Bienvenido a la plataforma académica de <span className="text-amber-400">Certificate</span>
           </h1>
-          <p className="mt-4 text-base leading-7 text-slate-300">
-            Gestiona programas, módulos, estudiantes y kardex desde un solo
-            lugar. Accede con tus credenciales institucionales.
+          <p className="mt-4 text-base leading-7 text-white">
+            Transformamos tu potencial a través de educación de excelencia, impulsada por la tecnología y el talento humano que inspiran crecimiento y liderazgo.
           </p>
 
-          <ul className="mt-8 space-y-3 text-sm text-slate-200">
+          <ul className="mt-8 space-y-3 text-sm text-white">
             <li className="flex items-center gap-3">
               <GraduationCap className="size-5 shrink-0 text-amber-400" />
-              Maestrías y diplomados centralizados
+              Maestrías y diplomados de alto nivel académico
             </li>
             <li className="flex items-center gap-3">
               <ShieldCheck className="size-5 shrink-0 text-amber-400" />
-              Acceso por rol: administración, docencia y estudiantes
+              Programas certificados con respaldo académico-universitario
             </li>
             <li className="flex items-center gap-3">
               <Lock className="size-5 shrink-0 text-amber-400" />
-              Sesión segura y cifrada
+              Acceso seguro y cifrado
+            </li>
+            <li className="flex items-center gap-3">
+              <Clock className="size-5 shrink-0 text-amber-400" />
+              Plataforma disponible 24/7
             </li>
           </ul>
         </div>
 
-        <p className="relative text-xs text-slate-400">
+        <p className="relative text-xs text-white">
           © {new Date().getFullYear()} Certificate · Escuela de Postgrado
         </p>
       </aside>
@@ -109,7 +116,7 @@ export default async function LoginPage({
             </Link>
           </div>
 
-          <div className="mb-8">
+          <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold tracking-tight">
               Iniciar sesión
             </h2>

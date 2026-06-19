@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ScrollLink } from "./scroll-link";
 import { getSiteSettings, type SiteSocialLinks } from "@/lib/api/settings";
 
 // Iconos de marca (paths de simple-icons, viewBox 24x24).
@@ -45,7 +46,7 @@ const navColumns = [
     title: "Navegación",
     links: [
       { label: "Programas", href: "/#programas" },
-      { label: "Nosotros", href: "/#nosotros" },
+      { label: "Nosotros", href: "/nosotros" },
       { label: "Instituciones", href: "/#instituciones-aliadas" },
       { label: "Contacto", href: "/#contacto" },
     ],
@@ -127,12 +128,12 @@ export async function Footer() {
               <ul className="mt-4 space-y-3">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <Link
+                    <ScrollLink
                       href={link.href}
                       className="text-sm text-slate-400 transition-colors hover:text-amber-300"
                     >
                       {link.label}
-                    </Link>
+                    </ScrollLink>
                   </li>
                 ))}
               </ul>

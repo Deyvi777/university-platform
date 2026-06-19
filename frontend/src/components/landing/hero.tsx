@@ -1,10 +1,14 @@
-import Link from "next/link";
+"use client";
 
 const stats = [
   { value: "+40", label: "Programas de postgrado" },
   { value: "+5.000", label: "Profesionales certificados" },
   { value: "100%", label: "Docentes con grado de maestría" },
 ];
+
+function scrollTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+}
 
 export function Hero() {
   return (
@@ -40,18 +44,20 @@ export function Hero() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
-            <Link
-              href="#programas"
+            <button
+              type="button"
+              onClick={() => scrollTo("programas")}
               className="rounded-full bg-amber-400 px-8 py-3.5 text-base font-semibold text-slate-950 shadow-lg shadow-amber-400/20 transition-all hover:bg-amber-300 hover:shadow-amber-300/30"
             >
               Explorar programas
-            </Link>
-            <Link
-              href="#contacto"
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTo("contacto")}
               className="rounded-full border border-white/30 px-8 py-3.5 text-base font-medium text-white backdrop-blur-sm transition-colors hover:border-white/60 hover:bg-white/10"
             >
               Hablar con un asesor
-            </Link>
+            </button>
           </div>
 
           <dl className="mt-16 grid max-w-xl grid-cols-3 gap-4 border-t border-white/15 pt-8 sm:gap-6">

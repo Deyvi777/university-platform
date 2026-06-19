@@ -381,7 +381,7 @@ async function main() {
       linkedin: 'https://linkedin.com/company/certificate-bo',
       youtube: 'https://youtube.com/@certificate-bo',
       tiktok: 'https://tiktok.com/@certificate.bo',
-      whatsapp: 'https://wa.me/59176543210',
+      whatsapp: 'https://wa.me/+59177933003',
     },
   });
   console.log('Configuración de redes sociales lista');

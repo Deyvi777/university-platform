@@ -37,7 +37,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${openSans.variable} ${merriweather.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${openSans.variable} ${merriweather.variable} ${geistMono.variable} h-full antialiased scroll-smooth`}
     >
       <body className="min-h-full flex flex-col">
         <QueryProvider>{children}</QueryProvider>

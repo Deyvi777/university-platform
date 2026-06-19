@@ -79,7 +79,7 @@ export function Cta() {
             </Link>
 
             <Link
-              href="https://wa.me/59176543210"
+              href="https://wa.me/+59177933003"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/5 px-7 py-3 text-sm font-medium text-white backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-white/60 hover:bg-white/10"

@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ScrollLink } from "./scroll-link";
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getCategories } from "@/lib/api/programs";
 
 const navLinks = [
-  { href: "/#nosotros", label: "Nosotros" },
+  { href: "/nosotros", label: "Nosotros" },
   { href: "/#contacto", label: "Contacto" },
 ];
 
@@ -50,13 +51,13 @@ export function Navbar() {
 
         <ul className="hidden items-center gap-8 lg:flex">
           <li className="group relative">
-            <Link
+            <ScrollLink
               href="/#programas"
               className="flex items-center gap-1 text-sm font-medium text-white/80 transition-colors hover:text-white"
             >
               Programas
               <ChevronDown className="h-4 w-4 transition-transform duration-200 group-hover:rotate-180" />
-            </Link>
+            </ScrollLink>
             
             <div className="absolute left-0 top-full mt-4 w-56 origin-top-left rounded-xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-lg transition-all duration-300 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
               <div className="absolute -top-4 left-0 h-4 w-full" />
@@ -73,12 +74,12 @@ export function Navbar() {
           </li>
           {navLinks.map((link) => (
             <li key={link.href}>
-              <Link
+              <ScrollLink
                 href={link.href}
                 className="text-sm font-medium text-white/80 transition-colors hover:text-white"
               >
                 {link.label}
-              </Link>
+              </ScrollLink>
             </li>
           ))}
         </ul>
@@ -90,12 +91,12 @@ export function Navbar() {
           >
             Acceder
           </Link>
-          <Link
+          <ScrollLink
             href="/#programas"
             className="rounded-full bg-amber-400 px-5 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-300"
           >
             Inscríbete
-          </Link>
+          </ScrollLink>
         </div>
 
         <button
@@ -144,13 +145,14 @@ export function Navbar() {
             </li>
             {navLinks.map((link) => (
               <li key={link.href}>
-                <Link
+                <ScrollLink
                   href={link.href}
-                  onClick={() => setMenuOpen(false)}
                   className="block rounded-md px-3 py-2 text-base font-medium text-white/80 hover:bg-white/10 hover:text-white"
                 >
-                  {link.label}
-                </Link>
+                  <div onClick={() => setMenuOpen(false)}>
+                    {link.label}
+                  </div>
+                </ScrollLink>
               </li>
             ))}
             <li className="flex gap-3 pt-3">
@@ -160,13 +162,14 @@ export function Navbar() {
               >
                 Acceder
               </Link>
-              <Link
+              <ScrollLink
                 href="/#programas"
-                onClick={() => setMenuOpen(false)}
                 className="flex-1 rounded-full bg-amber-400 px-5 py-2 text-center text-sm font-semibold text-slate-950"
               >
-                Inscríbete
-              </Link>
+                <div onClick={() => setMenuOpen(false)}>
+                  Inscríbete
+                </div>
+              </ScrollLink>
             </li>
           </ul>
         </div>
