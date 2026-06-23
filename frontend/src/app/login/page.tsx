@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Clock, GraduationCap, Lock, ShieldCheck } from "lucide-react";
 import { auth } from "@/auth";
 import { LoginForm } from "./login-form";
 
@@ -18,120 +17,75 @@ export default async function LoginPage({
   // En ese flujo el Route Handler /api/auth/session-expired ya cerró la sesión,
   // pero gateamos el rebote con esta bandera para no reintroducir el bucle de
   // redirección si quedara cualquier sesión residual/"rolling".
+  // Solo rebotamos al panel si el token del backend SIGUE vigente. El callback
+  // `session` (auth.config.ts) pone `accessToken = undefined` cuando venció, así
+  // que es la señal canónica de "sesión realmente usable". Sin este chequeo, una
+  // cookie viva con token vencido rebota a /dashboard, el middleware (`authorized`)
+  // la rechaza por token vencido y devuelve a /login → bucle (ERR_TOO_MANY_REDIRECTS).
+  // Con token vencido renderizamos el formulario para que el usuario reingrese.
   const session = await auth();
-  if (session?.user && !sessionExpired) {
+  if (session?.user && session.accessToken && !sessionExpired) {
     redirect("/dashboard");
   }
 
   return (
-    <main className="grid min-h-screen lg:grid-cols-2">
-      {/* Panel de marca — azul oscuro institucional (el logo es blanco, solo va sobre oscuro). */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden p-10 text-white lg:flex xl:p-14">
-        {/* Imagen de fondo */}
-        <Image
-          src="/landing/image-login.webp"
-          alt=""
-          fill
-          priority
-          className="object-cover"
-        />
-        {/* Overlay oscuro para legibilidad del texto */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-blue-950/20"
-        />
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-12">
+      {/* Imagen de fondo a pantalla completa. */}
+      <Image
+        src="/landing/image-login.webp"
+        alt=""
+        fill
+        priority
+        className="object-cover"
+      />
+      {/* Overlay oscuro: garantiza contraste del logo blanco y aísla la tarjeta
+          glass del fondo. Gradiente sutil para dar profundidad. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-b from-blue-950/25 via-blue-950/15 to-blue-950/35"
+      />
 
-        <div className="relative">
-          <Link
-            href="/"
-            aria-label="Ir al inicio de Certificate"
-            className="inline-flex items-center"
-          >
-            <Image
-              src="/landing/logo.webp"
-              alt="Certificate"
-              width={150}
-              height={40}
-              priority
-              className="h-9 w-auto"
-            />
-          </Link>
-        </div>
+      <div className="relative z-10 flex w-full max-w-sm flex-col items-center">
+        {/* Logo blanco — válido solo sobre la imagen oscura. */}
+        <Link
+          href="/"
+          aria-label="Ir al inicio de Certificate"
+          className="mb-8 inline-flex items-center rounded-lg focus-visible:ring-3 focus-visible:ring-amber-400/60 focus-visible:outline-none"
+        >
+          <Image
+            src="/landing/logo.webp"
+            alt="Certificate"
+            width={224}
+            height={59}
+            priority
+            className="h-14 w-auto drop-shadow-lg sm:h-16"
+          />
+        </Link>
 
-        <div className="relative max-w-md">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-amber-300 backdrop-blur-sm">
-            <span className="size-1.5 rounded-full bg-amber-400" />
-            Plataforma académica
-          </span>
-          <h1 className="mt-6 text-3xl font-bold tracking-tight leading-tight xl:text-4xl">
-            Bienvenido a la plataforma académica de <span className="text-amber-400">Certificate</span>
-          </h1>
-          <p className="mt-4 text-base leading-7 text-white">
-            Transformamos tu potencial a través de educación de excelencia, impulsada por la tecnología y el talento humano que inspiran crecimiento y liderazgo.
-          </p>
-
-          <ul className="mt-8 space-y-3 text-sm text-white">
-            <li className="flex items-center gap-3">
-              <GraduationCap className="size-5 shrink-0 text-amber-400" />
-              Maestrías y diplomados de alto nivel académico
-            </li>
-            <li className="flex items-center gap-3">
-              <ShieldCheck className="size-5 shrink-0 text-amber-400" />
-              Programas certificados con respaldo académico-universitario
-            </li>
-            <li className="flex items-center gap-3">
-              <Lock className="size-5 shrink-0 text-amber-400" />
-              Acceso seguro y cifrado
-            </li>
-            <li className="flex items-center gap-3">
-              <Clock className="size-5 shrink-0 text-amber-400" />
-              Plataforma disponible 24/7
-            </li>
-          </ul>
-        </div>
-
-        <p className="relative text-xs text-white">
-          © {new Date().getFullYear()} Certificate · Escuela de Postgrado
-        </p>
-      </aside>
-
-      {/* Panel de formulario — tema claro del dashboard. */}
-      <div className="flex flex-col items-center justify-center bg-muted/30 px-6 py-12">
-        <div className="w-full max-w-sm">
-          {/* Logo compacto solo en móvil (no hay panel de marca). */}
-          <div className="mb-8 flex justify-center lg:hidden">
-            <Link
-              href="/"
-              aria-label="Ir al inicio de Certificate"
-              className="inline-flex items-center rounded-lg bg-blue-950 px-4 py-2"
-            >
-              <Image
-                src="/landing/logo.webp"
-                alt="Certificate"
-                width={130}
-                height={34}
-                priority
-                className="h-8 w-auto"
-              />
-            </Link>
-          </div>
-
+        {/* Tarjeta glass real: navy translúcido + blur fuerte para que la imagen
+            de fondo se perciba a través del card. Contenido en tono claro
+            (tema "sobre-imagen"), no el tema claro de shadcn — ver login-form. */}
+        <div className="w-full rounded-2xl border border-white/20 bg-blue-950/10 p-8 shadow-2xl shadow-blue-950/50 backdrop-blur-lg">
           <div className="mb-8 text-center">
-            <h2 className="text-2xl font-bold tracking-tight">
+            <h2 className="text-2xl font-bold tracking-tight text-white">
               Iniciar sesión
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-white/70">
               Ingresa tus datos para acceder a tu cuenta.
             </p>
           </div>
 
           <LoginForm sessionExpired={sessionExpired} />
 
-          <p className="mt-8 text-center text-xs text-muted-foreground">
+          <p className="mt-8 border-t border-white/15 pt-6 text-center text-xs text-white/65">
             ¿Problemas para ingresar? Contacta a la administración de
             Certificate.
           </p>
         </div>
+
+        <p className="mt-6 text-center text-xs text-white/80">
+          © {new Date().getFullYear()} Certificate · Escuela de Postgrado
+        </p>
       </div>
     </main>
   );

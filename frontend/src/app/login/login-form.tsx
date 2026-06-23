@@ -54,7 +54,7 @@ export function LoginForm({
       {showExpiredNotice && (
         <div
           role="status"
-          className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-3 text-sm text-amber-700 dark:text-amber-300"
+          className="flex items-start gap-2.5 rounded-lg border border-amber-300/40 bg-amber-400/15 px-3.5 py-3 text-sm text-amber-100"
         >
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>Tu sesión expiró. Inicia sesión nuevamente para continuar.</span>
@@ -66,7 +66,7 @@ export function LoginForm({
         <div
           id={formErrorId}
           role="alert"
-          className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-3 text-sm text-destructive"
+          className="flex items-start gap-2.5 rounded-lg border border-red-300/40 bg-red-500/15 px-3.5 py-3 text-sm text-red-100"
         >
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>{state.error}</span>
@@ -74,7 +74,9 @@ export function LoginForm({
       )}
 
       <div className="space-y-1.5">
-        <Label htmlFor={emailId}>Correo electrónico</Label>
+        <Label htmlFor={emailId} className="text-white/90">
+          Correo electrónico
+        </Label>
         <Input
           id={emailId}
           name="email"
@@ -89,16 +91,19 @@ export function LoginForm({
           aria-invalid={emailError ? true : undefined}
           aria-describedby={emailError ? emailErrorId : undefined}
           disabled={pending}
+          className="border-white/20 bg-white/10 text-white placeholder:text-white/50 focus-visible:border-amber-300/70 focus-visible:ring-amber-300/40 disabled:bg-white/5 aria-invalid:border-red-300/70 aria-invalid:ring-red-400/30"
         />
         {emailError && (
-          <p id={emailErrorId} className="text-xs text-destructive">
+          <p id={emailErrorId} className="text-xs text-red-200">
             {emailError}
           </p>
         )}
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={passwordId}>Contraseña</Label>
+        <Label htmlFor={passwordId} className="text-white/90">
+          Contraseña
+        </Label>
         <div className="relative">
           <Input
             id={passwordId}
@@ -108,7 +113,7 @@ export function LoginForm({
             required
             minLength={8}
             placeholder="••••••••"
-            className="pr-10"
+            className="border-white/20 bg-white/10 pr-10 text-white placeholder:text-white/50 focus-visible:border-amber-300/70 focus-visible:ring-amber-300/40 disabled:bg-white/5 aria-invalid:border-red-300/70 aria-invalid:ring-red-400/30"
             aria-invalid={passwordError ? true : undefined}
             aria-describedby={passwordError ? passwordErrorId : undefined}
             disabled={pending}
@@ -121,7 +126,7 @@ export function LoginForm({
               showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
             }
             aria-pressed={showPassword}
-            className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
+            className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-white/60 transition-colors hover:text-white focus-visible:ring-3 focus-visible:ring-amber-300/40 focus-visible:outline-none disabled:opacity-50"
           >
             {showPassword ? (
               <EyeOff className="size-4" aria-hidden="true" />
@@ -131,18 +136,18 @@ export function LoginForm({
           </button>
         </div>
         {passwordError && (
-          <p id={passwordErrorId} className="text-xs text-destructive">
+          <p id={passwordErrorId} className="text-xs text-red-200">
             {passwordError}
           </p>
         )}
       </div>
 
       <div className="flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground select-none">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-white/80 select-none">
           <input
             type="checkbox"
             name="remember"
-            className="size-4 rounded border-input text-amber-500 accent-amber-500 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="size-4 rounded border-white/30 bg-white/10 text-amber-400 accent-amber-400 focus-visible:ring-3 focus-visible:ring-amber-300/40 focus-visible:outline-none"
             disabled={pending}
           />
           Recordarme
@@ -152,7 +157,7 @@ export function LoginForm({
       <Button
         type="submit"
         disabled={pending}
-        className="w-full bg-amber-500 text-slate-950 hover:bg-amber-400"
+        className="w-full bg-amber-500 font-semibold text-slate-950 shadow-lg shadow-amber-500/20 hover:bg-amber-400 focus-visible:ring-amber-200/60"
       >
         {pending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
         {pending ? "Ingresando…" : "Ingresar"}

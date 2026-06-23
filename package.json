@@ -22,16 +22,7 @@
       "prettier --write --ignore-unknown"
     ]
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@nestjs/core",
-      "@prisma/engines",
-      "argon2",
-      "prisma",
-      "sharp",
-      "unrs-resolver"
-    ]
-  },
+  "packageManager": "pnpm@11.5.3",
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^17.0.7",

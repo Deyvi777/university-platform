@@ -51,7 +51,7 @@ export function CategoryForm({ category }: { category?: AdminCategory }) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="max-w-xl space-y-6 rounded-xl border bg-card p-6"
+      className="max-w-xl space-y-6 rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none"
     >
       <div>
         <Label htmlFor="name">Nombre</Label>

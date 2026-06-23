@@ -30,6 +30,27 @@ const MIME_TO_EXT: Record<string, string> = {
 
 export const ALLOWED_IMAGE_MIME = Object.keys(MIME_TO_EXT);
 
+// Materiales del docente: imágenes + documentos comunes (PDF, Office, texto,
+// comprimidos). Se mapea cada MIME a su extensión para nombrar el objeto.
+const DOCUMENT_MIME_TO_EXT: Record<string, string> = {
+  ...MIME_TO_EXT,
+  'application/pdf': 'pdf',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    'docx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.ms-powerpoint': 'ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+    'pptx',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+  'application/zip': 'zip',
+  'application/x-zip-compressed': 'zip',
+};
+
+export const ALLOWED_DOCUMENT_MIME = Object.keys(DOCUMENT_MIME_TO_EXT);
+
 @Injectable()
 export class StorageService {
   private readonly client: S3Client;
@@ -48,13 +69,28 @@ export class StorageService {
     this.bucket = this.config.getOrThrow<string>('S3_BUCKET');
   }
 
-  async uploadImage(
+  uploadImage(file: UploadedFileLike, folder: string) {
+    return this.put(file, folder, MIME_TO_EXT, 'Tipo de imagen no permitido');
+  }
+
+  uploadDocument(file: UploadedFileLike, folder: string) {
+    return this.put(
+      file,
+      folder,
+      DOCUMENT_MIME_TO_EXT,
+      'Tipo de archivo no permitido',
+    );
+  }
+
+  private async put(
     file: UploadedFileLike,
     folder: string,
+    mimeToExt: Record<string, string>,
+    rejectMessage: string,
   ): Promise<{ key: string; url: string }> {
-    const ext = MIME_TO_EXT[file.mimetype];
+    const ext = mimeToExt[file.mimetype];
     if (!ext) {
-      throw new BadRequestException('Tipo de imagen no permitido');
+      throw new BadRequestException(rejectMessage);
     }
 
     const key = `${folder}/${randomUUID()}.${ext}`;

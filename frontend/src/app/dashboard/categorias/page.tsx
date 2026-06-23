@@ -36,7 +36,7 @@ export default async function CategoriasAdminPage() {
         </Button>
       </div>
 
-      <div className="mt-6 rounded-xl border bg-card">
+      <div className="mt-6 overflow-hidden rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
         <Table>
           <TableHeader>
             <TableRow>

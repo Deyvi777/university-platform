@@ -99,6 +99,64 @@ export interface AdminSettings {
   whatsapp: string | null;
 }
 
+// ---- Programas académicos (capa Course/LMS) ----
+
+export type CourseStatus = "DRAFT" | "ACTIVE" | "FINISHED" | "ARCHIVED";
+
+/** Datos públicos de un docente/estudiante mostrados en el panel. */
+export interface AdminCourseUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface AdminModuleTeacher {
+  id: string;
+  teacher: AdminCourseUser;
+}
+
+export interface AdminCourseModule {
+  id: string;
+  order: number;
+  name: string;
+  description: string | null;
+  credits: number | null;
+  status: string;
+  teachers: AdminModuleTeacher[];
+}
+
+export interface AdminEnrollment {
+  id: string;
+  status: string;
+  enrolledAt: string;
+  student: AdminCourseUser;
+}
+
+export interface AdminCourse {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  modality: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  passingScore: string;
+  status: CourseStatus;
+  modules: AdminCourseModule[];
+  enrollments: AdminEnrollment[];
+}
+
+export interface AdminCourseListItem {
+  id: string;
+  code: string;
+  name: string;
+  status: CourseStatus;
+  startDate: string | null;
+  updatedAt: string;
+  _count: { modules: number; enrollments: number };
+}
+
 // ---- Cliente con token ----
 
 export class AdminApiError extends Error {
@@ -198,14 +256,60 @@ export async function getAdminUser(id: string): Promise<AdminUser> {
   return parse(await adminFetch(`/admin/users/${id}`));
 }
 
+export type AnnouncementAudience =
+  | "ALL"
+  | "PROFESSORS"
+  | "STUDENTS"
+  | "SELECTED";
+
+export interface AdminAnnouncement {
+  id: string;
+  title: string;
+  body: string;
+  audience: AnnouncementAudience;
+  recipientCount: number;
+  createdAt: string;
+  sender: { firstName: string; lastName: string };
+}
+
+export interface AdminAnnouncementPage {
+  items: AdminAnnouncement[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/** Historial de avisos enviados, paginado y filtrable por audiencia/texto. */
+export async function listAdminAnnouncements(params?: {
+  page?: number;
+  audience?: AnnouncementAudience;
+  q?: string;
+}): Promise<AdminAnnouncementPage> {
+  const query = new URLSearchParams();
+  if (params?.page && params.page > 1) query.set("page", String(params.page));
+  if (params?.audience) query.set("audience", params.audience);
+  if (params?.q?.trim()) query.set("q", params.q.trim());
+  const qs = query.toString();
+  return parse(await adminFetch(`/admin/notifications${qs ? `?${qs}` : ""}`));
+}
+
 export async function getAdminCategory(id: string): Promise<AdminCategory> {
   return parse(await adminFetch(`/admin/categories/${id}`));
+}
+
+export async function listAdminCourses(): Promise<AdminCourseListItem[]> {
+  return parse(await adminFetch("/admin/courses"));
+}
+
+export async function getAdminCourse(id: string): Promise<AdminCourse> {
+  return parse(await adminFetch(`/admin/courses/${id}`));
 }
 
 // ---- Escrituras (server actions) ----
 
 export async function mutateAdmin<T>(
-  method: "POST" | "PATCH" | "DELETE",
+  method: "POST" | "PATCH" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
 ): Promise<T> {

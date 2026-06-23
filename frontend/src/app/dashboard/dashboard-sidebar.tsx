@@ -1,22 +1,39 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  GraduationCap,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   createContext,
+  Fragment,
   Suspense,
   useCallback,
   useContext,
   useState,
   useSyncExternalStore,
 } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   NAV_ICONS,
   sectionSlug,
   type NavItem,
   type NavSection,
+  type SidebarProgram,
 } from "./nav-items";
 
 /**
@@ -116,6 +133,21 @@ function createBooleanStore(key: string, fallback: boolean) {
     getServerSnapshot(): boolean {
       return fallback;
     },
+    /**
+     * Estado CRUDO sin colapsar a `fallback`: `true`/`false` si el usuario ya
+     * eligió, `null` si nunca tocó esta clave. Permite distinguir "no seteado"
+     * de "seteado" para que un default dinámico (p. ej. el auto-abierto del
+     * programa activo) solo aplique mientras el usuario no haya decidido.
+     */
+    getRawSnapshot(): boolean | null {
+      const raw = window.localStorage.getItem(key);
+      if (raw === null) return null;
+      return raw === "1";
+    },
+    /** En SSR/hidratación inicial nada está seteado → `null`, sin mismatch. */
+    getRawServerSnapshot(): null {
+      return null;
+    },
     set(next: boolean) {
       window.localStorage.setItem(key, next ? "1" : "0");
       emit();
@@ -162,6 +194,86 @@ function useSectionOpen(slug: string): { open: boolean; toggle: () => void } {
   const toggle = useCallback(() => {
     store.set(!store.getSnapshot());
   }, [store]);
+  return { open, toggle };
+}
+
+/**
+ * Stores del árbol de "Programas". Reusan exactamente el mismo patrón
+ * `createBooleanStore` + `useSyncExternalStore` que el resto del shell, así que
+ * el estado abierto/cerrado persiste en localStorage y la hidratación nunca
+ * diverge (`getServerSnapshot` = default).
+ *
+ * - El encabezado "Programas" usa `dashboard:nav-programs` con default
+ *   **`true`** (abierto): el árbol arranca desplegado.
+ * - Cada programa usa `dashboard:nav-program:<id>` con default **`false`**
+ *   (cerrado): los módulos arrancan plegados para no inundar el riel con un
+ *   árbol gigante; el usuario expande el programa que le interesa.
+ *
+ * Cacheamos los stores por clave (igual que las secciones) para no recrear el
+ * `Set` de listeners en cada render — `useSyncExternalStore` necesita una
+ * referencia estable de `subscribe`.
+ */
+const STORAGE_PROGRAMS = "dashboard:nav-programs";
+const programsHeaderStore = createBooleanStore(STORAGE_PROGRAMS, true);
+
+const programStores = new Map<string, ReturnType<typeof createBooleanStore>>();
+
+function getProgramStore(id: string) {
+  let store = programStores.get(id);
+  if (!store) {
+    store = createBooleanStore(`dashboard:nav-program:${id}`, false);
+    programStores.set(id, store);
+  }
+  return store;
+}
+
+/**
+ * Estado abierto/cerrado de un programa del árbol, con el **toggle como
+ * autoridad**.
+ *
+ * - `autoOpen` es el valor por defecto cuando el usuario **aún no ha tocado**
+ *   este programa (p. ej. el programa que estás viendo arranca abierto). En
+ *   cuanto el usuario usa el chevron, su elección persiste y manda sobre el
+ *   auto-abierto.
+ * - Leemos el estado CRUDO (`raw`: `true`/`false`/`null`): `null` = no seteado →
+ *   se usa `autoOpen`; si está seteado, gana el valor del usuario. Así el primer
+ *   clic sobre un programa auto-abierto lo **cierra** (persiste `"0"`) y se
+ *   respeta en recargas.
+ * - En SSR/hidratación inicial `raw` es `null` (`getRawServerSnapshot`), así que
+ *   `open = autoOpen` en server y cliente → sin mismatch; React pasa al valor
+ *   real tras hidratar (patrón estándar de `useSyncExternalStore`).
+ * - El `toggle` persiste el opuesto del estado **visible** (`!open`), no del
+ *   crudo, para que el botón sea fiable incluso cuando `raw === null`.
+ */
+function useProgramOpen(
+  id: string,
+  autoOpen: boolean,
+): { open: boolean; toggle: () => void } {
+  const store = getProgramStore(id);
+  const raw = useSyncExternalStore(
+    store.subscribe,
+    store.getRawSnapshot,
+    store.getRawServerSnapshot,
+  );
+  const open = raw === null ? autoOpen : raw;
+  const toggle = useCallback(() => {
+    const current = store.getRawSnapshot();
+    const visible = current === null ? autoOpen : current;
+    store.set(!visible);
+  }, [store, autoOpen]);
+  return { open, toggle };
+}
+
+/** Estado abierto/cerrado persistido del encabezado "Programas". */
+function useProgramsHeaderOpen(): { open: boolean; toggle: () => void } {
+  const open = useSyncExternalStore(
+    programsHeaderStore.subscribe,
+    programsHeaderStore.getSnapshot,
+    programsHeaderStore.getServerSnapshot,
+  );
+  const toggle = useCallback(() => {
+    programsHeaderStore.set(!programsHeaderStore.getSnapshot());
+  }, []);
   return { open, toggle };
 }
 
@@ -259,42 +371,64 @@ function NavLink({
   nested?: boolean;
 }) {
   const Icon = NAV_ICONS[item.icon];
-  return (
+  const link = (
     <Link
       href={item.href}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
-      // En modo riel el `title` actúa de tooltip nativo y el `aria-label` suple
-      // a la etiqueta visible que ocultamos.
-      title={collapsed ? item.label : undefined}
+      // En riel, el nombre de la opción se muestra en un Tooltip al pasar el
+      // mouse sobre el icono (ver abajo); el `aria-label` suple a la etiqueta
+      // visible que ocultamos.
       aria-label={collapsed ? item.label : undefined}
       className={cn(
         "group flex items-center rounded-full text-sm font-medium transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+        // Riel: caja cuadrada que solo aloja el badge circular del icono.
         railOnly && "size-11 justify-center",
-        expandOnHover && "justify-center px-0 py-2.5",
+        // Padding asimétrico: poco a la izquierda (el badge ya da aire) y más a
+        // la derecha, para que la píldora activa respire como en la referencia.
+        expandOnHover && "justify-center py-1 pl-1 pr-1",
         flyoutActive &&
-          "group-hover/flyout:justify-start group-hover/flyout:gap-3 group-hover/flyout:px-4 group-focus-within/flyout:justify-start group-focus-within/flyout:gap-3 group-focus-within/flyout:px-4",
-        !collapsed && "gap-3 px-4 py-2.5",
+          "group-hover/flyout:justify-start group-hover/flyout:gap-3 group-hover/flyout:pl-1 group-hover/flyout:pr-4 group-focus-within/flyout:justify-start group-focus-within/flyout:gap-3 group-focus-within/flyout:pl-1 group-focus-within/flyout:pr-4",
+        !collapsed && "gap-3 py-1 pl-1 pr-4",
         // Sangría de sub-items en estado expandido (no en riel/flyout contraído).
-        !collapsed && nested && "pl-7",
+        !collapsed && nested && "pl-2",
         flyoutActive &&
           nested &&
-          "group-hover/flyout:pl-7 group-focus-within/flyout:pl-7",
+          "group-hover/flyout:pl-2 group-focus-within/flyout:pl-2",
+        // Sidebar es navy SIEMPRE (mockup de referencia). Activo = píldora
+        // rounded-full azul-clara translúcida con BADGE circular del icono y
+        // etiqueta en blanco. Inactivo = sin fondo, texto claro atenuado sobre
+        // navy con hover translúcido sutil.
         active
-          ? "bg-blue-950 text-white shadow-sm"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          ? "bg-white/15 text-white shadow-sm ring-1 ring-white/15"
+          : "text-sidebar-foreground/90 hover:bg-white/[0.07] hover:text-sidebar-foreground",
       )}
     >
-      <Icon
+      {/* Badge del icono. Activo = círculo blanco con el icono en azul de marca
+          (el detalle clave de la referencia). Inactivo = icono de línea claro,
+          sin fondo. El tamaño fijo del badge mantiene alineados los iconos entre
+          items activos e inactivos. */}
+      <span
         className={cn(
-          "size-[1.15rem] shrink-0 transition-colors",
-          active
-            ? "text-amber-400"
-            : "text-muted-foreground/80 group-hover:text-foreground",
+          "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors",
+          active && "bg-white shadow-sm shadow-blue-950/20",
         )}
         aria-hidden="true"
-      />
+      >
+        <Icon
+          className={cn(
+            "size-[1.15rem] shrink-0 transition-colors",
+            active
+              ? // Badge blanco en ambos temas: en claro el icono es azul de marca
+                // (`text-primary`); en oscuro `--primary` es casi blanco y se
+                // perdería, así que se fuerza un navy oscuro para que contraste.
+                "text-primary dark:text-blue-950"
+              : "text-sidebar-foreground/90 group-hover:text-sidebar-foreground",
+          )}
+          aria-hidden="true"
+        />
+      </span>
       {!collapsed && <span className="truncate">{item.label}</span>}
       {/* Flyout: la etiqueta existe siempre pero queda oculta (ancho 0) hasta
           que el contenedor se expande por hover/teclado. */}
@@ -313,6 +447,21 @@ function NavLink({
       )}
     </Link>
   );
+
+  // En riel minimizado, el hover sobre el icono muestra el nombre de la opción
+  // en un tooltip (a la derecha). Base UI lo portala al `body`, así que no lo
+  // recorta el scroll del riel. En estado expandido la etiqueta ya es visible.
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger render={link} />
+        <TooltipContent side="right" sideOffset={10}>
+          {item.label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+  return link;
 }
 
 /**
@@ -379,7 +528,7 @@ function SectionGroup({
   const regionId = slug ? `nav-section-${slug}-items` : undefined;
 
   const items = (
-    <div className={cn("flex flex-col gap-1", railOnly && "items-center")}>
+    <div className={cn("flex flex-col gap-1.5", railOnly && "items-center gap-2")}>
       {section.items.map((item) => (
         <NavLink
           key={item.href}
@@ -404,7 +553,7 @@ function SectionGroup({
         index > 0 && "mt-3",
         railOnly &&
           index > 0 &&
-          "mt-3 w-8 self-center border-t border-border/70 pt-3",
+          "mt-3 w-8 self-center border-t border-white/15 pt-3",
       )}
       role={hasHeader ? "group" : undefined}
       aria-labelledby={headerId}
@@ -421,8 +570,8 @@ function SectionGroup({
           aria-expanded={open}
           aria-controls={regionId}
           className={cn(
-            "group/acc flex w-full items-center justify-between rounded-lg px-4 pb-1.5 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors",
-            "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+            "group/acc flex w-full items-center justify-between rounded-lg px-3 pb-1.5 pt-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/75 transition-colors",
+            "hover:text-sidebar-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
             // En riel se oculta del flujo; con flyout reaparece al expandir.
             collapsed && "hidden",
             expandOnHover &&
@@ -434,7 +583,7 @@ function SectionGroup({
           <span className="truncate">{section.title}</span>
           <ChevronDown
             className={cn(
-              "size-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-200",
+              "size-3.5 shrink-0 text-sidebar-foreground/70 transition-transform duration-200",
               open ? "rotate-0" : "-rotate-90",
             )}
             aria-hidden="true"
@@ -471,6 +620,308 @@ function SectionGroup({
 }
 
 /**
+ * Una fila de programa dentro del árbol: un **enlace** al detalle del programa
+ * (`/dashboard/mis-cursos/<programId>`, la vista que reúne cabecera + módulos del
+ * programa) seguido de un **botón chevron separado** que expande/colapsa el
+ * submenú de módulos SIN navegar. Es su propio componente para poder llamar
+ * `useProgramOpen` (un hook) por programa sin romper las reglas de hooks.
+ *
+ * Patrón de la fila = enlace (flex-1, navega) + chevron-toggle aparte (no navega,
+ * lleva `aria-expanded`/`aria-controls`). Nunca se anida un button dentro del
+ * link ni viceversa: son dos controles hermanos, ambos navegables por teclado y
+ * con foco visible.
+ *
+ * - La fila del programa se marca **activa** (misma píldora translúcida del
+ *   sidebar) cuando `pathname` es el detalle del programa.
+ * - El módulo activo se resalta comparando con `pathname`.
+ * - La sangría diferencia visualmente niveles: el programa va sangrado respecto
+ *   al encabezado "Programas"; sus módulos, un nivel más.
+ */
+function ProgramRow({
+  program,
+  moduleHrefBase,
+  pathname,
+  onNavigate,
+}: {
+  program: SidebarProgram;
+  moduleHrefBase: string;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const programHref = `/dashboard/mis-cursos/${program.id}`;
+  const programActive = pathname === programHref;
+  const containsActive = program.modules.some(
+    (mod) => pathname === `${moduleHrefBase}/${mod.id}`,
+  );
+  // Auto-abierto: cuando estás viendo el detalle del programa o uno de sus
+  // módulos, arranca desplegado — PERO solo como DEFAULT mientras el usuario no
+  // haya tocado el chevron. El `toggle` (autoridad) manda sobre el auto-abierto,
+  // así el programa activo SÍ se puede colapsar y la elección persiste.
+  const autoOpen = programActive || containsActive;
+  const { open: effectiveOpen, toggle } = useProgramOpen(program.id, autoOpen);
+
+  const headerId = `nav-program-${program.id}`;
+  const regionId = `nav-program-${program.id}-modules`;
+  const hasModules = program.modules.length > 0;
+
+  return (
+    <div role="group" aria-labelledby={headerId}>
+      {/* Fila = enlace al detalle del programa (flex-1) + chevron-toggle aparte.
+          El `headerId` lo lleva el enlace (es la etiqueta del grupo); el chevron
+          es solo el control de plegado y referencia la región vía aria. */}
+      <div
+        className={cn(
+          "group/prog flex items-center gap-1 rounded-lg pr-1 transition-colors",
+          programActive
+            ? "bg-white/15 ring-1 ring-white/15"
+            : "hover:bg-white/[0.07]",
+        )}
+      >
+        <Link
+          id={headerId}
+          href={programHref}
+          onClick={onNavigate}
+          aria-current={programActive ? "page" : undefined}
+          className={cn(
+            "flex min-w-0 flex-1 items-center rounded-lg py-1.5 pl-2 pr-1 text-left text-sm font-medium transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+            programActive
+              ? "text-white"
+              : "text-sidebar-foreground/90 group-hover/prog:text-sidebar-foreground",
+          )}
+        >
+          <span className="truncate">{program.name}</span>
+        </Link>
+        {hasModules && (
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={effectiveOpen}
+            aria-controls={regionId}
+            aria-label={
+              effectiveOpen
+                ? `Ocultar módulos de ${program.name}`
+                : `Mostrar módulos de ${program.name}`
+            }
+            className={cn(
+              "inline-flex size-6 shrink-0 items-center justify-center rounded-md transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+              programActive
+                ? "text-white/80 hover:bg-white/10 hover:text-white"
+                : "text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-foreground",
+            )}
+          >
+            <ChevronDown
+              className={cn(
+                "size-3.5 shrink-0 transition-transform duration-200",
+                effectiveOpen ? "rotate-0" : "-rotate-90",
+              )}
+              aria-hidden="true"
+            />
+          </button>
+        )}
+      </div>
+
+      {hasModules && (
+        <div
+          id={regionId}
+          role="region"
+          aria-labelledby={headerId}
+          inert={!effectiveOpen}
+          className={cn(
+            "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+            effectiveOpen
+              ? "grid-rows-[1fr] opacity-100"
+              : "grid-rows-[0fr] opacity-0",
+          )}
+        >
+          <ul className="ml-4 flex flex-col gap-0.5 overflow-hidden border-l border-white/10 pl-2 pt-0.5">
+            {program.modules.map((mod) => {
+              const href = `${moduleHrefBase}/${mod.id}`;
+              const active = pathname === href;
+              return (
+                <li key={mod.id}>
+                  <Link
+                    href={href}
+                    onClick={onNavigate}
+                    aria-current={active ? "page" : undefined}
+                    title={mod.name}
+                    className={cn(
+                      "flex items-center rounded-full px-3 py-1.5 text-sm transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+                      active
+                        ? "bg-white/15 font-medium text-white ring-1 ring-white/15"
+                        : "text-sidebar-foreground/75 hover:bg-white/[0.07] hover:text-sidebar-foreground",
+                    )}
+                  >
+                    <span className="truncate">Módulo {mod.order}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Árbol de "Programas" del sidebar (PROFESSOR/STUDENT): un nivel de programas y,
+ * dentro de cada uno, sus módulos como enlaces. NO forma parte del modelo plano
+ * `NavSection`; se renderiza como un bloque propio en la posición donde iría
+ * "Programas".
+ *
+ * Modos por estado del sidebar (espeja a `SectionGroup`):
+ * - **Riel puro** (colapsado sin flyout): no cabe el árbol → un único icono
+ *   "Programas" con `Tooltip` que enlaza a `/dashboard/mis-programas` (la vista
+ *   completa). El árbol se ve en expandido y en el overlay móvil.
+ * - **Expandido / móvil**: encabezado "Programas" (toggle de acordeón) + enlace
+ *   sutil "Ver todos", y debajo el árbol de programas → módulos.
+ *
+ * Estado vacío: si el rol no tiene programas asignados, bajo el encabezado se
+ * muestra un texto sutil "Sin programas asignados".
+ */
+function ProgramTree({
+  programs,
+  moduleHrefBase,
+  railOnly,
+  onNavigate,
+}: {
+  programs: SidebarProgram[];
+  moduleHrefBase: string;
+  /**
+   * Riel puro (colapsado sin flyout): se reduce a un icono con tooltip que
+   * enlaza a la vista completa. `false` = árbol completo (expandido/móvil).
+   */
+  railOnly: boolean;
+  onNavigate: () => void;
+}) {
+  const pathname = usePathname();
+  const { open: headerOpen, toggle: toggleHeader } = useProgramsHeaderOpen();
+
+  // En riel puro: solo el icono "Programas" con tooltip → vista completa.
+  if (railOnly) {
+    const railLink = (
+      <Link
+        href="/dashboard/mis-programas"
+        onClick={onNavigate}
+        aria-label="Programas"
+        className={cn(
+          "group flex size-11 items-center justify-center rounded-full text-sm font-medium transition-colors",
+          "text-sidebar-foreground/90 hover:bg-white/[0.07] hover:text-sidebar-foreground",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+        )}
+      >
+        <span
+          className="flex size-9 shrink-0 items-center justify-center rounded-full"
+          aria-hidden="true"
+        >
+          <GraduationCap
+            className="size-[1.15rem] shrink-0 text-sidebar-foreground/90 transition-colors group-hover:text-sidebar-foreground"
+            aria-hidden="true"
+          />
+        </span>
+      </Link>
+    );
+    return (
+      <div className="mt-3 flex w-8 flex-col items-center self-center border-t border-white/15 pt-3">
+        <Tooltip>
+          <TooltipTrigger render={railLink} />
+          <TooltipContent side="right" sideOffset={10}>
+            Programas
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    );
+  }
+
+  // Estado expandido / overlay móvil: encabezado + árbol.
+  const headerId = "nav-programs";
+  const regionId = "nav-programs-items";
+  const hasPrograms = programs.length > 0;
+  const open = headerOpen;
+  // "Ver todos" lleva a la vista de programas inscritos del estudiante; el
+  // docente no la necesita (su árbol ya es la lista completa de lo que dicta).
+  const isStudent = moduleHrefBase === "/dashboard/aula";
+
+  return (
+    <div className="mt-3" role="group" aria-labelledby={headerId}>
+      {/* Encabezado "Programas": el texto togglea el acordeón; el enlace sutil
+          "Ver todos" lleva a la vista completa `/dashboard/mis-programas`. */}
+      <div className="flex items-center justify-between gap-1 pl-3 pr-1">
+        <button
+          type="button"
+          id={headerId}
+          onClick={toggleHeader}
+          aria-expanded={open}
+          aria-controls={regionId}
+          className={cn(
+            "group/acc flex flex-1 items-center justify-between gap-2 rounded-lg pb-1.5 pt-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/75 transition-colors",
+            "hover:text-sidebar-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+          )}
+        >
+          <span className="flex min-w-0 items-center gap-1.5">
+            <GraduationCap
+              className="size-3.5 shrink-0 text-sidebar-foreground/70"
+              aria-hidden="true"
+            />
+            <span className="truncate">Programas</span>
+          </span>
+          <ChevronDown
+            className={cn(
+              "size-3.5 shrink-0 text-sidebar-foreground/70 transition-transform duration-200",
+              open ? "rotate-0" : "-rotate-90",
+            )}
+            aria-hidden="true"
+          />
+        </button>
+        {isStudent && (
+          <Link
+            href="/dashboard/mis-programas"
+            onClick={onNavigate}
+            className="shrink-0 rounded-md px-1.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-sidebar-foreground/55 transition-colors hover:text-sidebar-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
+          >
+            Ver todos
+          </Link>
+        )}
+      </div>
+
+      <div
+        id={regionId}
+        role="region"
+        aria-labelledby={headerId}
+        inert={!open}
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
+          {hasPrograms ? (
+            <div className="flex flex-col gap-0.5">
+              {programs.map((program) => (
+                <ProgramRow
+                  key={program.id}
+                  program={program}
+                  moduleHrefBase={moduleHrefBase}
+                  pathname={pathname}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="px-3 py-1.5 text-sm text-sidebar-foreground/55">
+              Sin programas asignados
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Renderiza la navegación agrupada en secciones. Lee `useSearchParams()` para
  * resaltar la sub-opción activa de "Usuarios" según el `?rol=` actual — por eso
  * debe ir envuelto en `<Suspense>` (regla de Next 16; ver `SidebarNav`).
@@ -492,11 +943,17 @@ function NavSections({
    * aplicamos las clases `group-hover/flyout:`/`group-focus-within/flyout:`.
    */
   suppressHover = false,
+  programTree,
 }: {
   sections: NavSection[];
   collapsed?: boolean;
   expandOnHover?: boolean;
   suppressHover?: boolean;
+  /**
+   * Árbol de "Programas" (PROFESSOR/STUDENT) a insertar ENTRE la primera sección
+   * ("Inicio") y el resto. Para ADMIN llega `undefined` y no se renderiza.
+   */
+  programTree?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -526,21 +983,25 @@ function NavSections({
 
   return (
     <nav
-      className={cn("flex flex-col gap-1", railOnly && "items-center")}
+      className={cn("flex flex-col gap-2", railOnly && "items-center")}
       aria-label="Navegación del panel"
     >
       {sections.map((section, index) => (
-        <SectionGroup
-          key={section.title ?? `group-${index}`}
-          section={section}
-          index={index}
-          collapsed={collapsed}
-          expandOnHover={expandOnHover}
-          flyoutActive={flyoutActive}
-          railOnly={railOnly}
-          isActive={isActive}
-          onNavigate={onNavigate}
-        />
+        <Fragment key={section.title ?? `group-${index}`}>
+          <SectionGroup
+            section={section}
+            index={index}
+            collapsed={collapsed}
+            expandOnHover={expandOnHover}
+            flyoutActive={flyoutActive}
+            railOnly={railOnly}
+            isActive={isActive}
+            onNavigate={onNavigate}
+          />
+          {/* El árbol de "Programas" va justo después de la primera sección
+              ("Inicio"), antes del resto de la navegación. */}
+          {index === 0 && programTree}
+        </Fragment>
       ))}
     </nav>
   );
@@ -557,6 +1018,7 @@ function SidebarNav(props: {
   collapsed?: boolean;
   expandOnHover?: boolean;
   suppressHover?: boolean;
+  programTree?: React.ReactNode;
 }) {
   return (
     <Suspense fallback={<NavSectionsFallback {...props} />}>
@@ -575,11 +1037,13 @@ function NavSectionsFallback({
   collapsed = false,
   expandOnHover = false,
   suppressHover = false,
+  programTree,
 }: {
   sections: NavSection[];
   collapsed?: boolean;
   expandOnHover?: boolean;
   suppressHover?: boolean;
+  programTree?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const { setMobileOpen } = useSidebar();
@@ -597,23 +1061,118 @@ function NavSectionsFallback({
 
   return (
     <nav
-      className={cn("flex flex-col gap-1", railOnly && "items-center")}
+      className={cn("flex flex-col gap-2", railOnly && "items-center")}
       aria-label="Navegación del panel"
     >
       {sections.map((section, index) => (
-        <SectionGroup
-          key={section.title ?? `group-${index}`}
-          section={section}
-          index={index}
-          collapsed={collapsed}
-          expandOnHover={expandOnHover}
-          flyoutActive={flyoutActive}
-          railOnly={railOnly}
-          isActive={isActive}
-          onNavigate={onNavigate}
-        />
+        <Fragment key={section.title ?? `group-${index}`}>
+          <SectionGroup
+            section={section}
+            index={index}
+            collapsed={collapsed}
+            expandOnHover={expandOnHover}
+            flyoutActive={flyoutActive}
+            railOnly={railOnly}
+            isActive={isActive}
+            onNavigate={onNavigate}
+          />
+          {index === 0 && programTree}
+        </Fragment>
       ))}
     </nav>
+  );
+}
+
+/**
+ * Bloque de marca en la cabecera del sidebar navy: el **logo de Certificate**
+ * (`logo.webp`). El logo es BLANCO (pensado para fondos oscuros), así que va
+ * directo sobre el gradiente navy sin necesidad de píldora. En estado riel se
+ * reduce para caber en el ancho del riel y, con flyout, recupera su tamaño
+ * completo por hover/foco (mismo patrón de revelado que el resto del sidebar).
+ */
+function SidebarLogo({ collapsed }: { collapsed: boolean }) {
+  return (
+    <Link
+      href="/dashboard"
+      aria-label="Certificate — ir al inicio del panel"
+      className={cn(
+        "group/logo mb-2 flex items-center justify-center rounded-xl px-1 py-1 transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60",
+        collapsed
+          ? "group-hover/flyout:px-1.5 group-focus-within/flyout:px-1.5"
+          : "px-1.5",
+      )}
+    >
+      <Image
+        src="/landing/logo.webp"
+        alt="Certificate"
+        width={408}
+        height={174}
+        priority
+        className={cn(
+          "h-auto w-auto object-contain transition-[max-width,max-height] duration-200",
+          // Riel: encoge para caber en el ancho del riel; con flyout recupera
+          // tamaño. Expandido: tamaño completo de la cabecera.
+          collapsed
+            ? "max-h-9 max-w-[2.75rem] group-hover/flyout:max-h-12 group-hover/flyout:max-w-[10rem] group-focus-within/flyout:max-h-12 group-focus-within/flyout:max-w-[10rem]"
+            : "max-h-12 max-w-[10rem]",
+        )}
+      />
+    </Link>
+  );
+}
+
+/**
+ * Botón "Salir" anclado al pie del sidebar navy (lenguaje del mockup). Sigue el
+ * mismo patrón de revelado que los items de nav: en riel se reduce a un icono
+ * centrado (con `title`/`aria-label`), y con flyout la etiqueta se revela por
+ * hover/foco. `logout` es un Server Action (referencia serializable).
+ */
+function SidebarLogout({
+  collapsed,
+  logout,
+}: {
+  collapsed: boolean;
+  logout: () => Promise<void>;
+}) {
+  return (
+    <form action={logout} className="mt-1 border-t border-white/10 pt-3">
+      <button
+        type="submit"
+        title={collapsed ? "Salir" : undefined}
+        aria-label={collapsed ? "Salir" : undefined}
+        className={cn(
+          "group flex w-full items-center rounded-full text-sm font-medium text-sidebar-foreground/90 transition-colors",
+          "hover:bg-white/[0.07] hover:text-sidebar-foreground",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+          collapsed
+            ? "justify-center py-1 pl-1 pr-1 group-hover/flyout:justify-start group-hover/flyout:gap-3 group-hover/flyout:pl-1 group-hover/flyout:pr-4 group-focus-within/flyout:justify-start group-focus-within/flyout:gap-3 group-focus-within/flyout:pl-1 group-focus-within/flyout:pr-4"
+            : "gap-3 py-1 pl-1 pr-4",
+        )}
+      >
+        {/* Icono en caja del tamaño del badge de nav, para alinear "Salir" con
+            la columna de iconos de los items de arriba (sin fondo). */}
+        <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden="true">
+          <LogOut
+            className="size-[1.15rem] shrink-0 text-sidebar-foreground/90 transition-colors group-hover:text-sidebar-foreground"
+            aria-hidden="true"
+          />
+        </span>
+        {!collapsed && <span className="truncate">Salir</span>}
+        {/* Flyout: etiqueta oculta (ancho 0) hasta expandir por hover/foco. */}
+        {collapsed && (
+          <span
+            className={cn(
+              "w-0 overflow-hidden truncate opacity-0 transition-[opacity] duration-200",
+              "group-hover/flyout:w-auto group-hover/flyout:opacity-100",
+              "group-focus-within/flyout:w-auto group-focus-within/flyout:opacity-100",
+            )}
+          >
+            Salir
+          </span>
+        )}
+      </button>
+    </form>
   );
 }
 
@@ -662,8 +1221,28 @@ function CollapseToggle({
 }
 
 /** Columna fija de escritorio + overlay móvil. Renderizar una sola vez. */
-export function DashboardSidebar({ sections }: { sections: NavSection[] }) {
+export function DashboardSidebar({
+  sections,
+  programs,
+  moduleHrefBase = "/dashboard/modulos",
+  logout,
+}: {
+  sections: NavSection[];
+  /**
+   * Árbol de programas asignados (PROFESSOR/STUDENT). `undefined` para ADMIN: no
+   * se renderiza el bloque "Programas".
+   */
+  programs?: SidebarProgram[];
+  /** Base del enlace de cada módulo según rol (`/dashboard/aula` o `/dashboard/modulos`). */
+  moduleHrefBase?: string;
+  /** Server action de cierre de sesión (botón "Salir" al pie del sidebar). */
+  logout?: () => Promise<void>;
+}) {
   const { mobileOpen, setMobileOpen, collapsed } = useSidebar();
+  const onTreeNavigate = useCallback(
+    () => setMobileOpen(false),
+    [setMobileOpen],
+  );
 
   // Estado de UI transitorio (NO persistido): al colapsar con el cursor encima,
   // suprimimos el flyout-on-hover para que el riel se vea angosto de inmediato.
@@ -672,16 +1251,27 @@ export function DashboardSidebar({ sections }: { sections: NavSection[] }) {
   const [suppressHover, setSuppressHover] = useState(false);
 
   return (
-    <>
+    <TooltipProvider delay={150}>
       {/*
-        Sidebar fijo en escritorio.
-        - Expandido: columna en flujo normal (`15rem`), contenido `sticky`.
-        - Colapsado: la columna se mantiene como riel angosto (`4.5rem`), pero el
-          contenido se convierte en un *flyout* `absolute` que, al hover/foco,
-          se ensancha a `15rem` SOBRE el contenido central sin reflowar `<main>`.
+        Sidebar fijo en escritorio — ocupa TODA la altura de la pantalla en la
+        columna izquierda (de arriba a abajo), con el logo arriba y "Salir" al
+        pie. Es hermano de la columna de contenido en el flex raíz del layout
+        (NO lo envuelve), por eso el topbar queda confinado a la derecha y nunca
+        se extiende sobre el sidebar.
+        - Expandido: columna en flujo normal (`15rem`).
+        - Colapsado: la columna queda como riel angosto (`4.5rem`), y el panel se
+          convierte en un *flyout* que, al hover/foco, se ensancha a `15rem` SOBRE
+          el contenido (`absolute`) sin reflowar `<main>`.
       */}
       <aside
-        className="hidden lg:block"
+        className={cn(
+          "sticky top-0 z-50 hidden h-screen shrink-0 self-start lg:block",
+          // El ancho de la COLUMNA en el flujo flex (no del panel): riel vs.
+          // expandido. En colapsado dejamos `4.5rem` fijos; el panel crece por
+          // encima vía `absolute` al hacer hover, sin empujar el contenido.
+          collapsed ? "w-18" : "w-60",
+          "transition-[width] duration-200 ease-out",
+        )}
         // El cursor sale del sidebar → re-habilita el flyout para el próximo
         // hover real. Manejado por evento (no `useEffect`), conforme a la regla
         // `react-hooks/set-state-in-effect`.
@@ -697,39 +1287,56 @@ export function DashboardSidebar({ sections }: { sections: NavSection[] }) {
           }
         }}
       >
-        {/* Contenedor `sticky`: mantiene el sidebar a la vista al hacer scroll.
-            `z-50` eleva todo el subárbol del sidebar por encima del centro para
-            que el flyout en hover quede siempre encima de `<main>`. */}
-        <div className="sticky top-22 z-50">
-          {/* Flyout = contenedor `relative` que ancla el `CollapseToggle` a su
-              borde derecho. `overflow-visible` para no recortar el botón
-              (`-right-3.5`). Colapsado: superficie sólida de ancho de riel
-              (`w-18`) que se expande a `w-60` por hover/foco, animando el ancho
-              —de modo que el botón anclado se desliza junto con la expansión. */}
-          <div
-            className={cn(
-              "relative flex flex-col gap-3 overflow-visible",
-              collapsed && [
-                "group/flyout z-40 w-18 rounded-2xl border bg-background p-2 shadow-sm",
-                "transition-[width,box-shadow] duration-200 ease-out",
-              ],
-              collapsed &&
-                !suppressHover && [
-                  "hover:w-60 hover:shadow-xl focus-within:w-60 focus-within:shadow-xl",
-                ],
-            )}
-          >
-            <CollapseToggle
-              collapsed={collapsed}
-              onCollapse={() => setSuppressHover(true)}
-            />
+        {/* Panel navy del sidebar (lenguaje del mockup): superficie oscura con
+            GRADIENTE azul (más vivo arriba → navy profundo abajo) en AMBOS
+            modos. Su borde derecho lleva la esquina redondeada (`rounded-r-3xl`)
+            tanto EXPANDIDO como en el flyout COLAPSADO, para que ambos estados
+            compartan el mismo diseño de panel. */}
+        <div
+          className={cn(
+            "relative flex h-full flex-col gap-4 overflow-visible rounded-r-3xl p-4 shadow-lg shadow-blue-950/10 ring-1 ring-white/5",
+            // Gradiente vivo de la referencia: azul brillante ARRIBA → navy
+            // profundo ABAJO, con un punto medio explícito para que el degradado
+            // sea claramente perceptible (no un casi-plano). Mismo en ambos temas.
+            "bg-sidebar bg-gradient-to-b from-blue-900 from-0% via-blue-900 via-45% to-blue-900 to-100% dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 text-sidebar-foreground",
+            // Riel minimizado: ancho fijo de iconos, SIN flyout-on-hover (no se
+            // expande al pasar el cursor; las etiquetas siguen accesibles vía
+            // `title`/`aria-label`).
+            collapsed && "absolute inset-y-0 left-0 z-40 w-18 p-2",
+          )}
+        >
+          <CollapseToggle
+            collapsed={collapsed}
+            onCollapse={() => setSuppressHover(true)}
+          />
+          <SidebarLogo collapsed={collapsed} />
+          {/* La navegación toma el alto disponible y hace scroll propio si no
+              entra; así "Salir" queda siempre anclado al pie. */}
+          <div className="-mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
             <SidebarNav
               sections={sections}
               collapsed={collapsed}
               expandOnHover={collapsed}
               suppressHover={suppressHover}
+              programTree={
+                programs && (
+                  <ProgramTree
+                    programs={programs}
+                    moduleHrefBase={moduleHrefBase}
+                    // En escritorio el riel NO se ensancha por hover (memoria del
+                    // sidebar): colapsado = riel puro → solo el icono con tooltip.
+                    railOnly={collapsed}
+                    onNavigate={onTreeNavigate}
+                  />
+                )
+              }
             />
           </div>
+          {/* "Salir" al pie del sidebar (lenguaje del mockup). En riel se reduce
+              a un icono centrado; con flyout, la etiqueta se revela por hover. */}
+          {logout && (
+            <SidebarLogout collapsed={collapsed} logout={logout} />
+          )}
         </div>
       </aside>
 
@@ -742,24 +1349,77 @@ export function DashboardSidebar({ sections }: { sections: NavSection[] }) {
             onClick={() => setMobileOpen(false)}
             className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[80%] flex-col gap-4 overflow-y-auto border-r bg-background p-5 shadow-xl">
-            <div className="flex items-center justify-between">
-              <span className="font-heading text-sm font-semibold tracking-tight">
-                Certificate<span className="text-amber-500"> · Panel</span>
-              </span>
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[80%] flex-col gap-4 bg-sidebar bg-gradient-to-b from-blue-900 from-0% via-blue-900 via-45% to-blue-900 to-100% dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 p-5 text-sidebar-foreground shadow-xl">
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                href="/dashboard"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Certificate · Plataforma — ir al inicio del panel"
+                className="flex items-center gap-3 rounded-full py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+              >
+                {/* Blob blanco con el wordmark de Certificate en azul de marca. */}
+                <span
+                  className="flex h-11 shrink-0 items-center justify-center rounded-full bg-white px-3.5 font-heading text-lg font-bold tracking-tight text-primary dark:text-blue-950 shadow-md shadow-blue-950/25 ring-1 ring-white/60"
+                  aria-hidden="true"
+                >
+                  Certificate
+                </span>
+                <span className="flex flex-col text-right leading-tight">
+                  <span className="text-[0.7rem] font-semibold tracking-wide text-white/55">
+                    v 1.0.0
+                  </span>
+                  <span className="text-[0.65rem] font-medium tracking-wide text-white/35">
+                    2025
+                  </span>
+                </span>
+              </Link>
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Cerrar menú de navegación"
-                className="inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-sidebar-foreground/90 transition-colors hover:bg-white/10 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
               >
                 <X className="size-5" />
               </button>
             </div>
-            <SidebarNav sections={sections} />
+            {/* Nav scrolleable; "Salir" anclado al pie del drawer. */}
+            <div className="-mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
+              <SidebarNav
+                sections={sections}
+                programTree={
+                  programs && (
+                    <ProgramTree
+                      programs={programs}
+                      moduleHrefBase={moduleHrefBase}
+                      railOnly={false}
+                      onNavigate={onTreeNavigate}
+                    />
+                  )
+                }
+              />
+            </div>
+            {logout && (
+              <form
+                action={logout}
+                className="mt-1 border-t border-white/10 pt-3"
+              >
+                <button
+                  type="submit"
+                  className="group flex w-full items-center gap-3 rounded-full py-1 pl-1 pr-4 text-sm font-medium text-sidebar-foreground/90 transition-colors hover:bg-white/[0.07] hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden="true">
+                    <LogOut
+                      className="size-[1.15rem] shrink-0 text-sidebar-foreground/90 transition-colors group-hover:text-sidebar-foreground"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span className="truncate">Salir</span>
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
-    </>
+    </TooltipProvider>
   );
 }

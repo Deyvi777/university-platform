@@ -85,7 +85,7 @@ export function UserForm({ user }: { user?: AdminUser }) {
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      className="max-w-2xl space-y-6 rounded-xl border bg-card p-6"
+      className="max-w-2xl space-y-6 rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none"
     >
       {formError && (
         <div
@@ -200,6 +200,7 @@ export function UserForm({ user }: { user?: AdminUser }) {
           name="role"
           render={({ field }) => (
             <Select
+              items={ROLE_OPTIONS}
               value={field.value}
               onValueChange={(value) => field.onChange(value)}
             >

@@ -74,7 +74,7 @@ export function ProgramForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       {/* Datos generales */}
-      <section className="rounded-xl border bg-card p-6">
+      <section className="rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
         <h2 className="text-lg font-semibold">Datos generales</h2>
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -184,7 +184,7 @@ export function ProgramForm({
       </section>
 
       {/* Requisitos */}
-      <section className="rounded-xl border bg-card p-6">
+      <section className="rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Requisitos</h2>
           <Button
@@ -219,7 +219,7 @@ export function ProgramForm({
       </section>
 
       {/* Malla académica */}
-      <section className="rounded-xl border bg-card p-6">
+      <section className="rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Malla académica</h2>
           <Button
@@ -262,7 +262,7 @@ export function ProgramForm({
       </section>
 
       {/* Plantel docente */}
-      <section className="rounded-xl border bg-card p-6">
+      <section className="rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Plantel docente</h2>
           <Button
@@ -318,7 +318,7 @@ export function ProgramForm({
       </section>
 
       {/* Inversión y publicación */}
-      <section className="rounded-xl border bg-card p-6">
+      <section className="rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
         <h2 className="text-lg font-semibold">Inversión y publicación</h2>
         <div className="mt-4 grid gap-5 sm:grid-cols-3">
           <div>

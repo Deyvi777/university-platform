@@ -7,7 +7,7 @@ export default async function NuevaCategoriaPage() {
   await requireAdmin();
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="w-full">
       <Link
         href="/dashboard/categorias"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

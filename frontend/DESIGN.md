@@ -2,18 +2,19 @@
 
 Guía de diseño de **Certificate** (escuela de postgrado en Bolivia; todo el copy en **español / es-BO**). El proyecto tiene **dos lenguajes de diseño deliberadamente distintos**, según la audiencia y el propósito de cada superficie:
 
-|                      | **Parte 1 · Landing** (público / marketing)        | **Parte 2 · Plataforma educativa** (autenticado / operativo) |
-| -------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
-| Propósito            | Persuadir, comunicar prestigio, captar interesados | Operar: gestionar contenido, cursos, módulos, kardex         |
-| Tema                 | **Oscuro** (`slate-950`/`slate-900`)               | **Claro** (tema shadcn `neutral`)                            |
-| Tono                 | Dramático, editorial, espacioso                    | Funcional, sobrio, denso en datos pero legible               |
-| Acento institucional | `amber-400`                                        | `amber-500`                                                  |
-| Tipografía           | Geist Sans, titulares grandes                      | Geist Sans, jerarquía compacta                               |
-| Componentes          | Elementos nativos estilizados a mano               | **shadcn/ui**                                                |
-| Rutas                | `/`, `/programas/[slug]`                           | `/login`, `/dashboard/*`                                     |
-| Rige                 | Esta guía (Parte 1)                                | Esta guía (Parte 2) **+ skill `ui-educativa`**               |
+|                      | **Parte 1 · Landing** (público / marketing)            | **Parte 2 · Plataforma educativa** (autenticado / operativo) |
+| -------------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
+| Propósito            | Persuadir, comunicar prestigio, captar interesados     | Operar: gestionar contenido, cursos, módulos, kardex         |
+| Tema                 | **Oscuro** (`slate-950`/`slate-900`)                   | **Claro** (tema shadcn `neutral`)                            |
+| Tono                 | Dramático, editorial, espacioso                        | Funcional, sobrio, denso en datos pero legible               |
+| Acento institucional | `amber-400`                                            | `amber-500`                                                  |
+| Tema por defecto     | —                                                      | **Oscuro (navy)** vía `next-themes` + toggle claro/oscuro    |
+| Tipografía           | Open Sans (cuerpo) + Merriweather (titulares), grandes | Open Sans + Merriweather, jerarquía compacta                 |
+| Componentes          | Elementos nativos estilizados a mano                   | **shadcn/ui**                                                |
+| Rutas                | `/`, `/programas/[slug]`                               | `/login`, `/dashboard/*`                                     |
+| Rige                 | Esta guía (Parte 1)                                    | Esta guía (Parte 2) **+ skill `ui-educativa`**               |
 
-**Lo compartido por ambos mundos:** la marca (Certificate), el idioma (es-BO), la fuente (**Geist Sans**, `--font-geist-sans`) y el **acento ámbar institucional** usado con moderación. El **logo blanco** (`public/landing/logo.webp`) solo funciona sobre fondo oscuro en los dos — nunca sobre claro. **No mezclar los dos temas dentro de una misma pantalla.** El login (`/login`) es la pantalla puente y usa elementos de ambos (ver Parte 2).
+**Lo compartido por ambos mundos:** la marca (Certificate), el idioma (es-BO), la familia tipográfica (**Open Sans** para el cuerpo vía `--font-sans` y **Merriweather** para los titulares vía `--font-heading`; `Geist Mono` solo para datos/código — ver `layout.tsx`) y el **acento ámbar institucional** usado con moderación. El **logo blanco** (`public/landing/logo.webp`) solo funciona sobre fondo oscuro en los dos — nunca sobre claro. **No mezclar los dos temas dentro de una misma pantalla.** El login (`/login`) es la pantalla puente y usa elementos de ambos (ver Parte 2).
 
 ---
 
@@ -42,7 +43,7 @@ El ámbar se usa con moderación: un highlight en el titular, el CTA primario y 
 
 ## Tipografía
 
-- Fuente: **Geist Sans** (variable `--font-geist-sans`, ya configurada en `layout.tsx`); `Geist Mono` solo para código/datos si hiciera falta.
+- Fuentes (configuradas en `layout.tsx`): **Open Sans** para el cuerpo (variable `--font-sans`) y **Merriweather** para los titulares (variable `--font-heading`, aplicada a `h1`–`h6` en `globals.css`); `Geist Mono` (`--font-geist-mono`) solo para código/datos si hiciera falta.
 - Titulares: `font-bold tracking-tight leading-tight`, escala responsiva `text-4xl sm:text-5xl lg:text-6xl`.
 - Párrafos: `text-lg leading-8`, ancho máximo de lectura `max-w-xl`.
 - Labels/metadata: `text-sm` (o `text-xs sm:text-sm` en grids angostos).
@@ -115,51 +116,109 @@ El ámbar se usa con moderación: un highlight en el titular, el CTA primario y 
 
 # Parte 2 — Plataforma educativa (áreas autenticadas)
 
-Tema **claro**, funcional. Aplica a `/login` y a todo el panel `src/app/dashboard/` (gestión de contenido hoy; cursos, módulos y kardex a futuro). El **UI/UX detallado** — metodología, matriz de estados, formularios, tablas, vistas académicas, checklist de calidad — se rige por la skill de proyecto **`ui-educativa`** y el agente `UI/UX-designer`. Esta parte fija la **identidad visual y los patrones base** del área interna.
+Panel `src/app/dashboard/` funcional (gestión de contenido + **capa académica completa**: cursos, módulos, contenido, entregas, calificación y kárdex), con **dos temas** — claro y oscuro (navy) — gobernados por `next-themes`. **El modo oscuro (navy) es el predeterminado** (ver "Tema y modo oscuro" abajo); el usuario puede alternar al claro con el `ThemeToggle` del topbar y su elección se persiste. El **login** (`/login`) es la **pantalla puente**: no usa los tokens de shadcn sino una superficie **navy sobre-imagen** fija (ver más abajo). El **UI/UX detallado** — metodología, matriz de estados, formularios, tablas, vistas académicas, checklist de calidad — se rige por la skill de proyecto **`ui-educativa`** y el agente `UI/UX-designer`. Esta parte fija la **identidad visual y los patrones base** del área interna.
 
 ## Identidad
 
 - Mismo tono sobrio y profesional de la marca, pero orientado a la **tarea**, no a la persuasión: claridad, escaneabilidad y densidad de datos legible (listas de programas, notas, kardex). Referencia mental: productos educativos serios (Canvas, Notion-for-edu).
-- **Tema claro por defecto** — mejor para lectura prolongada de datos académicos que el oscuro dramático de la landing.
-- El logo blanco sigue la regla global: solo sobre oscuro (por eso en el área interna aparece sobre pills/paneles **azul oscuro** `blue-950` (navy institucional `#172554`) puntuales, p. ej. el panel de marca del login). El **navy `blue-950` es el único fondo oscuro de la plataforma** — no usar `slate-950` (ese es el oscuro de la landing).
+- **Modo oscuro (navy) por defecto, con toggle a modo claro** — el panel soporta ambos temas vía `next-themes` (clase `.dark` en `<html>`); el oscuro navy es el predeterminado para usuarios nuevos y la preferencia se guarda en `localStorage`. Ambos temas comparten el mismo lenguaje de marca (navy + ámbar) y solo difieren en la paleta de superficies (ver "Tema y modo oscuro").
+- El logo blanco sigue la regla global: solo sobre oscuro (por eso en el área interna aparece sobre pills/paneles **azul oscuro** `blue-950` (navy institucional `#172554`) o sobre la imagen de fondo del login, p. ej. encima de la tarjeta glass del login). El **navy `blue-950` es el único fondo oscuro de la plataforma** — no usar `slate-950` (ese es el oscuro de la landing).
 
-## Paleta
+## Tema y modo oscuro
 
-Tema shadcn **`base-nova` / `neutral`** con CSS variables (tokens `oklch` en `src/app/globals.css`). Usar los **tokens semánticos**, no colores Tailwind crudos, salvo el acento ámbar.
+El panel es **claro/oscuro** vía `next-themes`. Integración (ver `src/components/providers/theme-provider.tsx`, montado en el root `layout.tsx` envolviendo a `QueryProvider` + `Toaster`):
 
-| Uso                                                         | Token / clase                                                                                                                                   |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fondo de página                                             | `bg-muted/30`                                                                                                                                   |
-| Superficies / tarjetas                                      | `bg-card` (header: `bg-background`) + `border` + `rounded-xl`                                                                                   |
-| Texto principal                                             | `text-foreground`                                                                                                                               |
-| Texto secundario / metadata                                 | `text-muted-foreground`                                                                                                                         |
-| Hover de nav / superficies                                  | `bg-muted`                                                                                                                                      |
-| **Superficie de marca oscura** (panel/pill con logo blanco) | **`bg-blue-950`** (navy institucional `#172554`) — único fondo oscuro del área interna; aloja el logo blanco + acentos ámbar. Nunca `slate-950` |
-| **Acento institucional**                                    | `amber-500` (hover `amber-400`); texto sobre ámbar `slate-950`                                                                                  |
-| Acción destructiva                                          | variante `destructive` de shadcn (`text-destructive`, `border-destructive/30`, `bg-destructive/10`)                                             |
+- `attribute="class"` → alterna la clase `.dark` en `<html>` (el selector que usan los tokens de shadcn, `@custom-variant dark` en `globals.css`).
+- `defaultTheme="dark"` + `enableSystem={false}` → **el modo oscuro (navy) es el predeterminado**, sin depender de la preferencia del SO. La elección del usuario se persiste en `localStorage` (lo hace next-themes) y sobreescribe el default en visitas posteriores.
+- `disableTransitionOnChange` → evita el "barrido" de transiciones de color al cambiar de tema.
+- El `<html>` del root layout lleva **`suppressHydrationWarning`** porque next-themes fija la clase del tema en el cliente antes de la hidratación (ver AGENTS.md).
 
-Mismo principio de moderación con el ámbar: CTA primario, highlights de marca (`Certificate · Panel`) e iconos puntuales — no teñir superficies enteras.
+**Toggle de tema** (`src/components/dashboard/theme-toggle.tsx`, client component, en el topbar): **píldora deslizante sol ⇄ luna**. Pista redondeada (gris claro en modo claro / navy `blue-950` en oscuro) con un `thumb` circular que se desliza con `transition-[transform,…]` y un _ease_ tipo "spring" (`cubic-bezier(0.34,1.56,0.64,1)`): claro → thumb a la izquierda, ámbar (`amber-500`) con icono SOL; oscuro → thumb a la derecha, azul (`blue-500`) con icono LUNA. Cross-fade + leve giro/escala de iconos. Es un `<button role="switch">` con `aria-checked` (true = oscuro), `aria-label` y foco visible ámbar; todas las transiciones se anulan con `motion-reduce:`. **Guard de hidratación**: usa `useTheme()` pero solo pinta el estado real una vez montado (`useMounted` con `useSyncExternalStore`, sin `useEffect`); antes muestra un placeholder del mismo tamaño para evitar mismatch SSR y CLS.
+
+> **Dos paletas, un mismo lenguaje.** El **modo claro** sigue la tabla de la sección "Paleta" (colores del mockup). El **modo oscuro** (bloque `.dark` de `globals.css`) es **navy** (hue ~265): `background` navy casi negro (`~#0a0f1d`), `card`/`popover` un punto más claros (`~#111a30`), `muted`/`secondary` para hovers/chips, `foreground` blanco frío, bordes blancos al ~12–18% con tinte azul; contraste AA verificado. **Ojo:** en oscuro `--primary` **no** es azul sino una superficie clara de alto contraste (texto navy encima) para que los botones sólidos resalten sobre el fondo navy. Prefiere siempre **tokens semánticos** para que el estilo aplique a ambos modos; usa `dark:` solo donde un color claro no deba "voltear" (p. ej. anular sombras: `dark:shadow-none`). **El sidebar es navy en AMBOS modos** y no voltea (ver Sidebar abajo).
+
+## Paleta — lenguaje "Certificate dashboard"
+
+El área interna usa el lenguaje de diseño **"Certificate dashboard"** (sintetizado del mockup educativo de referencia "EDUCATION2025"): **azul de marca vivo + sidebar navy en gradiente + tarjetas blancas muy redondeadas con sombra suave sobre un lienzo gris frío**. Tokens `oklch` en `src/app/globals.css` con un **hue azul ~258–262** (gemelo del hue navy del modo oscuro). Usar **tokens semánticos**, no colores Tailwind crudos, salvo el acento ámbar y las superficies de marca navy.
+
+> **Dos paletas, un mismo lenguaje:** el **modo claro** sigue la tabla de abajo (colores del mockup); el **modo oscuro** conserva la paleta **navy** ya implementada en el bloque `.dark` de `globals.css`, **intacta**. Prefiere siempre tokens semánticos para que el estilo aplique a ambos modos automáticamente; usa `dark:` solo donde un color claro no deba "voltear". **No** reintroducir la paleta grayscale `neutral` anterior.
+
+| Uso                                                         | Token / clase                                                                                                                                                                                                                      |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lienzo de página                                            | `bg-background` — gris frío `#EEF1F5` (no blanco puro)                                                                                                                                                                             |
+| Superficies / tarjetas                                      | `bg-card` (blanco) + `border` + **`rounded-2xl`** + sombra suave `shadow-sm shadow-blue-950/[0.04] dark:shadow-none`                                                                                                               |
+| Texto principal / headings                                  | `text-foreground` — navy oscuro `#102A4C`                                                                                                                                                                                          |
+| Texto secundario / metadata                                 | `text-muted-foreground` — gris azulado medio                                                                                                                                                                                       |
+| **Acción primaria / pills activos / banners / progreso**    | **`bg-primary`** — azul de marca `#2563EB` (texto `text-primary-foreground` blanco)                                                                                                                                                |
+| Hover de nav / chips / fondos sutiles                       | `bg-muted` / `bg-secondary` / `bg-accent` — gris azulado muy claro                                                                                                                                                                 |
+| Bordes / inputs                                             | `border` / `border-input` — gris azulado tenue `#DDE3EC`                                                                                                                                                                           |
+| **Sidebar (navy SIEMPRE, claro y oscuro)**                  | tokens `--sidebar*` + **color plano** (no gradiente perceptible): modo claro `blue-900`, modo oscuro `slate-950` (`dark:`); activo = **píldora translúcida** `bg-white/15` con **badge circular blanco** e icono en `text-primary` |
+| **Superficie de marca oscura** (panel/pill con logo blanco) | **`bg-blue-950`** (navy institucional `#172554`) — único fondo oscuro del área interna; aloja el logo blanco + acentos ámbar. Nunca `slate-950`                                                                                    |
+| **Acento institucional**                                    | `amber-500` sobre claro (hover `amber-400`) / `amber-300` sobre navy; texto sobre ámbar `slate-950`                                                                                                                                |
+| Acción destructiva                                          | variante `destructive` de shadcn (`text-destructive`, `border-destructive/30`, `bg-destructive/10`)                                                                                                                                |
+
+Mismo principio de moderación con el ámbar: CTA primario, highlights de marca (`Certificate · Plataforma`) e iconos puntuales — no teñir superficies enteras de azul ni de ámbar.
+
+**Radios y sombras del lenguaje:** `--radius: 0.75rem`. Tarjetas/superficies de sección y wrappers de tabla = **`rounded-2xl`**; paneles de marca (sidebar, perfil) = `rounded-3xl`; botones-píldora, filtros y barras de búsqueda = **`rounded-full`**; chips de icono = `rounded-xl`. Sombras siempre **suaves y teñidas de navy** (`shadow-sm shadow-blue-950/[0.04]`), anuladas en oscuro (`dark:shadow-none`, basta el `ring`).
+
+### Estructura del layout del dashboard
+
+`dashboard/layout.tsx` arma **dos columnas en un flex raíz** (`flex min-h-screen bg-background`):
+
+- **Izquierda:** el **sidebar navy a toda la altura de la pantalla** (`<aside sticky top-0 h-screen>`), **hermano** de la columna de contenido (no la envuelve). Por eso el topbar queda confinado a la derecha y nunca se extiende sobre el sidebar.
+- **Derecha:** la **columna de contenido** (`DashboardShell`, `flex-1 flex-col`, client component) que contiene **arriba el topbar `sticky`** (confinado a este ancho) y **debajo** un grid scrolleable `main | panel de perfil` (la columna del panel de perfil solo aparece en `xl+` y si `profileOpen`).
+
+### Sidebar (`dashboard-sidebar.tsx`)
+
+- **Panel navy en AMBOS temas** (no voltea con el tema), **color plano** (sin gradiente perceptible): modo claro `blue-900` sólido, modo oscuro `slate-950` (`dark:`). Esquina derecha redondeada `rounded-r-3xl` tanto expandido como en el riel; `shadow-lg shadow-blue-950/10 ring-1 ring-white/5`.
+- **Marca:** el **logo de Certificate** (`/landing/logo.webp`, blanco, vía `next/image`) va **directo sobre el navy** (`SidebarLogo`), reemplazando la antigua píldora/wordmark blanca. (El overlay móvil sí conserva un blob blanco con el wordmark "Certificate".)
+- **Ítem activo:** **píldora translúcida** `bg-white/15` (`ring-1 ring-white/15`) con **badge circular blanco** (`size-9`) que aloja el icono en **azul de marca** (`text-primary` en claro; **`dark:text-blue-950`** en oscuro, porque en el tema oscuro `--primary` es casi blanco y se perdería sobre el badge blanco) — el detalle clave del mockup. **Inactivos:** icono + etiqueta en blanco con buen brillo (`text-sidebar-foreground/90`), hover translúcido sutil (`hover:bg-white/[0.07]`). Encabezados de sección como botones-acordeón en blanco atenuado uppercase.
+- **Estados:** expandido (`w-60`) / **riel minimizado de ancho fijo (`w-18`) SIN expansión al hover** (el panel queda anclado a `w-18`; ya no se ensancha al pasar el cursor) / drawer móvil (overlay con secciones completas). Persistencia de colapso del sidebar y del panel de perfil en `localStorage` vía `useSyncExternalStore` (sin hydration mismatch).
+- **Tooltips del riel:** en estado minimizado, **al pasar el mouse sobre el icono se muestra un `Tooltip` con el nombre de la opción** (a la derecha, `side="right"`). Usa `components/ui/tooltip.tsx` basado en **Base UI** (`@base-ui/react`), envuelto en `TooltipProvider`; Base UI **portala el tooltip al `body`**, evitando que el scroll del riel lo recorte.
+
+**Topbar:** `bg-card/85 backdrop-blur-md`, marca **"Plataforma · Virtual"** (`· Virtual` en azul: `text-blue-800 dark:text-sky-300`). A la derecha: **píldora de usuario** (avatar de iniciales `bg-blue-950 text-amber-300` + correo, `md+`), el **campanario de notificaciones** (`NotificationBell`, solo PROFESSOR/STUDENT), el **`ThemeToggle`** deslizante, el toggle del panel de perfil (`xl+`) y "Salir" compacto (`variant="destructive"`).
 
 ## Tipografía
 
-- Misma **Geist Sans** (compartida con la landing), pero con **jerarquía compacta** (no titulares gigantes):
-  - Título de página: `text-2xl font-bold tracking-tight`.
+- Mismas **Open Sans** (cuerpo) + **Merriweather** (titulares) compartidas con la landing, pero con **jerarquía compacta** (no titulares gigantes):
+  - Título de página: `text-2xl font-bold tracking-tight` (usa `font-heading` = Merriweather).
   - Subtítulo/descripción: `text-muted-foreground` (`text-sm`/`text-base`).
   - Labels y metadata: `text-sm`.
 - Números (notas, montos, conteos, créditos): `tabular-nums`, alineados a la derecha en tablas.
 
 ## Layout y navegación
 
-- **Header horizontal** superior (`border-b bg-background`, `h-16`): marca **"Certificate · Panel"** (`· Panel` en `text-amber-500`), `nav` de items `icono lucide + label` (`text-muted-foreground`, hover `bg-muted hover:text-foreground`), a la derecha el email del usuario + botón **"Salir"** (`variant="outline" size="sm"`, server action `signOut({ redirectTo:"/login" })`). Ver `src/app/dashboard/layout.tsx`.
-- **Contenedor**: `mx-auto max-w-6xl px-6`; `main` con `py-8`. (Más angosto que el `max-w-7xl` de la landing: el contenido interno es funcional, no de display.)
-- La nav se oculta bajo `sm` (`hidden sm:flex`). **La nav es role-aware**: los items salen de `navItemsForRole(role)` en `dashboard/nav-items.ts` (fuente única de verdad), consumido por `layout.tsx`. Cada sección nueva agrega su item ahí, gateado por rol — no muestres acciones que el rol no puede ejecutar.
+- **Layout de dos columnas** (`dashboard/layout.tsx`): **sidebar navy full-height a la izquierda** + **columna de contenido a la derecha** (topbar `sticky` + grid `main | panel de perfil`). La estructura, el sidebar y el topbar están descritos arriba en **"Estructura del layout del dashboard"**, **"Sidebar"** y **"Topbar"**. El topbar reemplaza al antiguo header horizontal `h-16` con nav inline.
+- **Contenedor del contenido (ancho completo)**: el `<main>` **ya no centra con `max-w`**; el contenido **ocupa todo el ancho** de la columna, con solo el padding lateral del shell (`px-3 sm:px-4 lg:px-6`, `py-6`) como respiro. Las páginas usan `w-full` en su contenedor raíz (no `mx-auto max-w-*`), así tablas, libreta de calificaciones, aula y listados aprovechan el ancho. **Excepción:** formularios de una sola columna conservan un `max-w` propio pero **alineados a la izquierda** (sin `mx-auto`, para no dejar gutters centrados); los párrafos de introducción mantienen `max-w-*` solo por longitud de línea legible.
+- **La nav es role-aware**: las **secciones** (agrupadas, con encabezado) salen de `navSectionsForRole(role)` en `dashboard/nav-items.ts` (fuente única de verdad), consumidas por `layout.tsx` → `DashboardSidebar`. Cada sección nueva agrega su item ahí, gateado por rol — no muestres acciones que el rol no puede ejecutar.
 
 ## Home del panel (role-aware)
 
 La home `/dashboard` (`page.tsx`) autentica con `requireUser()` (sin gate de rol) y **ramifica por `session.user.role`**:
 
-- **ADMIN** → tarjetas-enlace agrupadas por secciones con encabezado (`HomeSection`): **"Personas"** (Usuarios) y **"Gestión del sitio · Landing"** (Programas, Categorías, Aliados, Redes sociales). Cada tarjeta: icono lucide en cuadro de **tinte ámbar** (`bg-amber-500/10 ring-amber-500/20`) — peso visual sin teñir la tarjeta entera —, título, descripción, conteo opcional (`tabular-nums`) y flecha que entra en hover, con `focus-visible:ring` ámbar.
-- **PROFESSOR / STUDENT** → estado vacío **intencional** (`coming-soon-home.tsx`): saludo con su nombre, badge "Próximamente", icono `Sparkles`, y chips de lo que llegará (docente: cursos/módulos/kárdex; estudiante: inscripciones/kárdex/calificaciones). **Sin CTA falso.** Cuando esas pantallas existan, se añade su item a `nav-items.ts` y se reemplaza el branch.
+- **ADMIN** → tarjetas-enlace agrupadas por secciones con encabezado (`HomeSection`): **"Académico"** (Programas/cursos), **"Personas"** (Usuarios, Enviar aviso) y **"Gestión del sitio · Landing"** (Programas, Categorías, Aliados, Redes sociales). Cada tarjeta usa un **tinte pastel** por tono (`TINTS`: sky/violet/emerald/rose/amber) — el ámbar reservado a Usuarios/acción —, con título, descripción, conteo opcional (`tabular-nums`) y flecha que entra en hover.
+- **PROFESSOR / STUDENT** → **sus cursos asignados** (`MyCoursesHome` → grid de `CourseCard`, desde `GET /me/courses`): saludo con su nombre + sección "Mis cursos". Si no tiene ninguno, estado vacío específico por rol. La nav añade **Kárdex** (solo STUDENT) y **Notificaciones** (ambos).
+
+### Tarjeta de curso (`CourseCard`) y detalle
+
+- **`CourseCard`** (`src/components/dashboard/course-card.tsx`): `<Link>` (estudiante → `/dashboard/mis-programas`; docente → `/dashboard/mis-cursos/[id]`). **Banda navy en degradado** (`from-blue-900 to-blue-950` / `dark:from-slate-900`) con código + **badge de estado** del curso por color (En curso `emerald` / Borrador `amber` / Concluido `sky` / Archivado), cuerpo con nombre, modalidad, nº de módulos y fecha (iconos lucide), hover de elevación. Para docentes, chips de los módulos a su cargo.
+- **Detalle del curso** (`/dashboard/mis-cursos/[id]`): cabecera con la misma banda navy + meta; módulos como **acordeones `<details>` nativos** (sin JS) que muestran docentes y el **conteo de contenidos** (`contentCount`), con un acceso: estudiante → **"Entrar al aula"** (`/dashboard/aula/[moduleId]`); docente → **"Gestionar contenido"** (`/dashboard/modulos/[moduleId]`). El contenido en sí (temas/videos/materiales/actividades) ya **no** se lista aquí: vive en el aula. **El estudiante no ve módulos en borrador** (los filtra el backend).
+- **Árbol de "Programas" en el sidebar** (PROFESSOR/STUDENT): la sección **🎓 PROGRAMAS** despliega un submenú por programa asignado, y cada programa despliega sus **módulos como enlaces, etiquetados "Módulo 1", "Módulo 2"…** (por `order`, con el nombre real en `title`). El nombre del programa es un enlace a su detalle (`/dashboard/mis-cursos/[id]`) y un chevron aparte abre/cierra los módulos (toggle autoritativo persistido en `localStorage`; el programa activo arranca abierto pero se puede cerrar). El enlace **"Ver todos"** del encabezado es **solo para estudiantes**. Los módulos del estudiante enlazan al aula; los del docente, a la gestión.
+- **Aula / reproductor** (`/dashboard/aula/[moduleId]`, estudiante): vista de "aula" a **dos columnas**. Columna principal = panel que renderiza el contenido seleccionado **según su tipo** (`LessonVideo` con skin propio sobre YouTube/Vimeo, texto enriquecido para Tema, visor de archivo/enlace para Material, `StudentActivity` para Actividad). Columna lateral = tarjeta con pestañas **Temario** (lista de contenidos + barra de progreso + completar), **Notas** (sus calificaciones: nota por actividad + nota del módulo + observación del docente) y **Apuntes** (notas personales privadas). La selección de contenido es estado de cliente.
+
+### Centro de notificaciones
+
+- **Campanario** (`NotificationBell`, topbar, PROFESSOR/STUDENT): botón circular navy (`bg-blue-950`) con campana y **badge ámbar** de no leídas; popover (Base UI, ver AGENTS.md) con las 8 recientes + "Ver todas". **Bandeja** (`/dashboard/notificaciones`, estilo Gmail) y **detalle** (`/dashboard/notificaciones/[id]`, abrir = marcar leída). Icono por tipo = sobre `Mail` con **tinte distinto por tipo** (inscripción sky, asignación violet, aviso amber, calificación emerald, nueva actividad violet); el cuerpo resalta en **negrita** lo que va entre `«…»` (`NotificationBody`). Tipos/tintes en `src/lib/notifications-meta.ts`.
+- **Admin → Enviar aviso** (`/dashboard/notificaciones/enviar`): formulario de audiencia (Todos / Docentes / Estudiantes / Seleccionar con multi-select buscable) + mensaje; debajo, **historial** filtrable por audiencia y texto + paginación (manejado por URL, server-side).
+
+### Vistas académicas del docente y kárdex
+
+- **Gestión de módulo** (`/dashboard/modulos/[moduleId]`, docente): `ModuleWorkspace` con dos pestañas:
+  - **Contenido** (`ContentManager`): el temario es **una sola lista ordenable** de contenidos (no secciones separadas). Botón **"+ Agregar contenido"** → **modal** selector de tipo (Tema / Video / Material / Actividad); la **configuración de cada contenido (crear y editar) se abre en un modal** (`Dialog` Base UI), con el editor **Tiptap** para los Temas. Reordenamiento por **drag-and-drop** (`@dnd-kit`); cada contenido con badge publicado/borrador (visible por defecto), edición y borrado (`DeleteButton`).
+  - **Calificaciones** (`Gradebook`): tabla **estudiantes × actividades** + columna de **nota del módulo** (calculada) + **observación** editable por estudiante (icono lápiz, guarda en `ModuleGrade.observations`, no afecta la nota calculada). Botón **"+ Nueva calificación"** (modal: nombre, puntaje máx., peso) crea una **actividad presencial** (interna `isOffline`, sin entrega del estudiante): aparece como columna donde el docente **escribe el puntaje de cada estudiante directo en la celda**; pondera en la nota igual que cualquier actividad. Cada columna así creada se puede **editar (icono lápiz → modal; solo nombre y peso, no el puntaje máximo)** o eliminar. Estas actividades **no aparecen en el temario del aula**, solo en las "Notas" del estudiante.
+- **Calificación de una actividad con entrega** (`/dashboard/actividades/[activityId]`, docente): lista de estudiantes inscritos con su entrega (texto/archivo descargable), campo **nota /máximo** + retroalimentación por estudiante; guardar recalcula la nota ponderada del módulo.
+- **Estado del módulo** (panel admin, `/dashboard/cursos/[id]`): cada módulo tiene un **control segmentado Activo / Concluido / Borrador** (`ModuleStatusControl`) que guarda al instante. Los módulos nuevos nacen **Activo**; un módulo en **Borrador no es visible para el estudiante** (ni en sidebar, detalle, aula o kárdex).
+- **Kárdex** (`/dashboard/kardex`, solo STUDENT): por curso, tarjeta con **banda navy** (código, nombre, estado) + estadísticas (Promedio / Aprobados / Calificados en píldoras ámbar) y lista de módulos con nota + badge de estado (En curso / Aprobado / Reprobado / Sin nota). Botón **"Descargar PDF"** → `/kardex-pdf` (vista imprimible clara fuera del layout, ver AGENTS.md).
 
 ## Sección "Usuarios" (`/dashboard/usuarios`, solo ADMIN)
 
@@ -171,7 +230,9 @@ Gestión de cuentas de docentes y estudiantes (backend `/admin/users`). **Listad
 - **Tarjetas**: `rounded-xl border bg-card p-6`; tarjetas-enlace (home del panel) con `hover:border-amber-400` + flecha que aparece en hover.
 - **Formularios**: shadcn `Form`/`Input`/`Label` + esquema **Zod** en `*-schema.ts` que **espeja el DTO Zod del backend**; errores inline con `aria-invalid`/`aria-describedby`; submit con estado `pending` (deshabilitado + `Loader2`). Imágenes con `src/components/admin/image-upload-field.tsx` (guarda ruta relativa `/files/...`).
 - **Tablas / listas**: shadcn `Table`; jerarquía de columnas (identidad → estado como **badge** semántico → acciones al final con `dropdown-menu`); `AlertDialog` para acciones destructivas, mostrando con gracia el `409 Conflict` del backend (p. ej. borrar categoría en uso).
-- Reusar siempre primitivos de shadcn (`src/components/ui/`); añadir los que falten con `pnpm dlx shadcn@latest add <name>`. **No** introducir otro UI kit ni el lenguaje glass-oscuro de la landing.
+- **Modales (`Dialog`)**: `src/components/ui/dialog.tsx`, basado en **Base UI** (`@base-ui/react/dialog`, **no Radix** — igual que `alert-dialog`/`tooltip`/`popover`): backdrop con blur, popup centrado `rounded-2xl`, cierre por X/Escape/backdrop. Úsalo para flujos de configuración (selector y formularios de contenido del docente, "Nueva calificación"/editar en la libreta). Para contenido alto (editor Tiptap) aplica `max-h-[85vh] overflow-y-auto` en el `DialogContent` del consumidor.
+- **Texto enriquecido**: el editor de Temas es **Tiptap** (`src/components/dashboard/rich-text-editor.tsx`, emite HTML); para mostrarlo usa `RichTextContent` (`rich-text-content.tsx`) con la clase **`.richtext`** (estilos de títulos/listas/citas/enlaces definidos en `globals.css`, comparte estilos con `.tiptap`).
+- Reusar siempre primitivos de shadcn (`src/components/ui/`); añadir los que falten con `pnpm dlx shadcn@latest add <name>` (overlays se prefieren **Base UI**, ver arriba). **No** introducir otro UI kit ni el lenguaje glass-oscuro de la landing.
 
 ## Estados (matriz obligatoria)
 
@@ -179,7 +240,8 @@ Ninguna pantalla interna es solo "happy path". Manejar explícitamente: **cargan
 
 ## Login (`/login`) — pantalla puente
 
-- Layout **split-panel**: panel de marca **izquierdo** **azul oscuro `bg-blue-950`** (navy institucional `#172554`; único sitio válido para el **logo blanco** + propuesta de valor + bullets con iconos `amber-400`) y panel **derecho** claro (`bg-muted/30`) con el formulario. En `<lg` el panel de marca se oculta y se muestra un logo compacto sobre pill `bg-blue-950`. El par **navy + ámbar** es el estándar cromático de toda superficie oscura de la plataforma: el ámbar, al ser complementario del azul, resalta mejor sobre el navy que sobre el casi-negro `slate-950` (reservado a la landing). Ver `src/app/login/page.tsx`.
+- Layout **imagen a pantalla completa + tarjeta glass centrada**: una `<Image fill>` de fondo (`/landing/image-login.webp`) cubre el viewport, con un overlay/gradiente navy tenue (`from-blue-950/25 via-blue-950/15 to-blue-950/35`) que da contraste y profundidad sin tapar la foto. El formulario va **centrado vertical y horizontalmente** (`max-w-sm`) dentro de una **tarjeta glass** translúcida navy (`rounded-2xl border border-white/20 bg-blue-950/10 backdrop-blur-lg shadow-2xl`) que deja entrever la imagen. Encima de la tarjeta, el **logo blanco** centrado (`h-14 sm:h-16`, `drop-shadow-lg`, enlazado a `/` con `aria-label` y ring de foco ámbar) — único sitio válido para el logo blanco en el área interna. Ver `src/app/login/page.tsx`.
+- **Contenido en tema "sobre-imagen"** (no el tema claro de shadcn): título/labels en blanco (`text-white`, `text-white/90`), inputs translúcidos (`bg-white/10 border-white/20`, texto blanco, `placeholder:text-white/50`) con **foco ámbar** (`focus-visible:ring-amber-300/40`), checkbox "Recordarme" y botón "Ingresar" con **acento ámbar institucional** (`bg-amber-500`), y errores en rojo claro (`text-red-200`, banner `bg-red-500/15`). El **footer de copyright** va sobre la imagen, bajo la tarjeta; el texto "¿Problemas para ingresar?" vive **dentro** de la tarjeta. El par **navy + ámbar** es el estándar cromático de toda superficie oscura de la plataforma: el ámbar, al ser complementario del azul, resalta mejor sobre el navy que sobre el casi-negro `slate-950` (reservado a la landing). Ver `src/app/login/login-form.tsx`.
 - **Estado "sesión expirada"** (`/login?expired=1`): banner `role="status"` ámbar ("Tu sesión expiró. Inicia sesión nuevamente para continuar."). El flujo técnico que lo origina (Route Handler `signOut` que rompe el bucle de redirección por token vencido) está en `frontend/AGENTS.md` y CLAUDE.md.
 - El input de **correo es controlado** para sobrevivir al reset de `<form action>` de React 19 (re-sembrado desde la server action ante un intento fallido — ver AGENTS.md). Toggle de mostrar/ocultar contraseña con `aria-label`/`aria-pressed`. **"Recordarme"** controla la persistencia de la sesión: marcado → cookie persistente + token backend de 30 días (`JWT_REMEMBER_EXPIRES_IN`); sin marcar → cookie de sesión (se borra al cerrar el navegador) + token de 1 día. La server action `authenticate` rebaja la cookie a sesión-only cuando no se marca (ver `src/app/login/actions.ts`).
 

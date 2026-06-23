@@ -1,8 +1,12 @@
 import {
+  Bell,
+  BookOpen,
   Building2,
   GraduationCap,
   LayoutDashboard,
   Presentation,
+  ScrollText,
+  Send,
   Share2,
   ShieldCheck,
   Tags,
@@ -21,17 +25,22 @@ export type DashboardRole = "ADMIN" | "PROFESSOR" | "STUDENT";
 export type NavIcon =
   | "home"
   | "programs"
+  | "courses"
   | "categories"
   | "partners"
   | "users"
   | "social"
   | "admins"
   | "professors"
-  | "students";
+  | "students"
+  | "notifications"
+  | "send-notification"
+  | "kardex";
 
 export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   home: LayoutDashboard,
   programs: GraduationCap,
+  courses: BookOpen,
   categories: Tags,
   partners: Building2,
   users: Users,
@@ -39,6 +48,9 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   admins: ShieldCheck,
   professors: Presentation,
   students: GraduationCap,
+  notifications: Bell,
+  "send-notification": Send,
+  kardex: ScrollText,
 };
 
 export type NavItem = {
@@ -65,6 +77,28 @@ export type NavSection = {
 };
 
 /**
+ * Un módulo dentro del árbol de programas del sidebar (PROFESSOR/STUDENT).
+ * Forma **plana y serializable** (Server → Client): sin funciones ni
+ * componentes. El enlace concreto lo arma el sidebar combinando `moduleHrefBase`
+ * (derivado del rol en el layout) con el `id`.
+ */
+export type SidebarModule = {
+  id: string;
+  name: string;
+  order: number;
+};
+
+/**
+ * Un programa (curso) asignado, con sus módulos, para el árbol anidado del
+ * sidebar. Serializable (objetos planos), por la misma razón que `NavSection`.
+ */
+export type SidebarProgram = {
+  id: string;
+  name: string;
+  modules: SidebarModule[];
+};
+
+/**
  * Slug estable derivado del título de la sección. Es la clave compartida por (a)
  * el store de localStorage del acordeón (`dashboard:nav-section:<slug>`) y (b) los
  * `id`/`aria-controls`/`aria-labelledby` del encabezado-botón y su región de
@@ -87,17 +121,43 @@ const HOME_ITEM: NavItem = {
   icon: "home",
 };
 
+/** Item de notificaciones, visible para docentes y estudiantes. */
+const NOTIFICATIONS_ITEM: NavItem = {
+  href: "/dashboard/notificaciones",
+  label: "Notificaciones",
+  icon: "notifications",
+};
+
+/** Item de kárdex, solo para estudiantes. */
+const KARDEX_ITEM: NavItem = {
+  href: "/dashboard/kardex",
+  label: "Kárdex",
+  icon: "kardex",
+};
+
 /**
  * Secciones de navegación visibles para cada rol. ADMIN ve grupos con
- * encabezado (igual que la home); PROFESSOR y STUDENT solo ven "Inicio" por
- * ahora (sus funcionalidades llegarán pronto) — no se muestran acciones que el
- * rol no puede ejecutar.
+ * encabezado (igual que la home); PROFESSOR y STUDENT ven "Inicio",
+ * "Notificaciones" y (solo STUDENT) "Kárdex". El **árbol de programas** anidado
+ * (programa → módulos) NO vive aquí: lo renderiza el sidebar a partir de la prop
+ * `programs` (ver `dashboard-sidebar.tsx`), porque `NavSection` es plano.
  */
 export function navSectionsForRole(role: string | undefined): NavSection[] {
   if (role === "ADMIN") {
     return [
       // "Inicio" suelto, sin encabezado, arriba de las secciones.
       { items: [HOME_ITEM] },
+      {
+        title: "Académico",
+        icon: "courses",
+        items: [
+          {
+            href: "/dashboard/cursos",
+            label: "Programas",
+            icon: "courses",
+          },
+        ],
+      },
       {
         title: "Usuarios",
         icon: "users",
@@ -116,6 +176,11 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
             href: "/dashboard/usuarios?rol=estudiantes",
             label: "Estudiantes",
             icon: "students",
+          },
+          {
+            href: "/dashboard/notificaciones/enviar",
+            label: "Enviar aviso",
+            icon: "send-notification",
           },
         ],
       },
@@ -143,7 +208,17 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
       },
     ];
   }
-  return [{ items: [HOME_ITEM] }];
+  if (role === "STUDENT") {
+    // Dos grupos sin encabezado: "Inicio" arriba y el resto debajo. El sidebar
+    // inserta el árbol de "Programas" ENTRE ambos grupos (ver `DashboardSidebar`).
+    return [
+      { items: [HOME_ITEM] },
+      { items: [KARDEX_ITEM, NOTIFICATIONS_ITEM] },
+    ];
+  }
+  // PROFESSOR: "Inicio" arriba, "Notificaciones" debajo; el árbol de "Programas"
+  // se inserta entre ambos.
+  return [{ items: [HOME_ITEM] }, { items: [NOTIFICATIONS_ITEM] }];
 }
 
 /**

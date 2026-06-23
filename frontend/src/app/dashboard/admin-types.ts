@@ -63,6 +63,30 @@ export interface CategoryPayload {
   isActive: boolean;
 }
 
+// ---- Programa académico (Course) ----
+
+export type CourseStatusValue = "DRAFT" | "ACTIVE" | "FINISHED" | "ARCHIVED";
+
+export interface CourseModuleInput {
+  /** Presente al editar un módulo existente; ausente al crear uno nuevo. */
+  id?: string;
+  name: string;
+  description?: string | null;
+  credits?: number | null;
+}
+
+export interface CoursePayload {
+  name: string;
+  code?: string;
+  description?: string | null;
+  modality?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  passingScore: number;
+  status: CourseStatusValue;
+  modules: CourseModuleInput[];
+}
+
 export interface SettingsPayload {
   facebook: string | null;
   instagram: string | null;

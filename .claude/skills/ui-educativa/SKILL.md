@@ -34,6 +34,36 @@ Aplica a **áreas autenticadas/internas**: login, dashboard, gestión de cursos 
 - **Iconografía**: `lucide-react` para iconos de UI (no de marcas). Iconos siempre con `aria-label` cuando son la única etiqueta.
 - **Copy en español (es-BO)**, natural y profesional: "módulo", "curso", "kardex", "nota", "docente", "estudiante", "matrícula", "inscripción", "malla curricular", "calificación".
 
+## Lenguaje de diseño "Certificate dashboard" (modo claro)
+
+El área autenticada adopta un lenguaje visual concreto inspirado en dashboards educativos modernos (mockup de referencia "EDUCATION2025"): **azul de marca vivo + sidebar navy en gradiente + tarjetas blancas muy redondeadas con sombras suaves sobre un lienzo gris frío**. Es la guía oficial del **modo claro**; el **modo oscuro conserva la paleta navy** ya existente (bloque `.dark` de `globals.css`) sin cambios. **No reintroduzcas la paleta grayscale `neutral` anterior.**
+
+**Paleta (modo claro — tokens semánticos en `:root` de `globals.css`, oklch hue ~258–262):**
+
+| Uso                                                             | Token                                                | Aproximado                                                        |
+| --------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------- |
+| Lienzo de página                                                | `--background` / `bg-background`                     | gris frío `#EEF1F5` (no blanco puro)                              |
+| Tarjetas / superficies elevadas                                 | `--card` / `bg-card`                                 | blanco `#FFFFFF`                                                  |
+| Texto principal / headings                                      | `--foreground`                                       | navy oscuro `#102A4C`                                             |
+| Texto secundario / metadata                                     | `--muted-foreground`                                 | gris azulado medio                                                |
+| **Acción primaria, pills activos, banners, barras de progreso** | `--primary` / `bg-primary`                           | **azul de marca `#2563EB`** (texto `--primary-foreground` blanco) |
+| Hovers / chips / fondos sutiles                                 | `--muted` / `--secondary` / `--accent`               | gris azulado muy claro                                            |
+| Bordes / inputs                                                 | `--border` / `--input`                               | gris azulado tenue `#DDE3EC`                                      |
+| **Acento institucional**                                        | `amber-500` (sobre claro) / `amber-300` (sobre navy) | ámbar — marca/CTA puntual, **no** teñir superficies               |
+| **Sidebar (navy SIEMPRE)**                                      | `--sidebar*` + gradiente directo                     | ver abajo                                                         |
+
+- **Radios**: `--radius: 0.75rem`. Tarjetas/superficies de sección = **`rounded-2xl`**; paneles de marca (sidebar, perfil) = `rounded-3xl`; pills/botones-píldora y filtros = **`rounded-full`**; chips de icono = `rounded-xl`.
+- **Sombras suaves** sobre superficies blancas: `shadow-sm shadow-blue-950/[0.04] dark:shadow-none` (sombra teñida de navy, casi imperceptible; se anula en oscuro donde basta el `ring`). El primitivo `Card` ya la trae.
+
+**Patrones de componentes del lenguaje:**
+
+- **Sidebar navy (en ambos modos):** panel `rounded-3xl` con **gradiente** `bg-gradient-to-b from-blue-700 via-blue-900 to-blue-950` (más vivo arriba → navy profundo abajo), `shadow-lg shadow-blue-950/10 ring-1 ring-white/5`. **Bloque de marca** arriba: marca cuadrada en píldora blanca (`size-9 rounded-xl bg-white text-primary`) + lockup "Certificate / Plataforma · v1.0" (`text-white` + `text-amber-300/90`). **Ítems de nav**: inactivo `text-sidebar-foreground/75 hover:bg-white/10`; **activo = píldora clara** `bg-sidebar-primary text-sidebar-primary-foreground` (blanca con texto navy) e **icono en `text-primary`** (azul de marca). Encabezados de sección `text-sidebar-foreground/55 uppercase`. Conserva el colapso a riel + flyout y el overlay móvil ya implementados.
+- **Topbar:** `bg-card/85 backdrop-blur-md`, marca "Certificate · Plataforma" (`· Plataforma` en `text-amber-500`). A la derecha: **píldora de usuario** (`rounded-full border bg-background`, avatar de iniciales `bg-blue-950 text-amber-300` + correo), el `ThemeToggle` (píldora deslizante sol/luna) y botones circulares (`size-10 rounded-full border bg-card`) para acciones (perfil, salir).
+- **Tarjetas-enlace (home):** ya usan tintes pastel por categoría (`sky/violet/emerald/rose/amber`) con `rounded-3xl` + chip de categoría + flecha en hover. Mantén ese patrón; el ámbar queda para "Personas"/marca.
+- **Badges/pills de estado:** semánticos y consistentes (Docente `sky` / Estudiante `violet` / Activo `emerald` / Borrador gris / Archivado `amber`); pill de filtro activa = `bg-primary text-primary-foreground`, inactiva = outline. `rounded-full`.
+- **Inputs:** `rounded-lg` (shadcn `Input`); para barras de búsqueda tipo mockup, `rounded-full` con icono de lupa a la izquierda.
+- **Barras de progreso / checks:** progreso en `bg-primary` sobre pista `bg-muted`; checks de completado en verde (`emerald`). (Aún no hay pantallas de progreso; aplicar cuando lleguen kardex/avance.)
+
 ## Matriz de estados obligatoria
 
 **Nunca entregues una UI solo de happy-path.** Para cada pantalla maneja explícitamente:

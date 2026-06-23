@@ -1,12 +1,9 @@
 import {
   ArrowUpRight,
-  Award,
   Building2,
   BookOpen,
-  CalendarCheck,
-  ClipboardList,
   GraduationCap,
-  Layers,
+  Send,
   Share2,
   Tags,
   Users,
@@ -15,13 +12,15 @@ import {
 import Link from "next/link";
 import {
   listAdminCategories,
+  listAdminCourses,
   listAdminPartners,
   listAdminPrograms,
   listAdminUsers,
 } from "@/lib/api/admin";
 import { cn } from "@/lib/utils";
 import { requireUser } from "@/lib/auth-guard";
-import { ComingSoonHome } from "./coming-soon-home";
+import { listMyCourses } from "@/lib/api/me";
+import { MyCoursesHome } from "./my-courses-home";
 
 export default async function DashboardPage() {
   const session = await requireUser();
@@ -31,59 +30,29 @@ export default async function DashboardPage() {
     return <AdminHome name={session.user.name} />;
   }
 
+  const courses = await listMyCourses();
+
   if (role === "PROFESSOR") {
     return (
-      <ComingSoonHome
+      <MyCoursesHome
         name={session.user.name}
         greeting="Bienvenido"
-        intro="Este es tu panel docente. Aquí gestionarás tus cursos y calificaciones."
-        emptyTitle="Tu espacio docente está en camino"
-        emptyDescription="Estamos preparando las herramientas para que administres tus cursos, módulos y el kardex de tus estudiantes. Te avisaremos cuando estén disponibles."
-        features={[
-          {
-            icon: BookOpen,
-            title: "Mis cursos",
-            description: "Consulta y administra los cursos que impartes.",
-          },
-          {
-            icon: Layers,
-            title: "Módulos",
-            description: "Organiza el contenido de cada curso por módulos.",
-          },
-          {
-            icon: ClipboardList,
-            title: "Kardex",
-            description: "Registra y revisa las notas de tus estudiantes.",
-          },
-        ]}
+        intro="Este es tu panel docente. Aquí están los cursos en los que dictas módulos."
+        courses={courses}
+        emptyTitle="Aún no tienes cursos asignados"
+        emptyDescription="Cuando te asignen como docente de un módulo, el curso aparecerá aquí."
       />
     );
   }
 
   return (
-    <ComingSoonHome
+    <MyCoursesHome
       name={session.user.name}
       greeting="Bienvenido"
-      intro="Este es tu panel de estudiante. Aquí seguirás tu avance académico."
-      emptyTitle="Tu espacio académico está en camino"
-      emptyDescription="Estamos preparando tu panel para que consultes tus inscripciones, tu kardex y tus calificaciones. Te avisaremos cuando estén disponibles."
-      features={[
-        {
-          icon: CalendarCheck,
-          title: "Inscripciones",
-          description: "Revisa los programas en los que estás matriculado.",
-        },
-        {
-          icon: ClipboardList,
-          title: "Mi kardex",
-          description: "Consulta tu historial académico por módulo.",
-        },
-        {
-          icon: Award,
-          title: "Calificaciones",
-          description: "Sigue tus notas y tu estado de avance.",
-        },
-      ]}
+      intro="Este es tu panel de estudiante. Aquí están los cursos en los que estás inscrito."
+      courses={courses}
+      emptyTitle="Aún no estás inscrito en ningún curso"
+      emptyDescription="Cuando te inscriban en un programa, lo verás aquí con sus módulos."
     />
   );
 }
@@ -103,33 +72,33 @@ type Tint = {
 
 const TINTS: Record<string, Tint> = {
   amber: {
-    card: "bg-amber-50",
-    icon: "bg-amber-100 text-amber-700",
-    hoverBorder: "hover:border-amber-300",
+    card: "bg-amber-50 dark:bg-amber-500/10",
+    icon: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+    hoverBorder: "hover:border-amber-300 dark:hover:border-amber-500/40",
     ring: "focus-visible:ring-amber-400/50",
   },
   sky: {
-    card: "bg-sky-50",
-    icon: "bg-sky-100 text-sky-700",
-    hoverBorder: "hover:border-sky-300",
+    card: "bg-sky-50 dark:bg-sky-500/10",
+    icon: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+    hoverBorder: "hover:border-sky-300 dark:hover:border-sky-500/40",
     ring: "focus-visible:ring-sky-400/50",
   },
   violet: {
-    card: "bg-violet-50",
-    icon: "bg-violet-100 text-violet-700",
-    hoverBorder: "hover:border-violet-300",
+    card: "bg-violet-50 dark:bg-violet-500/10",
+    icon: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+    hoverBorder: "hover:border-violet-300 dark:hover:border-violet-500/40",
     ring: "focus-visible:ring-violet-400/50",
   },
   emerald: {
-    card: "bg-emerald-50",
-    icon: "bg-emerald-100 text-emerald-700",
-    hoverBorder: "hover:border-emerald-300",
+    card: "bg-emerald-50 dark:bg-emerald-500/10",
+    icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+    hoverBorder: "hover:border-emerald-300 dark:hover:border-emerald-500/40",
     ring: "focus-visible:ring-emerald-400/50",
   },
   rose: {
-    card: "bg-rose-50",
-    icon: "bg-rose-100 text-rose-700",
-    hoverBorder: "hover:border-rose-300",
+    card: "bg-rose-50 dark:bg-rose-500/10",
+    icon: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+    hoverBorder: "hover:border-rose-300 dark:hover:border-rose-500/40",
     ring: "focus-visible:ring-rose-400/50",
   },
 };
@@ -145,14 +114,28 @@ type HomeCard = {
 };
 
 async function AdminHome({ name }: { name?: string | null }) {
-  const [programs, categories, partners, users] = await Promise.all([
+  const [programs, categories, partners, users, courses] = await Promise.all([
     listAdminPrograms(),
     listAdminCategories(),
     listAdminPartners(),
     listAdminUsers(),
+    listAdminCourses(),
   ]);
 
   const firstName = name?.trim().split(/\s+/)[0];
+
+  const academicCards: HomeCard[] = [
+    {
+      href: "/dashboard/cursos",
+      label: "Programas",
+      category: "Operación académica",
+      description:
+        "Programas con módulos, docentes a cargo y estudiantes inscritos.",
+      count: courses.length,
+      icon: BookOpen,
+      tint: "sky",
+    },
+  ];
 
   const siteCards: HomeCard[] = [
     {
@@ -203,6 +186,15 @@ async function AdminHome({ name }: { name?: string | null }) {
       icon: Users,
       tint: "amber",
     },
+    {
+      href: "/dashboard/notificaciones/enviar",
+      label: "Enviar aviso",
+      category: "Notificaciones",
+      description: "Envía una notificación a docentes y estudiantes.",
+      count: null,
+      icon: Send,
+      tint: "sky",
+    },
   ];
 
   return (
@@ -221,10 +213,17 @@ async function AdminHome({ name }: { name?: string | null }) {
       </header>
 
       <HomeSection
+        id="academico"
+        title="Académico"
+        cards={academicCards}
+        className="mt-8"
+      />
+
+      <HomeSection
         id="personas"
         title="Personas"
         cards={peopleCards}
-        className="mt-8"
+        className="mt-10"
       />
 
       <HomeSection
@@ -282,7 +281,7 @@ function HomeSection({
                   {card.category}
                 </span>
                 {card.count !== null && (
-                  <span className="rounded-full bg-background/70 px-3 py-1 text-sm font-bold tabular-nums text-foreground shadow-sm">
+                  <span className="rounded-full bg-background/70 px-3 py-1 text-sm font-bold tabular-nums text-foreground shadow-sm dark:bg-white/10 dark:shadow-none dark:ring-1 dark:ring-white/10">
                     {card.count}
                   </span>
                 )}
@@ -298,7 +297,7 @@ function HomeSection({
                   </p>
                 </div>
                 <span
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background/60 text-foreground/70 transition-all group-hover:bg-background group-hover:text-foreground group-hover:-translate-y-0.5"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background/60 text-foreground/70 transition-all group-hover:bg-background group-hover:text-foreground group-hover:-translate-y-0.5 dark:bg-white/10 dark:group-hover:bg-white/20"
                   aria-hidden="true"
                 >
                   <ArrowUpRight className="size-5" />

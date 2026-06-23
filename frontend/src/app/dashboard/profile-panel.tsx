@@ -60,7 +60,7 @@ export function ProfilePanel({
             <h2 className="mt-3 font-heading text-lg font-bold tracking-tight">
               {displayName}
             </h2>
-            <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-blue-950/5 px-3 py-1 text-xs font-medium text-blue-950">
+            <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-blue-950/5 px-3 py-1 text-xs font-medium text-blue-950 dark:bg-white/10 dark:text-foreground">
               <ShieldCheck className="size-3.5 text-amber-500" aria-hidden="true" />
               {roleLabel}
             </span>

@@ -15,8 +15,8 @@ The login screen (`src/app/login/`) drives NextAuth v5 Credentials sign-in throu
 
 **UX decisions baked in:**
 
-- Split-panel: dark `slate-950` brand aside (`hidden lg:flex`, white logo + amber highlights) + light form panel. Mobile shows a compact logo-in-dark-pill instead.
+- Layout (redesigned 2026-06-21): **full-screen background image** (`/landing/image-login.webp`, `next/image fill object-cover priority`) + dark blue-950 gradient overlay, with a **centered glassmorphism card** holding the form. Card is **light translucent** (`bg-background/85 backdrop-blur-xl border-white/40 shadow-2xl`) — chosen over a dark card because `login-form.tsx` uses light shadcn semantic tokens (`Input`/`Label`/`text-muted-foreground`), so a light glass surface keeps the form legible WITHOUT touching the form's logic. White logo sits above the card (valid only over the dark image); copyright sits below it. The previous split-panel (blue-950 brand aside + light form panel) was REPLACED — DESIGN.md §"Login" still describes the old split-panel and is now stale on this point.
 - Password visibility toggle is a native `<button>` with `aria-label` + `aria-pressed`, positioned `absolute inset-y-0 right-0` over an `Input` with `pr-10`.
-- "Recordarme" checkbox is **UI-only / decorative** — NextAuth session lifetime is JWT-strategy default; there is no backend "remember me" contract. If real persistence is wanted later, it needs `maxAge` handling in `auth.config.ts` session. No password-recovery link was added (no backend endpoint exists); instead a "contacta a la administración" hint.
+- "Recordarme" now has a REAL backend contract (NOT UI-only anymore): it flows `login-form.tsx` → `auth.ts` → `POST /auth/login` (30d vs 1d token) and `actions.ts` downgrades the session cookie to session-only when unchecked. See CLAUDE.md + frontend/AGENTS.md. No password-recovery link (no backend endpoint); "contacta a la administración" hint instead.
 
 See [[dashboard-visual-system]].

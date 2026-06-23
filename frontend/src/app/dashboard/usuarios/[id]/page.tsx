@@ -22,7 +22,7 @@ export default async function EditarUsuarioPage({
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="w-full">
       <Link
         href="/dashboard/usuarios"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

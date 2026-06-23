@@ -40,7 +40,7 @@ export default async function PartnersAdminPage() {
         </Button>
       </div>
 
-      <div className="mt-6 rounded-xl border bg-card">
+      <div className="mt-6 overflow-hidden rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
         <Table>
           <TableHeader>
             <TableRow>
@@ -65,7 +65,7 @@ export default async function PartnersAdminPage() {
             {partners.map((partner) => (
               <TableRow key={partner.id}>
                 <TableCell>
-                  <div className="flex size-12 items-center justify-center rounded-md bg-slate-900 p-1.5">
+                  <div className="flex size-12 items-center justify-center rounded-md bg-transparent p-1.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={partner.logoUrl}

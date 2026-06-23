@@ -1,3 +1,16 @@
 packages:
   - frontend
   - backend
+
+# pnpm v11: build scripts are opt-in per package (replaces v10's onlyBuiltDependencies).
+# true  = allow the package's install/build script to run (native deps that need it)
+# false = reviewed and intentionally skipped (optional/telemetry, JS fallback exists)
+allowBuilds:
+  "@nestjs/core": true
+  "@prisma/engines": true
+  argon2: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
+  "@scarf/scarf": false
+  msgpackr-extract: false

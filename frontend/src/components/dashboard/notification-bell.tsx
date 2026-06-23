@@ -1,0 +1,252 @@
+"use client";
+
+import { useState } from "react";
+import { Popover } from "@base-ui/react/popover";
+import { ArrowRight, Bell, BellRing, Check } from "lucide-react";
+import Link from "next/link";
+import type { NotificationType } from "@/lib/api/notifications";
+import { formatRelative, metaFor } from "@/lib/notifications-meta";
+import { NotificationBody } from "@/components/dashboard/notification-body";
+import { cn } from "@/lib/utils";
+
+/**
+ * Una notificación del panel docente/estudiante. Mapea 1:1 con la fila que
+ * entrega `GET /notifications`; `href` apunta a su detalle en el panel central.
+ */
+export type DashboardNotification = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  /** ISO 8601. */
+  createdAt: string;
+  read: boolean;
+  /** Destino al hacer clic: el detalle en `/dashboard/notificaciones/:id`. */
+  href?: string;
+};
+
+/**
+ * Centro de notificaciones para PROFESSOR / STUDENT. Vive en la barra superior
+ * del panel: un botón circular navy con una campana (badge ámbar si hay no
+ * leídas) que abre un popover con la lista. Usa **Base UI** `Popover` (no Radix),
+ * que portala el popup al `body` para no quedar recortado por contenedores con
+ * `overflow`. Mientras no exista el backend, `initialNotifications` por defecto
+ * es `[]` y se muestra un estado vacío honesto.
+ */
+export function NotificationBell({
+  initialNotifications = [],
+}: {
+  initialNotifications?: DashboardNotification[];
+}) {
+  const [notifications, setNotifications] =
+    useState<DashboardNotification[]>(initialNotifications);
+  const [open, setOpen] = useState(false);
+
+  const unreadCount = notifications.reduce(
+    (acc, n) => acc + (n.read ? 0 : 1),
+    0,
+  );
+  const hasUnread = unreadCount > 0;
+
+  function markAllRead() {
+    if (!hasUnread) return;
+    // UI optimista: marca local y persiste en el backend (sin bloquear).
+    setNotifications((prev) =>
+      prev.map((n) => (n.read ? n : { ...n, read: true })),
+    );
+    void fetch("/api/notifications/read-all", { method: "PATCH" });
+  }
+
+  function markRead(id: string) {
+    setNotifications((prev) => {
+      const target = prev.find((n) => n.id === id);
+      // Evita un PATCH redundante si ya estaba leída.
+      if (target && !target.read) {
+        void fetch(`/api/notifications/${id}/read`, { method: "PATCH" });
+      }
+      return prev.map((n) => (n.id === id ? { ...n, read: true } : n));
+    });
+  }
+
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger
+        aria-label={
+          hasUnread
+            ? `Notificaciones (${unreadCount} sin leer)`
+            : "Notificaciones"
+        }
+        className="relative inline-flex size-10 items-center justify-center rounded-full bg-blue-950 text-white shadow-sm transition-colors hover:bg-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 data-[popup-open]:bg-blue-900"
+      >
+        {hasUnread ? (
+          <BellRing className="size-[1.15rem]" aria-hidden="true" />
+        ) : (
+          <Bell className="size-[1.15rem]" aria-hidden="true" />
+        )}
+        {hasUnread && (
+          <span
+            className="absolute -right-0.5 -top-0.5 flex min-w-[1.1rem] items-center justify-center rounded-full bg-amber-400 px-1 text-[0.65rem] font-bold leading-[1.1rem] text-blue-950 ring-2 ring-card"
+            aria-hidden="true"
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </Popover.Trigger>
+
+      <Popover.Portal>
+        <Popover.Positioner side="bottom" align="end" sideOffset={10}>
+          <Popover.Popup className="z-50 w-[min(22rem,calc(100vw-1.5rem))] origin-(--transform-origin) overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-xl outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
+            {/* Encabezado */}
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+              <div>
+                <Popover.Title className="text-sm font-semibold">
+                  Notificaciones
+                </Popover.Title>
+                <p className="text-xs text-muted-foreground">
+                  {hasUnread
+                    ? `Tienes ${unreadCount} sin leer`
+                    : "Estás al día"}
+                </p>
+              </div>
+              {hasUnread && (
+                <button
+                  type="button"
+                  onClick={markAllRead}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-sky-600 transition-colors hover:bg-sky-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 dark:text-sky-300"
+                >
+                  <Check className="size-3.5" aria-hidden="true" />
+                  Marcar leídas
+                </button>
+              )}
+            </div>
+
+            {/* Lista / estado vacío */}
+            {notifications.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <>
+                <ul className="max-h-[24rem] divide-y overflow-y-auto">
+                  {notifications.slice(0, 8).map((n) => (
+                    <li key={n.id}>
+                      <NotificationRow
+                        notification={n}
+                        onSeen={markRead}
+                        onNavigate={() => setOpen(false)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/dashboard/notificaciones"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-center gap-1.5 border-t px-4 py-3 text-sm font-medium text-sky-600 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:bg-muted/50 dark:text-sky-300"
+                >
+                  Ver todas las notificaciones
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </Link>
+              </>
+            )}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+      <span
+        className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground"
+        aria-hidden="true"
+      >
+        <Bell className="size-6" />
+      </span>
+      <p className="text-sm font-medium text-foreground">
+        No tienes notificaciones
+      </p>
+      <p className="max-w-[15rem] text-xs text-muted-foreground">
+        Aquí te avisaremos sobre tus cursos, módulos y calificaciones.
+      </p>
+    </div>
+  );
+}
+
+function NotificationRow({
+  notification,
+  onSeen,
+  onNavigate,
+}: {
+  notification: DashboardNotification;
+  onSeen: (id: string) => void;
+  onNavigate: () => void;
+}) {
+  const { id, type, title, body, createdAt, read, href } = notification;
+  const meta = metaFor(type);
+  const Icon = meta.icon;
+
+  const content = (
+    <div className="flex items-start gap-3">
+      <span
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-xl",
+          meta.tint,
+        )}
+        aria-hidden="true"
+      >
+        <Icon className="size-4.5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          {!read && (
+            <span
+              className="size-2 shrink-0 rounded-full bg-sky-500"
+              aria-label="Sin leer"
+            />
+          )}
+          <p
+            className={cn(
+              "truncate text-sm",
+              read
+                ? "font-medium text-foreground"
+                : "font-semibold text-foreground",
+            )}
+          >
+            {title}
+          </p>
+        </div>
+        <NotificationBody
+          text={body}
+          className="mt-0.5 line-clamp-2 text-xs text-muted-foreground"
+        />
+        <p className="mt-1 text-[0.7rem] text-muted-foreground/80">
+          {formatRelative(createdAt)}
+        </p>
+      </div>
+    </div>
+  );
+
+  const rowClass = cn(
+    "block w-full px-4 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/60",
+    !read && "bg-sky-500/[0.05]",
+  );
+
+  function handleClick() {
+    onSeen(id);
+    onNavigate();
+  }
+
+  if (href) {
+    return (
+      <Link href={href} onClick={handleClick} className={rowClass}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={handleClick} className={rowClass}>
+      {content}
+    </button>
+  );
+}

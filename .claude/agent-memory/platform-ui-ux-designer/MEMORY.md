@@ -2,3 +2,4 @@
 - [Login email persistence](project_login-email-persist.md) — pattern for keeping the email field after a failed login submit
 - [Admin CRUD section pattern](project_admin-section-pattern.md) — exact file recipe (page/actions/schema/form) + nav/home integration + usuarios badge/filter conventions
 - [base-ui primitives](project_base-ui-primitives.md) — shadcn here wraps @base-ui/react (Select/Tabs/AlertDialog/Button) + Zod v4 API gotchas
+- [Dashboard layout structure](project_dashboard-layout-structure.md) — two-column flex root: full-height left sidebar + topbar confined to content column

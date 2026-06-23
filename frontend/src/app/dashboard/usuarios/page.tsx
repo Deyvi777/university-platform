@@ -163,13 +163,13 @@ export default async function UsuariosAdminPage({
 
       {/* Aviso de solo-lectura para administrativos. */}
       {filter === "administrativos" && !loadError && (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           Las cuentas administrativas se gestionan de forma interna. Desde aquí
           puedes consultarlas, pero no crear nuevas.
         </p>
       )}
 
-      <div className="mt-4 rounded-xl border bg-card">
+      <div className="mt-4 overflow-hidden rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
         <Table>
           <TableHeader>
             <TableRow>

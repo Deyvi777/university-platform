@@ -89,7 +89,7 @@ export function SettingsForm({ settings }: { settings?: AdminSettings }) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="max-w-2xl space-y-5 rounded-xl border bg-card p-6"
+      className="max-w-2xl space-y-5 rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none"
     >
       {FIELDS.map((field) => (
         <div key={field.key}>

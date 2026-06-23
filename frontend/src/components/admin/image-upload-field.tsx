@@ -66,7 +66,7 @@ export function ImageUploadField({
   const boxClasses =
     variant === "flyer"
       ? "aspect-[4/5] w-40"
-      : "aspect-square w-32 bg-slate-900";
+      : "aspect-square w-32";
 
   return (
     <div className="flex items-start gap-4">

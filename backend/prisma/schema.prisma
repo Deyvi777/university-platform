@@ -56,10 +56,28 @@ enum MaterialType {
   VIDEO // video (enlace o embebido)
 }
 
+// Tipo de un contenido del temario (entrada de ModuleContent). El docente elige
+// uno al crear cada contenido.
+enum ContentKind {
+  TEXT // tema editable (texto enriquecido / HTML)
+  VIDEO // video embebido (YouTube/Vimeo)
+  MATERIAL // archivo subido o enlace externo
+  ACTIVITY // actividad evaluable (con entrega y nota)
+}
+
 enum ModuleGradeStatus {
   IN_PROGRESS // en curso, sin nota final
   PASSED // aprobado
   FAILED // reprobado
+}
+
+// Tipo de notificación dirigida a un usuario (docente/estudiante).
+enum NotificationType {
+  ENROLLMENT // estudiante inscrito en un programa/curso
+  MODULE_ASSIGNMENT // docente asignado a un módulo (co-docencia)
+  ANNOUNCEMENT // aviso manual enviado por un administrador
+  GRADE // el docente calificó una actividad del estudiante
+  ACTIVITY_PUBLISHED // se publicó una nueva actividad en un módulo
 }
 
 // Configuración global de la landing (fila única / singleton). Guarda los
@@ -91,14 +109,65 @@ model User {
 
   // Relaciones académicas (rol PROFESSOR / STUDENT). Un User puede tener
   // varias de estas según su rol; todas son opcionales para ADMIN.
-  taughtModules     CourseModule[] @relation("ModuleTeacher")
+  taughtModules     ModuleTeacher[] // co-docencia: módulos que dicta (vía join)
   enrollments       Enrollment[]
   submissions       Submission[]
   gradedSubmissions Submission[]   @relation("SubmissionGrader")
   moduleGrades      ModuleGrade[]  @relation("StudentGrades")
   gradedModules     ModuleGrade[]  @relation("ModuleGrader")
+  notifications     Notification[]
+  sentAnnouncements Announcement[]    @relation("AnnouncementSender")
+  contentProgress   ContentProgress[]
+  contentNotes      ContentNote[]
 
   @@map("users")
+}
+
+// Audiencia a la que un administrador dirigió un aviso (para el historial).
+enum AnnouncementAudience {
+  ALL // docentes y estudiantes
+  PROFESSORS // todos los docentes
+  STUDENTS // todos los estudiantes
+  SELECTED // lista explícita de usuarios
+}
+
+// Registro (log) de cada aviso que un administrador envía. Una fila por envío
+// —no por destinatario—, con cuántas notificaciones generó. Alimenta el
+// "historial de avisos enviados" del panel.
+model Announcement {
+  id             String               @id @default(uuid())
+  title          String
+  body           String
+  audience       AnnouncementAudience
+  recipientCount Int
+  senderId       String
+  sender         User                 @relation("AnnouncementSender", fields: [senderId], references: [id], onDelete: Cascade)
+  createdAt      DateTime             @default(now())
+
+  @@index([createdAt])
+  @@map("announcements")
+}
+
+// Notificación persistida para un usuario (docente/estudiante). Se crea al
+// inscribir a un estudiante en un programa o asignar a un docente a un módulo;
+// el panel la lee vía GET /notifications y la marca como leída.
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  // Contexto opcional para enlazar/mostrar (ej. { courseId, moduleId }). Sin FK
+  // dura: si el curso/módulo se borra, la notificación histórica se conserva.
+  data      Json?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 model ProgramCategory {
@@ -213,26 +282,37 @@ model CourseModule {
   id          String       @id @default(uuid())
   courseId    String
   course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  teacherId   String? // docente asignado (User PROFESSOR); null hasta asignar
-  teacher     User?        @relation("ModuleTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
   order       Int // posición del módulo en la malla del curso
   name        String
   description String?
   credits     Int?
   startDate   DateTime?
   endDate     DateTime?
-  status      ModuleStatus @default(DRAFT)
+  status      ModuleStatus @default(ACTIVE) // el admin puede marcarlo Borrador/Concluido
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  topics     Topic[]
-  materials  Material[]
-  activities Activity[]
-  grades     ModuleGrade[]
+  teachers ModuleTeacher[] // co-docencia: varios docentes por módulo
+  contents ModuleContent[] // contenidos ordenados (temario): tema/video/material/actividad
+  grades   ModuleGrade[]
 
   @@unique([courseId, order])
-  @@index([teacherId])
   @@map("course_modules")
+}
+
+// Asignación docente↔módulo (co-docencia: un módulo puede tener varios docentes
+// y un docente varios módulos). Reemplaza el antiguo CourseModule.teacherId.
+model ModuleTeacher {
+  id         String       @id @default(uuid())
+  moduleId   String
+  module     CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  teacherId  String // docente asignado (User PROFESSOR)
+  teacher    User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  assignedAt DateTime     @default(now())
+
+  @@unique([moduleId, teacherId])
+  @@index([teacherId])
+  @@map("course_module_teachers")
 }
 
 // Inscripción de un estudiante a un curso. Le da acceso a todos sus módulos.
@@ -252,76 +332,97 @@ model Enrollment {
   @@map("enrollments")
 }
 
-// Tema dentro de un módulo. Creado por el docente.
-model Topic {
+// Contenido de un módulo: una entrada del temario. El docente crea contenidos y
+// elige su tipo (TEXT/VIDEO/MATERIAL/ACTIVITY). Cada contenido tiene título y un
+// `order` reordenable (drag-and-drop) que define cómo aparece en el temario del
+// estudiante. Los campos específicos del tipo son anulables y solo aplican según
+// `kind`.
+model ModuleContent {
   id          String       @id @default(uuid())
   moduleId    String
   module      CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  order       Int
+  order       Int // posición en el temario (reordenable)
+  kind        ContentKind
   title       String
-  description String?
-  content     String? // contenido enriquecido (HTML/markdown)
-  isPublished Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  isPublished Boolean      @default(true)
 
-  materials  Material[]
-  activities Activity[]
+  // TEXT — tema editable
+  body String? // texto enriquecido (HTML)
 
-  @@unique([moduleId, order])
-  @@map("topics")
-}
+  // VIDEO — video embebido
+  videoUrl String? // enlace YouTube/Vimeo
 
-// Material de apoyo de un módulo (opcionalmente ligado a un tema).
-model Material {
-  id        String       @id @default(uuid())
-  moduleId  String
-  module    CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  topicId   String?
-  topic     Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  title     String
-  type      MaterialType @default(FILE)
-  url       String // ruta /files/... (subida) o enlace externo
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  // MATERIAL — archivo o enlace
+  materialType MaterialType? // FILE | LINK
+  url          String? // ruta /files/... (subida) o enlace externo
 
-  @@index([moduleId])
-  @@index([topicId])
-  @@map("materials")
-}
-
-// Actividad evaluable de un módulo (tarea, examen, etc.). Creada por el docente.
-model Activity {
-  id           String       @id @default(uuid())
-  moduleId     String
-  module       CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  topicId      String?
-  topic        Topic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  type         ActivityType @default(ASSIGNMENT)
-  title        String
+  // ACTIVITY — actividad evaluable
+  activityType ActivityType?
   instructions String?
   dueDate      DateTime?
-  maxScore     Decimal      @default(100) @db.Decimal(5, 2)
-  weight       Decimal      @default(0) @db.Decimal(5, 2) // peso (%) en la nota del módulo
-  isPublished  Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  maxScore     Decimal?      @db.Decimal(5, 2)
+  weight       Decimal?      @db.Decimal(5, 2) // peso (%) en la nota del módulo
+  // Actividad "presencial": la califica el docente a mano en la libreta (sin
+  // entrega digital del estudiante). No aparece en el temario del aula; sí
+  // pondera en la nota del módulo y se muestra en las notas del estudiante.
+  isOffline    Boolean       @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   submissions Submission[]
+  progress    ContentProgress[]
+  notes       ContentNote[]
 
+  @@unique([moduleId, order])
   @@index([moduleId])
-  @@index([topicId])
-  @@map("activities")
+  @@map("module_contents")
 }
 
-// Entrega de un estudiante para una actividad. Calificada por el docente.
+// Progreso de un estudiante en un contenido: si lo marcó como completado.
+// Alimenta el porcentaje de avance del módulo en la vista de aprendizaje.
+model ContentProgress {
+  id          String        @id @default(uuid())
+  studentId   String
+  student     User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  contentId   String
+  content     ModuleContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  completed   Boolean       @default(false)
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([studentId, contentId])
+  @@index([contentId])
+  @@map("content_progress")
+}
+
+// Apuntes personales de un estudiante sobre un contenido. Privados: solo los ve
+// su autor ("Tus notas").
+model ContentNote {
+  id        String        @id @default(uuid())
+  studentId String
+  student   User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  contentId String
+  content   ModuleContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  body      String // texto del apunte
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([studentId, contentId])
+  @@index([contentId])
+  @@map("content_notes")
+}
+
+// Entrega de un estudiante para un contenido de tipo ACTIVITY. Calificada por el
+// docente.
 model Submission {
   id          String           @id @default(uuid())
-  activityId  String
-  activity    Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  contentId   String
+  content     ModuleContent    @relation(fields: [contentId], references: [id], onDelete: Cascade)
   studentId   String
   student     User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  content     String? // texto de la entrega
+  text        String? // texto de la entrega
   fileUrl     String? // archivo adjunto (ruta /files/...)
   status      SubmissionStatus @default(PENDING)
   score       Decimal?         @db.Decimal(5, 2)
@@ -333,7 +434,7 @@ model Submission {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  @@unique([activityId, studentId])
+  @@unique([contentId, studentId])
   @@index([studentId])
   @@map("submissions")
 }

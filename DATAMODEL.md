@@ -17,19 +17,33 @@ Documenta el esquema de Prisma (`backend/prisma/schema.prisma`) de la plataforma
 ADMIN | PROFESSOR | STUDENT
 ```
 
-Usado por `User.role` y por el decorador `@Roles(...)` de `RolesGuard` para proteger endpoints `/admin/...`. El admin ya puede **crear y gestionar cuentas de PROFESSOR y STUDENT** vía `/admin/users` (módulo `backend/src/users/`, ver `User`). Los modelos académicos de la capa **Academia / LMS** (cursos, módulos, kárdex, etc.) ya existen en el esquema, pero sus controladores/endpoints (los que usarán PROFESSOR y STUDENT) aún están por implementar.
+Usado por `User.role` y por el decorador `@Roles(...)` de `RolesGuard` para proteger endpoints `/admin/...`. Los tres flujos por rol de la capa **Academia / LMS** ya están implementados:
+
+- **ADMIN** — `/admin/users` (cuentas PROFESSOR/STUDENT, módulo `backend/src/users/`) y `/admin/courses` (programas académicos `Course`, módulo `backend/src/courses/`): crear con N módulos, asignar **varios docentes por módulo** (co-docencia, `ModuleTeacher`) e inscribir estudiantes a nivel de curso. También envía **avisos** masivos vía `/admin/notifications` (ver `Announcement`).
+- **PROFESSOR** — gestiona el **temario** de **sus** módulos como una lista ordenable de `ModuleContent` (tema/video/material/actividad) vía `/me/modules/...` (módulo `backend/src/module-content/`) y **califica** vía la libreta (`/me/modules/:id/gradebook`, `/me/modules/:id/students/:sid/observation`) o por actividad (`/me/activities/.../grade`, módulo `backend/src/grading/`), lo que recalcula la `ModuleGrade` ponderada. Ve sus cursos en `GET /me/courses`.
+- **STUDENT** — ve sus cursos (`GET /me/courses[/:id]`), **entrega actividades** (texto/archivo) vía `/me/activities/:id/submit`, y consulta su **kárdex** consolidado en `GET /me/kardex`.
+
+Los endpoints `/me/*` solo exigen `JwtAuthGuard`: el servicio autoriza por **inscripción** (estudiante) o **docencia** (`ModuleTeacher`) según el recurso. Subidas de archivo de docente/estudiante vía `POST /me/uploads` (carpeta `materials`/`submissions` según rol; ver CLAUDE.md → Storage module).
 
 ### Enums de la capa académica (LMS)
 
-| Enum                | Valores                                          | Usado en              |
-| ------------------- | ------------------------------------------------ | --------------------- |
-| `CourseStatus`      | `DRAFT \| ACTIVE \| FINISHED \| ARCHIVED`        | `Course.status`       |
-| `ModuleStatus`      | `DRAFT \| ACTIVE \| FINISHED`                    | `CourseModule.status` |
-| `EnrollmentStatus`  | `ACTIVE \| WITHDRAWN \| GRADUATED`               | `Enrollment.status`   |
-| `ActivityType`      | `ASSIGNMENT \| QUIZ \| EXAM \| PROJECT \| FORUM` | `Activity.type`       |
-| `SubmissionStatus`  | `PENDING \| SUBMITTED \| LATE \| GRADED`         | `Submission.status`   |
-| `MaterialType`      | `FILE \| LINK \| VIDEO`                          | `Material.type`       |
-| `ModuleGradeStatus` | `IN_PROGRESS \| PASSED \| FAILED`                | `ModuleGrade.status`  |
+| Enum                | Valores                                          | Usado en                                          |
+| ------------------- | ------------------------------------------------ | ------------------------------------------------- |
+| `CourseStatus`      | `DRAFT \| ACTIVE \| FINISHED \| ARCHIVED`        | `Course.status`                                   |
+| `ModuleStatus`      | `DRAFT \| ACTIVE \| FINISHED`                    | `CourseModule.status`                             |
+| `EnrollmentStatus`  | `ACTIVE \| WITHDRAWN \| GRADUATED`               | `Enrollment.status`                               |
+| `ContentKind`       | `TEXT \| VIDEO \| MATERIAL \| ACTIVITY`          | `ModuleContent.kind`                              |
+| `ActivityType`      | `ASSIGNMENT \| QUIZ \| EXAM \| PROJECT \| FORUM` | `ModuleContent.activityType`                      |
+| `SubmissionStatus`  | `PENDING \| SUBMITTED \| LATE \| GRADED`         | `Submission.status`                               |
+| `MaterialType`      | `FILE \| LINK \| VIDEO`                          | `ModuleContent.materialType` (solo `FILE`/`LINK`) |
+| `ModuleGradeStatus` | `IN_PROGRESS \| PASSED \| FAILED`                | `ModuleGrade.status`                              |
+
+### Enums de notificaciones
+
+| Enum                   | Valores                                                                          | Usado en                |
+| ---------------------- | -------------------------------------------------------------------------------- | ----------------------- |
+| `NotificationType`     | `ENROLLMENT \| MODULE_ASSIGNMENT \| ANNOUNCEMENT \| GRADE \| ACTIVITY_PUBLISHED` | `Notification.type`     |
+| `AnnouncementAudience` | `ALL \| PROFESSORS \| STUDENTS \| SELECTED`                                      | `Announcement.audience` |
 
 ## Modelos
 
@@ -49,7 +63,7 @@ Fuente de verdad de identidad y RBAC; NextAuth no gestiona usuarios (ver CLAUDE.
 
 **Gestión admin** (`backend/src/users/`, módulo solo-admin sin controlador público): `/admin/users` (guardado `@Roles(ADMIN)`) con `findAll(?role=PROFESSOR|STUDENT)`/`findOne`/`create`/`update`/`remove`. El formulario del panel **solo emite cuentas PROFESSOR o STUDENT** (el `role` del DTO Zod excluye `ADMIN` → `400`; correo duplicado → `409`). La contraseña se hashea con argon2 y **ninguna respuesta incluye el hash** (`safeSelect`). UI en `frontend/src/app/dashboard/usuarios/`.
 
-Relaciones académicas (todas opcionales, dependen del rol): `taughtModules` (`CourseModule[]`, módulos que dicta como docente — relación `"ModuleTeacher"`), `enrollments` (`Enrollment[]`, cursos en que está inscrito como estudiante), `submissions` (`Submission[]`, sus entregas), `gradedSubmissions` (`Submission[]` que calificó — relación `"SubmissionGrader"`), `moduleGrades` (`ModuleGrade[]`, su kárdex — relación `"StudentGrades"`), `gradedModules` (`ModuleGrade[]` que calificó — relación `"ModuleGrader"`). Un mismo `User` con rol PROFESSOR/STUDENT cuelga de estas relaciones.
+Relaciones académicas (todas opcionales, dependen del rol): `taughtModules` (`ModuleTeacher[]`, módulos que dicta como docente vía la tabla intermedia de co-docencia), `enrollments` (`Enrollment[]`, cursos en que está inscrito como estudiante), `submissions` (`Submission[]`, sus entregas), `gradedSubmissions` (`Submission[]` que calificó — relación `"SubmissionGrader"`), `moduleGrades` (`ModuleGrade[]`, su kárdex — relación `"StudentGrades"`), `gradedModules` (`ModuleGrade[]` que calificó — relación `"ModuleGrader"`). Relaciones de notificaciones: `notifications` (`Notification[]`, las que recibe), `sentAnnouncements` (`Announcement[]`, los avisos que envió como admin — relación `"AnnouncementSender"`). Un mismo `User` con rol PROFESSOR/STUDENT cuelga de estas relaciones.
 
 ### `ProgramCategory` → tabla `program_categories`
 
@@ -156,9 +170,11 @@ Capa académica **real**, separada del marketing de la landing. Decisiones de di
 
 - **`Course` es independiente de `Program`** (el `Program` de la landing es solo marketing/catálogo; el `Course` es la operación académica). No hay FK entre ambos.
 - **La inscripción es a nivel de curso** (`Enrollment` = estudiante ↔ curso): inscribir a un estudiante en un `Course` le da acceso a **todos** sus módulos. El **kárdex** de un estudiante es el conjunto de sus `ModuleGrade` (una nota final por módulo).
-- Flujos por rol: **ADMIN** crea cursos/módulos, asigna docentes (`CourseModule.teacherId`) e inscribe estudiantes; **PROFESSOR** crea temas/materiales/actividades dentro de sus módulos y califica entregas; **STUDENT** consume temas/materiales y entrega actividades.
+- Flujos por rol: **ADMIN** crea cursos/módulos, asigna docentes (vía `ModuleTeacher`) e inscribe estudiantes; **PROFESSOR** arma el temario de sus módulos creando **contenidos** (`ModuleContent`: tema/video/material/actividad), los reordena por drag-and-drop y califica entregas; **STUDENT** recorre el temario en el aula, marca contenidos como completados, toma apuntes, entrega actividades y consulta su kárdex.
+- **Temario = lista ordenable de `ModuleContent`.** Un módulo ya **no** tiene tablas separadas de temas/materiales/actividades: tiene una sola lista de contenidos heterogéneos (`kind`), ordenada por `order` (reordenable). El estudiante ve esa misma lista/orden en el aula.
+- **Nota de módulo automática (ponderada).** Al calificar una entrega (`GradingService`, módulo `backend/src/grading/`), la `ModuleGrade` del estudiante se **recalcula**: cada contenido `ACTIVITY` publicado con `weight > 0` se normaliza a base 100 (`score/maxScore*100`) y se pondera por su `weight`; las no calificadas cuentan como 0. `status` queda `IN_PROGRESS` hasta calificar todas las actividades ponderadas, luego `PASSED`/`FAILED` según `Course.passingScore`. El kárdex (`GET /me/kardex`) consolida estas notas por curso.
 
-Las rutas de archivos (`Material.url`, `Submission.fileUrl`) siguen la misma convención que el resto: paths relativos `/files/...` del módulo `storage`, nunca URLs absolutas.
+Las rutas de archivos (`ModuleContent.url`, `Submission.fileUrl`) siguen la misma convención que el resto: paths relativos `/files/...` del módulo `storage`, nunca URLs absolutas.
 
 ### `Course` → tabla `courses`
 
@@ -182,21 +198,34 @@ Las rutas de archivos (`Material.url`, `Submission.fileUrl`) siguen la misma con
 
 Módulo académico dentro de un curso, dictado por un docente.
 
-| Campo                                            | Tipo            | Notas                                                               |
-| ------------------------------------------------ | --------------- | ------------------------------------------------------------------- |
-| `id`                                             | `String` (uuid) | PK                                                                  |
-| `courseId`                                       | `String`        | FK → `Course.id`, `onDelete: Cascade`                               |
-| `teacherId`                                      | `String?`       | FK → `User.id` (docente), `onDelete: SetNull`; `null` hasta asignar |
-| `order`                                          | `Int`           | posición en la malla                                                |
-| `name`                                           | `String`        |                                                                     |
-| `description`                                    | `String?`       |                                                                     |
-| `credits`                                        | `Int?`          |                                                                     |
-| `startDate` / `endDate`                          | `DateTime?`     |                                                                     |
-| `status`                                         | `ModuleStatus`  | default `DRAFT`                                                     |
-| `createdAt` / `updatedAt`                        | `DateTime`      |                                                                     |
-| `topics` / `materials` / `activities` / `grades` | relaciones      | 1:N                                                                 |
+| Campo                                                         | Tipo            | Notas                                                                                                                      |
+| ------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                                          | `String` (uuid) | PK                                                                                                                         |
+| ------------------------------------------------------------- | --------------- | -------------------------------------                                                                                      |
+| `courseId`                                                    | `String`        | FK → `Course.id`, `onDelete: Cascade`                                                                                      |
+| `order`                                                       | `Int`           | posición en la malla                                                                                                       |
+| `name`                                                        | `String`        |                                                                                                                            |
+| `description`                                                 | `String?`       |                                                                                                                            |
+| `credits`                                                     | `Int?`          |                                                                                                                            |
+| `startDate` / `endDate`                                       | `DateTime?`     |                                                                                                                            |
+| `status`                                                      | `ModuleStatus`  | default **`ACTIVE`**; lo fija el admin (Activo/Concluido/Borrador). Un módulo **`DRAFT` no es visible para el estudiante** |
+| `createdAt` / `updatedAt`                                     | `DateTime`      |                                                                                                                            |
+| `teachers` / `contents` / `grades`                            | relaciones      | 1:N (`contents` = `ModuleContent`)                                                                                         |
 
-Índices: `@@unique([courseId, order])`, `@@index([teacherId])`. Un solo docente por módulo (extensible a join table si se requiere co-docencia).
+Índice: `@@unique([courseId, order])`. **Co-docencia**: los docentes a cargo se modelan vía la tabla intermedia `ModuleTeacher` (un módulo puede tener varios docentes), no con un FK `teacherId` directo. **Estado/visibilidad:** el admin cambia el estado con `PATCH /admin/courses/:id/modules/:moduleId/status`; las lecturas del estudiante (`/me/courses`, `/me/courses/:id`, `/me/modules/:id/learn`, `/me/kardex`) excluyen los módulos en `DRAFT` (el docente sí los ve).
+
+### `ModuleTeacher` → tabla `course_module_teachers`
+
+Asignación docente↔módulo (co-docencia). Reemplaza el antiguo `CourseModule.teacherId`.
+
+| Campo        | Tipo            | Notas                                                   |
+| ------------ | --------------- | ------------------------------------------------------- |
+| `id`         | `String` (uuid) | PK                                                      |
+| `moduleId`   | `String`        | FK → `CourseModule.id`, `onDelete: Cascade`             |
+| `teacherId`  | `String`        | FK → `User.id` (docente PROFESSOR), `onDelete: Cascade` |
+| `assignedAt` | `DateTime`      | default `now()`                                         |
+
+Índices: `@@unique([moduleId, teacherId])` (no se duplica la asignación), `@@index([teacherId])`.
 
 ### `Enrollment` → tabla `enrollments`
 
@@ -213,71 +242,73 @@ Inscripción estudiante ↔ curso.
 
 Índices: `@@unique([studentId, courseId])` (no se duplica inscripción), `@@index([courseId])`.
 
-### `Topic` → tabla `topics`
+### `ModuleContent` → tabla `module_contents`
 
-Tema dentro de un módulo, creado por el docente.
+Un **contenido del temario** de un módulo, creado por el docente. Reemplaza el antiguo trío `Topic`/`Material`/`Activity`: el temario es ahora **una sola lista ordenable** de contenidos heterogéneos. Cada fila es de un `kind` (`ContentKind`) y usa solo el subconjunto de campos que aplica a su tipo (el resto queda `null`).
 
-| Campo                      | Tipo            | Notas                                       |
-| -------------------------- | --------------- | ------------------------------------------- |
-| `id`                       | `String` (uuid) | PK                                          |
-| `moduleId`                 | `String`        | FK → `CourseModule.id`, `onDelete: Cascade` |
-| `order`                    | `Int`           |                                             |
-| `title`                    | `String`        |                                             |
-| `description`              | `String?`       |                                             |
-| `content`                  | `String?`       | contenido enriquecido (HTML/markdown)       |
-| `isPublished`              | `Boolean`       | default `false`                             |
-| `createdAt` / `updatedAt`  | `DateTime`      |                                             |
-| `materials` / `activities` | relaciones      | 1:N                                         |
+| Campo                     | Tipo            | Notas                                                                                                                                                   |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                      | `String` (uuid) | PK                                                                                                                                                      |
+| `moduleId`                | `String`        | FK → `CourseModule.id`, `onDelete: Cascade`                                                                                                             |
+| `order`                   | `Int`           | posición en el temario (reordenable por drag-and-drop)                                                                                                  |
+| `kind`                    | `ContentKind`   | `TEXT \| VIDEO \| MATERIAL \| ACTIVITY`                                                                                                                 |
+| `title`                   | `String`        |                                                                                                                                                         |
+| `isPublished`             | `Boolean`       | default `true`                                                                                                                                          |
+| `body`                    | `String?`       | **TEXT**: HTML del editor enriquecido (Tiptap)                                                                                                          |
+| `videoUrl`                | `String?`       | **VIDEO**: enlace YouTube/Vimeo                                                                                                                         |
+| `materialType`            | `MaterialType?` | **MATERIAL**: `FILE \| LINK`                                                                                                                            |
+| `url`                     | `String?`       | **MATERIAL**: ruta `/files/...` (subida) o enlace externo                                                                                               |
+| `activityType`            | `ActivityType?` | **ACTIVITY**                                                                                                                                            |
+| `instructions`            | `String?`       | **ACTIVITY**                                                                                                                                            |
+| `dueDate`                 | `DateTime?`     | **ACTIVITY**                                                                                                                                            |
+| `maxScore`                | `Decimal(5,2)?` | **ACTIVITY**: default 100 al crear                                                                                                                      |
+| `weight`                  | `Decimal(5,2)?` | **ACTIVITY**: peso (%) en la nota del módulo (default 0)                                                                                                |
+| `isOffline`               | `Boolean`       | **ACTIVITY**: presencial — la califica el docente a mano en la libreta (sin entrega del estudiante); no aparece en el temario del aula. default `false` |
+| `createdAt` / `updatedAt` | `DateTime`      |                                                                                                                                                         |
+| `submissions`             | `Submission[]`  | 1:N (solo `kind = ACTIVITY`)                                                                                                                            |
+| `progress` / `notes`      | relaciones      | 1:N (`ContentProgress` / `ContentNote`)                                                                                                                 |
 
-Índice: `@@unique([moduleId, order])`.
+Índices: `@@unique([moduleId, order])`, `@@index([moduleId])`.
 
-### `Material` → tabla `materials`
+### `ContentProgress` → tabla `content_progress`
 
-Material de apoyo de un módulo (opcionalmente ligado a un tema).
+Progreso de un estudiante en un contenido (si lo marcó como completado). Alimenta el % de avance del módulo en el aula.
 
-| Campo                     | Tipo            | Notas                                       |
-| ------------------------- | --------------- | ------------------------------------------- |
-| `id`                      | `String` (uuid) | PK                                          |
-| `moduleId`                | `String`        | FK → `CourseModule.id`, `onDelete: Cascade` |
-| `topicId`                 | `String?`       | FK → `Topic.id`, `onDelete: SetNull`        |
-| `title`                   | `String`        |                                             |
-| `type`                    | `MaterialType`  | default `FILE`                              |
-| `url`                     | `String`        | ruta `/files/...` (subida) o enlace externo |
-| `createdAt` / `updatedAt` | `DateTime`      |                                             |
+| Campo                     | Tipo            | Notas                                        |
+| ------------------------- | --------------- | -------------------------------------------- |
+| `id`                      | `String` (uuid) | PK                                           |
+| `studentId`               | `String`        | FK → `User.id`, `onDelete: Cascade`          |
+| `contentId`               | `String`        | FK → `ModuleContent.id`, `onDelete: Cascade` |
+| `completed`               | `Boolean`       | default `false`                              |
+| `completedAt`             | `DateTime?`     |                                              |
+| `createdAt` / `updatedAt` | `DateTime`      |                                              |
 
-Índices: `@@index([moduleId])`, `@@index([topicId])`.
+Índices: `@@unique([studentId, contentId])`, `@@index([contentId])`.
 
-### `Activity` → tabla `activities`
+### `ContentNote` → tabla `content_notes`
 
-Actividad evaluable de un módulo (tarea, examen, etc.), creada por el docente.
+Apuntes privados de un estudiante sobre un contenido ("Tus notas"). Solo los ve su autor.
 
-| Campo                     | Tipo            | Notas                                       |
-| ------------------------- | --------------- | ------------------------------------------- |
-| `id`                      | `String` (uuid) | PK                                          |
-| `moduleId`                | `String`        | FK → `CourseModule.id`, `onDelete: Cascade` |
-| `topicId`                 | `String?`       | FK → `Topic.id`, `onDelete: SetNull`        |
-| `type`                    | `ActivityType`  | default `ASSIGNMENT`                        |
-| `title`                   | `String`        |                                             |
-| `instructions`            | `String?`       |                                             |
-| `dueDate`                 | `DateTime?`     |                                             |
-| `maxScore`                | `Decimal(5,2)`  | default `100`                               |
-| `weight`                  | `Decimal(5,2)`  | default `0`; peso (%) en la nota del módulo |
-| `isPublished`             | `Boolean`       | default `false`                             |
-| `createdAt` / `updatedAt` | `DateTime`      |                                             |
-| `submissions`             | `Submission[]`  | 1:N                                         |
+| Campo                     | Tipo            | Notas                                        |
+| ------------------------- | --------------- | -------------------------------------------- |
+| `id`                      | `String` (uuid) | PK                                           |
+| `studentId`               | `String`        | FK → `User.id`, `onDelete: Cascade`          |
+| `contentId`               | `String`        | FK → `ModuleContent.id`, `onDelete: Cascade` |
+| `body`                    | `String`        | texto del apunte                             |
+| `createdAt` / `updatedAt` | `DateTime`      |                                              |
 
-Índices: `@@index([moduleId])`, `@@index([topicId])`.
+Índices: `@@unique([studentId, contentId])`, `@@index([contentId])`.
 
 ### `Submission` → tabla `submissions`
 
-Entrega de un estudiante para una actividad; calificada por el docente.
+Entrega de un estudiante para un contenido de tipo `ACTIVITY`; calificada por el docente.
 
 | Campo                     | Tipo               | Notas                                                     |
 | ------------------------- | ------------------ | --------------------------------------------------------- |
 | `id`                      | `String` (uuid)    | PK                                                        |
-| `activityId`              | `String`           | FK → `Activity.id`, `onDelete: Cascade`                   |
+| `contentId`               | `String`           | FK → `ModuleContent.id`, `onDelete: Cascade`              |
 | `studentId`               | `String`           | FK → `User.id`, `onDelete: Cascade`                       |
-| `content`                 | `String?`          | texto de la entrega                                       |
+| `text`                    | `String?`          | texto de la entrega                                       |
 | `fileUrl`                 | `String?`          | adjunto, ruta `/files/...`                                |
 | `status`                  | `SubmissionStatus` | default `PENDING`                                         |
 | `score`                   | `Decimal(5,2)?`    |                                                           |
@@ -287,7 +318,7 @@ Entrega de un estudiante para una actividad; calificada por el docente.
 | `gradedAt`                | `DateTime?`        |                                                           |
 | `createdAt` / `updatedAt` | `DateTime`         |                                                           |
 
-Índices: `@@unique([activityId, studentId])` (una entrega por estudiante/actividad), `@@index([studentId])`.
+Índices: `@@unique([contentId, studentId])` (una entrega por estudiante/actividad), `@@index([studentId])`.
 
 ### `ModuleGrade` → tabla `module_grades`
 
@@ -307,6 +338,45 @@ Nota final de un estudiante en un módulo. El conjunto de las `ModuleGrade` de u
 
 Índices: `@@unique([studentId, moduleId])`, `@@index([moduleId])`.
 
+---
+
+## Notificaciones
+
+Módulo `backend/src/notifications/`. Una `Notification` es una fila **por destinatario**; un `Announcement` es el **registro (log) de un envío** del admin (una fila por envío, no por destinatario).
+
+### `Notification` → tabla `notifications`
+
+Notificación persistida para un usuario (docente/estudiante). Se crea al inscribir a un estudiante, asignar un docente a un módulo, calificar una actividad, publicar una actividad, o cuando un admin envía un aviso.
+
+| Campo       | Tipo               | Notas                                                                           |
+| ----------- | ------------------ | ------------------------------------------------------------------------------- |
+| `id`        | `String` (uuid)    | PK                                                                              |
+| `userId`    | `String`           | FK → `User.id`, `onDelete: Cascade` (destinatario)                              |
+| `type`      | `NotificationType` |                                                                                 |
+| `title`     | `String`           |                                                                                 |
+| `body`      | `String`           | el frontend resalta en negrita lo que va entre comillas angulares `«…»`         |
+| `read`      | `Boolean`          | default `false`                                                                 |
+| `readAt`    | `DateTime?`        | se fija al marcar como leída (abrir = leer, estilo Gmail)                       |
+| `data`      | `Json?`            | contexto opcional (`{ courseId, moduleId, activityId, audience }`); sin FK dura |
+| `createdAt` | `DateTime`         |                                                                                 |
+
+Índices: `@@index([userId, read])`, `@@index([userId, createdAt])`. Endpoints: `GET /notifications`, `GET /notifications/unread-count`, `GET /notifications/:id` (devuelve y marca leída), `PATCH /notifications/:id/read`, `PATCH /notifications/read-all` (todos guardados por `JwtAuthGuard`; cada usuario opera solo las suyas).
+
+### `Announcement` → tabla `announcements`
+
+Registro de cada aviso que un administrador envía (una fila por envío, con cuántas notificaciones generó). Alimenta el "historial de avisos enviados".
+
+| Campo            | Tipo                   | Notas                                                                               |
+| ---------------- | ---------------------- | ----------------------------------------------------------------------------------- |
+| `id`             | `String` (uuid)        | PK                                                                                  |
+| `title` / `body` | `String`               |                                                                                     |
+| `audience`       | `AnnouncementAudience` | a quién se dirigió                                                                  |
+| `recipientCount` | `Int`                  | nº de notificaciones creadas en el envío                                            |
+| `senderId`       | `String`               | FK → `User.id` (admin emisor), relación `"AnnouncementSender"`, `onDelete: Cascade` |
+| `createdAt`      | `DateTime`             |                                                                                     |
+
+Índice: `@@index([createdAt])`. Endpoints (ADMIN): `POST /admin/notifications` (envía a la audiencia y crea el `Announcement` + las `Notification` en una transacción), `GET /admin/notifications` (historial paginado/filtrable por audiencia y texto).
+
 ## Diagrama de relaciones
 
 ```
@@ -320,17 +390,25 @@ SiteSettings  (independiente — singleton, fila única "singleton")
 User (ADMIN | PROFESSOR | STUDENT)
 
 ── Academia / LMS (Course independiente de Program) ─────────────────
-Course 1───N CourseModule 1───N Topic
-                          1───N Material   (Material/Activity opcional → Topic)
-                          1───N Activity 1───N Submission
+Course 1───N CourseModule 1───N ModuleContent (temario: TEXT|VIDEO|MATERIAL|ACTIVITY)
+                          │             1───N Submission       (solo ACTIVITY)
+                          │             1───N ContentProgress  (por estudiante)
+                          │             1───N ContentNote      (por estudiante)
                           1───N ModuleGrade
+                          N───N User (PROFESSOR)  vía ModuleTeacher (co-docencia)
 Course 1───N Enrollment
 
-User (PROFESSOR) 1───N CourseModule          (teacher)
+User (PROFESSOR) N───N CourseModule          vía ModuleTeacher
 User (STUDENT)   1───N Enrollment            (inscripción a curso)
                  1───N Submission            (entregas)
+                 1───N ContentProgress       (avance por contenido)
+                 1───N ContentNote           (apuntes por contenido)
                  1───N ModuleGrade           (kárdex)
 User (calificador) 1───N Submission / ModuleGrade  (gradedBy)
+
+── Notificaciones ───────────────────────────────────────────────────
+User 1───N Notification        (recibe)
+User (ADMIN) 1───N Announcement (envía — log de avisos, "AnnouncementSender")
 ```
 
 ## Seed (`backend/prisma/seed.ts`)
