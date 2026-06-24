@@ -3,19 +3,28 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ScrollLink } from "./scroll-link";
+import { useActiveSection } from "./use-active-section";
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getCategories } from "@/lib/api/programs";
 
+/** Maps a nav href like "/#programas" or "/nosotros" to its section id */
+function sectionFromHref(href: string): string {
+  if (href.startsWith("/#")) return href.slice(2);
+  if (href === "/nosotros") return "nosotros";
+  return "";
+}
+
 const navLinks = [
-  { href: "/nosotros", label: "Nosotros" },
   { href: "/#contacto", label: "Contacto" },
+  { href: "/nosotros", label: "Nosotros" },
 ];
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const activeSection = useActiveSection();
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -50,13 +59,35 @@ export function Navbar() {
         </Link>
 
         <ul className="hidden items-center gap-8 lg:flex">
+          <li>
+            <ScrollLink
+              href="/#inicio"
+              className={`relative text-sm font-medium transition-all duration-300 ${
+                activeSection === "inicio"
+                  ? "text-amber-300"
+                  : "text-white/80 hover:text-white"
+              }`}
+            >
+              Inicio
+              {activeSection === "inicio" && (
+                <span className="absolute -bottom-1.5 left-0 h-0.5 w-full rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+              )}
+            </ScrollLink>
+          </li>
           <li className="group relative">
             <ScrollLink
               href="/#programas"
-              className="flex items-center gap-1 text-sm font-medium text-white/80 transition-colors hover:text-white"
+              className={`relative flex items-center gap-1 text-sm font-medium transition-all duration-300 ${
+                activeSection === "programas"
+                  ? "text-amber-300"
+                  : "text-white/80 hover:text-white"
+              }`}
             >
               Programas
               <ChevronDown className="h-4 w-4 transition-transform duration-200 group-hover:rotate-180" />
+              {activeSection === "programas" && (
+                <span className="absolute -bottom-1.5 left-0 h-0.5 w-full rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+              )}
             </ScrollLink>
             
             <div className="absolute left-0 top-full mt-4 w-56 origin-top-left rounded-xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-lg transition-all duration-300 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
@@ -72,16 +103,26 @@ export function Navbar() {
               ))}
             </div>
           </li>
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <ScrollLink
-                href={link.href}
-                className="text-sm font-medium text-white/80 transition-colors hover:text-white"
-              >
-                {link.label}
-              </ScrollLink>
-            </li>
-          ))}
+          {navLinks.map((link) => {
+            const isActive = activeSection === sectionFromHref(link.href);
+            return (
+              <li key={link.href}>
+                <ScrollLink
+                  href={link.href}
+                  className={`relative text-sm font-medium transition-all duration-300 ${
+                    isActive
+                      ? "text-amber-300"
+                      : "text-white/80 hover:text-white"
+                  }`}
+                >
+                  {link.label}
+                  {isActive && (
+                    <span className="absolute -bottom-1.5 left-0 h-0.5 w-full rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+                  )}
+                </ScrollLink>
+              </li>
+            );
+          })}
         </ul>
 
         <div className="hidden items-center gap-3 lg:flex">
@@ -126,7 +167,23 @@ export function Navbar() {
         <div className="border-t border-white/10 bg-slate-950/95 backdrop-blur-md lg:hidden">
           <ul className="space-y-1 px-6 py-4">
             <li>
-              <div className="block rounded-md px-3 py-2 text-base font-medium text-white">
+              <ScrollLink
+                href="/#inicio"
+                className={`block rounded-md px-3 py-2 text-base font-medium transition-colors ${
+                  activeSection === "inicio"
+                    ? "bg-amber-400/10 text-amber-300 border-l-2 border-amber-400"
+                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <div onClick={() => setMenuOpen(false)}>Inicio</div>
+              </ScrollLink>
+            </li>
+            <li>
+              <div className={`block rounded-md px-3 py-2 text-base font-medium transition-colors ${
+                activeSection === "programas"
+                  ? "text-amber-300"
+                  : "text-white"
+              }`}>
                 Programas
               </div>
               <ul className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-4">
@@ -143,18 +200,25 @@ export function Navbar() {
                 ))}
               </ul>
             </li>
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <ScrollLink
-                  href={link.href}
-                  className="block rounded-md px-3 py-2 text-base font-medium text-white/80 hover:bg-white/10 hover:text-white"
-                >
-                  <div onClick={() => setMenuOpen(false)}>
-                    {link.label}
-                  </div>
-                </ScrollLink>
-              </li>
-            ))}
+            {navLinks.map((link) => {
+              const isActive = activeSection === sectionFromHref(link.href);
+              return (
+                <li key={link.href}>
+                  <ScrollLink
+                    href={link.href}
+                    className={`block rounded-md px-3 py-2 text-base font-medium transition-colors ${
+                      isActive
+                        ? "bg-amber-400/10 text-amber-300 border-l-2 border-amber-400"
+                        : "text-white/80 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <div onClick={() => setMenuOpen(false)}>
+                      {link.label}
+                    </div>
+                  </ScrollLink>
+                </li>
+              );
+            })}
             <li className="flex gap-3 pt-3">
               <Link
                 href="/login"

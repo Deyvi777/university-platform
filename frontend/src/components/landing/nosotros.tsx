@@ -141,7 +141,7 @@ export function Nosotros() {
 
             <h2 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">
               Potenciamos el capital humano que{" "}
-              <span className="text-amber-400">transforma Bolivia</span>
+              <span className="text-white">transforma Bolivia</span>
             </h2>
 
             <p className="mt-6 text-lg leading-8 text-slate-200">
@@ -236,7 +236,7 @@ export function Nosotros() {
         <div className="mt-24">
           <div className="mx-auto max-w-2xl text-center">
             <h3 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Misión, visión y <span className="text-amber-400">valores</span>
+              Misión, visión y <span className="text-white">valores</span>
             </h3>
             <p className="mt-4 text-lg leading-8 text-slate-300">
               La esencia que guía cada programa, cada decisión y cada persona
@@ -295,7 +295,7 @@ export function Nosotros() {
             </p>
             <h3 className="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">
               Las personas que{" "}
-              <span className="text-amber-400">hacen posible Certificate</span>
+              <span className="text-white">hacen posible Certificate</span>
             </h3>
             <p className="mt-4 text-lg leading-8 text-slate-300">
               Un equipo de profesionales comprometidos con tu crecimiento

@@ -12,7 +12,7 @@ function scrollTo(id: string) {
 
 export function Hero() {
   return (
-    <section className="relative flex min-h-svh flex-col justify-center overflow-hidden">
+    <section id="inicio" className="relative flex min-h-svh flex-col justify-center overflow-hidden">
       <video
         className="absolute inset-0 h-full w-full object-cover"
         src="/landing/hero-video.mp4"
@@ -26,14 +26,13 @@ export function Hero() {
 
       <div className="relative mx-auto w-full max-w-7xl px-6 pt-32 pb-20 lg:px-8">
         <div className="max-w-2xl">
-          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-sm font-medium tracking-wide text-amber-300 backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+          <p className="mb-6 text-lg font-medium tracking-wide text-amber-300">
             Escuela Multidisciplinaria de Postgrado
           </p>
 
           <h1 className="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
             Impulsa tu carrera con{" "}
-            <span className="text-amber-400">maestrías y diplomados</span> de
+            <span className="text-white">maestrías y diplomados</span> de
             excelencia
           </h1>
 

@@ -47,7 +47,7 @@ export function ProgramsGrid({ programs }: { programs: ProgramSummary[] }) {
 
   return (
     <>
-      <div className="mt-10 flex flex-wrap gap-3">
+      <div className="mt-10 flex flex-wrap justify-center gap-3">
         {tabs.map((tab) => (
           <button
             key={tab.slug}

@@ -1355,23 +1355,17 @@ export function DashboardSidebar({
                 href="/dashboard"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Certificate · Plataforma — ir al inicio del panel"
-                className="flex items-center gap-3 rounded-full py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+                className="flex items-center rounded-xl py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
               >
-                {/* Blob blanco con el wordmark de Certificate en azul de marca. */}
-                <span
-                  className="flex h-11 shrink-0 items-center justify-center rounded-full bg-white px-3.5 font-heading text-lg font-bold tracking-tight text-primary dark:text-blue-950 shadow-md shadow-blue-950/25 ring-1 ring-white/60"
-                  aria-hidden="true"
-                >
-                  Certificate
-                </span>
-                <span className="flex flex-col text-right leading-tight">
-                  <span className="text-[0.7rem] font-semibold tracking-wide text-white/55">
-                    v 1.0.0
-                  </span>
-                  <span className="text-[0.65rem] font-medium tracking-wide text-white/35">
-                    2025
-                  </span>
-                </span>
+                {/* Logo blanco de Certificate directo sobre el fondo navy del drawer. */}
+                <Image
+                  src="/landing/logo.webp"
+                  alt="Certificate"
+                  width={408}
+                  height={174}
+                  priority
+                  className="h-auto w-auto max-h-11 max-w-[10rem] object-contain"
+                />
               </Link>
               <button
                 type="button"

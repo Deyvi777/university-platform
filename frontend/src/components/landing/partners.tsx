@@ -48,7 +48,7 @@ export async function Partners() {
 
           <h2 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
             Con el respaldo de nuestras{" "}
-            <span className="text-amber-400">instituciones aliadas</span>
+            <span className="text-white">instituciones aliadas</span>
           </h2>
 
           <p className="mt-6 text-lg leading-8 text-slate-200">
