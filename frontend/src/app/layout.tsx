@@ -39,7 +39,7 @@ export default function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${openSans.variable} ${merriweather.variable} ${geistMono.variable} h-full antialiased scroll-smooth`}
+      className={`${openSans.variable} ${merriweather.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { ViewTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Navbar } from "@/components/landing/navbar";
+import { BackToPrograms } from "./back-to-programs";
 import {
   formatAmount,
   formatStartDate,
@@ -47,12 +49,7 @@ export default async function ProgramPage({ params }: Props) {
       <Navbar />
       <main className="bg-slate-950 pb-24 pt-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <Link
-            href="/#programas"
-            className="text-sm font-medium text-slate-300 transition-colors hover:text-white"
-          >
-            ← Volver a programas
-          </Link>
+          <BackToPrograms />
 
           {/* Encabezado */}
           <div className="mt-8 grid items-start gap-12 lg:grid-cols-[1fr_420px]">
@@ -62,9 +59,11 @@ export default async function ProgramPage({ params }: Props) {
                 {program.category.name}
               </p>
 
-              <h1 className="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">
-                {program.title}
-              </h1>
+              <ViewTransition name={`program-title-${program.slug}`}>
+                <h1 className="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">
+                  {program.title}
+                </h1>
+              </ViewTransition>
 
               <h2 className="mt-10 text-sm font-semibold uppercase tracking-widest text-amber-400">
                 Objetivo del programa
@@ -96,17 +95,19 @@ export default async function ProgramPage({ params }: Props) {
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/10 lg:mx-0">
-              <Image
-                src={program.flyerUrl}
-                alt={`Flyer de ${program.title}`}
-                width={840}
-                height={1050}
-                priority
-                sizes="(min-width: 1024px) 420px, 100vw"
-                className="h-auto w-full"
-              />
-            </div>
+            <ViewTransition name={`program-image-${program.slug}`}>
+              <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/10 lg:mx-0">
+                <Image
+                  src={program.flyerUrl}
+                  alt={`Flyer de ${program.title}`}
+                  width={840}
+                  height={1050}
+                  priority
+                  sizes="(min-width: 1024px) 420px, 100vw"
+                  className="h-auto w-full"
+                />
+              </div>
+            </ViewTransition>
           </div>
 
           {/* Ficha rápida */}
