@@ -1,5 +1,4 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth-guard";
 import { AdminApiError, getAdminCourse } from "@/lib/api/admin";
@@ -23,12 +22,7 @@ export default async function EditarCursoPage({
 
   return (
     <div>
-      <Link
-        href={`/dashboard/cursos/${id}`}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" /> Volver al programa
-      </Link>
+      <BackLink href={`/dashboard/cursos/${id}`}>Volver al programa</BackLink>
       <h1 className="mt-3 text-2xl font-bold tracking-tight">
         Editar programa
       </h1>

@@ -1,5 +1,4 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { BackLink } from "@/components/dashboard/back-link";
 import { requireAdmin } from "@/lib/auth-guard";
 import { CourseForm } from "@/app/dashboard/cursos/course-form";
 
@@ -8,12 +7,7 @@ export default async function NuevoCursoPage() {
 
   return (
     <div>
-      <Link
-        href="/dashboard/cursos"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" /> Volver a programas
-      </Link>
+      <BackLink href="/dashboard/cursos">Volver a programas</BackLink>
       <h1 className="mt-3 text-2xl font-bold tracking-tight">
         Crear programa
       </h1>

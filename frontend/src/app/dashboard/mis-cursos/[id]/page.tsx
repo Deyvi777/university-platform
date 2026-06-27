@@ -1,12 +1,11 @@
 import {
-  ArrowLeft,
   BookOpen,
   CalendarDays,
   GraduationCap,
   Layers,
   Presentation,
 } from "lucide-react";
-import Link from "next/link";
+import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
 import { getMyCourse, type CourseStatus } from "@/lib/api/me";
@@ -64,13 +63,7 @@ export default async function MyCourseDetailPage({
 
   return (
     <div className="w-full">
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        Volver al panel
-      </Link>
+      <BackLink href="/dashboard">Volver al panel</BackLink>
 
       {/* Cabecera del curso */}
       <section className="mt-4 overflow-hidden rounded-3xl border bg-card shadow-sm">

@@ -100,12 +100,14 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
-  firstName String
-  lastName  String
-  role      Role     @default(STUDENT)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  firstName  String
+  lastName   String
+  phone      String // teléfono de contacto (obligatorio)
+  idDocument String? // documento de identidad / carnet (opcional)
+  role       Role     @default(STUDENT)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relaciones académicas (rol PROFESSOR / STUDENT). Un User puede tener
   // varias de estas según su rol; todas son opcionales para ADMIN.
@@ -196,6 +198,20 @@ model Partner {
   @@map("partners")
 }
 
+model TeamMember {
+  id           String   @id @default(uuid())
+  name         String
+  role         String // cargo, ej. "Gerente General / Representante Legal"
+  photoUrl     String // ruta pública servida por el frontend, ej. /files/team/<uuid>.webp
+  displayOrder Int      @default(0)
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@map("team_members")
+}
+
 model Program {
   id                String          @id @default(uuid())
   slug              String          @unique
@@ -215,6 +231,7 @@ model Program {
   currency          String          @default("Bs")
   paymentFacilities String?
   isPublished       Boolean         @default(true)
+  displayOrder      Int             @default(0) // orden manual (drag-and-drop del panel); también rige el orden en la landing
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 

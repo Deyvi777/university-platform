@@ -15,6 +15,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { BulkUsersDto } from './dto/bulk-user.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('admin-users')
@@ -38,6 +39,12 @@ export class AdminUsersController {
   @Post()
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
+  }
+
+  /** Carga masiva de estudiantes desde la plantilla Excel (carga parcial). */
+  @Post('bulk')
+  bulkCreate(@Body() dto: BulkUsersDto) {
+    return this.usersService.bulkCreateStudents(dto.students);
   }
 
   @Patch(':id')

@@ -81,7 +81,7 @@ export interface ActivityGrading {
     maxScore: number;
     weight: number;
     dueDate: string | null;
-    module: { id: string; name: string; order: number };
+    module: { id: string; name: string; order: number; status: ModuleStatus };
     course: { id: string; name: string };
   };
   students: GradingStudentRow[];

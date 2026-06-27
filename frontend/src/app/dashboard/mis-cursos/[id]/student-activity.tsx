@@ -62,9 +62,12 @@ function formatDue(iso: string | null): string | null {
 export function StudentActivity({
   courseId,
   activity,
+  readOnly = false,
 }: {
   courseId: string;
   activity: CourseActivity;
+  /** Módulo concluido: solo se puede ver la entrega, no enviar/editar. */
+  readOnly?: boolean;
 }) {
   const sub = activity.submission;
   const status: SubmissionStatus = sub?.status ?? "PENDING";
@@ -158,8 +161,8 @@ export function StudentActivity({
         </div>
       )}
 
-      {/* Acción de entrega (oculta si ya fue calificada) */}
-      {!isGraded && (
+      {/* Acción de entrega (oculta si ya fue calificada o el módulo concluyó) */}
+      {!isGraded && !readOnly && (
         <div className="mt-3">
           {editing ? (
             <SubmitForm

@@ -1,19 +1,7 @@
-import { Pencil, Plus } from "lucide-react";
-import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-guard";
 import { listAdminPartners } from "@/lib/api/admin";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { DeleteButton } from "@/components/admin/delete-button";
-import { deletePartnerAction } from "@/app/dashboard/partners/actions";
+import { PartnersList } from "@/app/dashboard/partners/partners-list";
+import { CreatePartnerButton } from "@/app/dashboard/partners/partner-dialogs";
 
 export default async function PartnersAdminPage() {
   await requireAdmin();
@@ -29,86 +17,14 @@ export default async function PartnersAdminPage() {
           <p className="mt-1 text-muted-foreground">
             {partners.length}{" "}
             {partners.length === 1 ? "institución" : "instituciones"}{" "}
-            registradas.
+            registradas. Arrastra para reordenar; ese orden es el que se muestra
+            en la landing.
           </p>
         </div>
-        <Button
-          nativeButton={false}
-          render={<Link href="/dashboard/partners/nuevo" />}
-        >
-          <Plus className="size-4" /> Nueva institución
-        </Button>
+        <CreatePartnerButton />
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-20">Logo</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Orden</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {partners.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="py-10 text-center text-muted-foreground"
-                >
-                  Aún no hay instituciones. Crea la primera.
-                </TableCell>
-              </TableRow>
-            )}
-            {partners.map((partner) => (
-              <TableRow key={partner.id}>
-                <TableCell>
-                  <div className="flex size-12 items-center justify-center rounded-md bg-transparent p-1.5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={partner.logoUrl}
-                      alt={partner.name}
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  </div>
-                </TableCell>
-                <TableCell className="font-medium">{partner.name}</TableCell>
-                <TableCell>{partner.displayOrder}</TableCell>
-                <TableCell>
-                  {partner.isPublished ? (
-                    <Badge>Publicado</Badge>
-                  ) : (
-                    <Badge variant="secondary">Oculto</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      nativeButton={false}
-                      render={
-                        <Link
-                          href={`/dashboard/partners/${partner.id}`}
-                          aria-label="Editar"
-                        />
-                      }
-                      variant="ghost"
-                      size="icon-sm"
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                    <DeleteButton
-                      action={deletePartnerAction.bind(null, partner.id)}
-                      confirmMessage={`¿Eliminar "${partner.name}"?`}
-                    />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <PartnersList partners={partners} />
     </div>
   );
 }

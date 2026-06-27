@@ -103,9 +103,12 @@ function signature(contents: TeacherContent[]): string {
 export function ContentManager({
   moduleId,
   contents,
+  readOnly = false,
 }: {
   moduleId: string;
   contents: TeacherContent[];
+  /** Módulo concluido: el temario queda en solo lectura. */
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   // Las actividades presenciales no son lecciones del temario: se gestionan en
@@ -135,6 +138,7 @@ export function ContentManager({
   );
 
   function onDragEnd(event: DragEndEvent) {
+    if (readOnly) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = items.findIndex((i) => i.id === active.id);
@@ -162,12 +166,16 @@ export function ContentManager({
         <div>
           <h2 className="font-heading text-base font-semibold">Contenidos</h2>
           <p className="text-xs text-muted-foreground">
-            Arrastra para reordenar. Este orden es el del temario del estudiante.
+            {readOnly
+              ? "Módulo concluido: el temario es solo de lectura."
+              : "Arrastra para reordenar. Este orden es el del temario del estudiante."}
           </p>
         </div>
-        <Button type="button" size="sm" onClick={() => setPickerOpen(true)}>
-          <Plus className="size-4" /> Agregar contenido
-        </Button>
+        {!readOnly && (
+          <Button type="button" size="sm" onClick={() => setPickerOpen(true)}>
+            <Plus className="size-4" /> Agregar contenido
+          </Button>
+        )}
       </div>
 
       {/* Selector de tipo (modal) */}
@@ -254,6 +262,7 @@ export function ContentManager({
                     key={content.id}
                     content={content}
                     moduleId={moduleId}
+                    readOnly={readOnly}
                     editing={editingId === content.id}
                     onEdit={() =>
                       setEditingId(
@@ -275,18 +284,20 @@ export function ContentManager({
 function SortableRow({
   content,
   moduleId,
+  readOnly,
   editing,
   onEdit,
   onDoneEdit,
 }: {
   content: TeacherContent;
   moduleId: string;
+  readOnly: boolean;
   editing: boolean;
   onEdit: () => void;
   onDoneEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: content.id });
+    useSortable({ id: content.id, disabled: readOnly });
   const meta = KIND_META[content.kind];
   const Icon = meta.icon;
 
@@ -305,15 +316,17 @@ function SortableRow({
       )}
     >
       <div className="flex items-center gap-2 px-2 py-2.5 sm:px-3">
-        <button
-          type="button"
-          className="flex size-7 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
-          aria-label="Arrastrar para reordenar"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="size-4" />
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            className="flex size-7 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+            aria-label="Arrastrar para reordenar"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="size-4" />
+          </button>
+        )}
         <span
           className={cn(
             "flex size-8 shrink-0 items-center justify-center rounded-lg",
@@ -342,20 +355,24 @@ function SortableRow({
               <span className="hidden sm:inline">Calificar</span>
             </Button>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Editar contenido"
-            onClick={onEdit}
-          >
-            <Pencil className="size-4" />
-          </Button>
-          <DeleteButton
-            action={() => deleteContentAction(moduleId, content.id)}
-            title="¿Eliminar este contenido?"
-            confirmMessage={`Se eliminará «${content.title}».`}
-          />
+          {!readOnly && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Editar contenido"
+                onClick={onEdit}
+              >
+                <Pencil className="size-4" />
+              </Button>
+              <DeleteButton
+                action={() => deleteContentAction(moduleId, content.id)}
+                title="¿Eliminar este contenido?"
+                confirmMessage={`Se eliminará «${content.title}».`}
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -500,7 +517,7 @@ function ContentForm({
   const [instructions, setInstructions] = useState(content?.instructions ?? "");
   const [dueDate, setDueDate] = useState(toLocalInput(content?.dueDate ?? null));
   const [maxScore, setMaxScore] = useState(String(content?.maxScore ?? 100));
-  const [weight, setWeight] = useState(String(content?.weight ?? 0));
+  const [weight, setWeight] = useState(String(content?.weight ?? 100));
 
   async function handleUpload(file: File) {
     setUploading(true);

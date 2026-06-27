@@ -1,5 +1,5 @@
-import { ArrowLeft, Layers } from "lucide-react";
-import Link from "next/link";
+import { Layers, Lock } from "lucide-react";
+import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
 import { getLearnModule } from "@/lib/api/me";
@@ -23,13 +23,7 @@ export default async function ClassroomPage({
 
   return (
     <div className="w-full">
-      <Link
-        href="/dashboard/mis-programas"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        Volver a mis programas
-      </Link>
+      <BackLink href="/dashboard/mis-programas">Volver a mis programas</BackLink>
 
       <header className="mt-3">
         <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
@@ -45,6 +39,14 @@ export default async function ClassroomPage({
           </p>
         )}
       </header>
+
+      {mod.status === "FINISHED" && (
+        <p className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <Lock className="size-4 shrink-0" aria-hidden="true" />
+          Este módulo está concluido. Puedes revisar todo el contenido y tus
+          notas, pero no enviar actividades ni hacer cambios.
+        </p>
+      )}
 
       <div className="mt-6">
         <ClassroomView module={mod} />

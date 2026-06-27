@@ -1,5 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { ContentKind, NotificationType, Prisma } from '@prisma/client';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ContentKind,
+  ModuleStatus,
+  NotificationType,
+  Prisma,
+  Role,
+} from '@prisma/client';
+
+const MODULE_FINISHED_MSG =
+  'El módulo está concluido; no se pueden realizar cambios.';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
@@ -72,6 +85,7 @@ export class ModuleContentService {
 
   async createContent(userId: string, moduleId: string, dto: CreateContentDto) {
     await this.ensureTeaches(userId, moduleId);
+    await this.ensureModuleNotFinished(moduleId);
     const last = await this.prisma.moduleContent.findFirst({
       where: { moduleId },
       orderBy: { order: 'desc' },
@@ -104,6 +118,7 @@ export class ModuleContentService {
     });
     if (!existing) throw new NotFoundException('Contenido no encontrado');
     await this.ensureTeaches(userId, existing.moduleId);
+    await this.ensureModuleNotFinished(existing.moduleId);
 
     const data: Prisma.ModuleContentUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
@@ -157,6 +172,7 @@ export class ModuleContentService {
     });
     if (!content) throw new NotFoundException('Contenido no encontrado');
     await this.ensureTeaches(userId, content.moduleId);
+    await this.ensureModuleNotFinished(content.moduleId);
     await this.prisma.moduleContent.delete({ where: { id: contentId } });
     return { success: true };
   }
@@ -172,6 +188,7 @@ export class ModuleContentService {
     dto: ReorderContentsDto,
   ) {
     await this.ensureTeaches(userId, moduleId);
+    await this.ensureModuleNotFinished(moduleId);
     const current = await this.prisma.moduleContent.findMany({
       where: { moduleId },
       orderBy: { order: 'asc' },
@@ -283,6 +300,7 @@ export class ModuleContentService {
       order: module.order,
       name: module.name,
       description: module.description,
+      status: module.status,
       course: {
         id: module.course.id,
         name: module.course.name,
@@ -337,6 +355,7 @@ export class ModuleContentService {
     completed: boolean,
   ) {
     await this.ensureEnrolledInContent(studentId, contentId);
+    await this.ensureContentModuleNotFinished(contentId);
     const completedAt = completed ? new Date() : null;
     await this.prisma.contentProgress.upsert({
       where: { studentId_contentId: { studentId, contentId } },
@@ -349,6 +368,7 @@ export class ModuleContentService {
   /** Guarda los apuntes personales del estudiante sobre un contenido. */
   async setContentNote(studentId: string, contentId: string, body: string) {
     await this.ensureEnrolledInContent(studentId, contentId);
+    await this.ensureContentModuleNotFinished(contentId);
     const trimmed = body.trim();
     await this.prisma.contentNote.upsert({
       where: { studentId_contentId: { studentId, contentId } },
@@ -421,13 +441,43 @@ export class ModuleContentService {
   }
 
   // El docente solo gestiona módulos que dicta. Si no lo dicta (o no existe),
-  // 404 — sin revelar la existencia del módulo.
+  // 404 — sin revelar la existencia del módulo. El ADMIN puede gestionar
+  // cualquier módulo (igual que un docente) desde el panel de programas.
   private async ensureTeaches(userId: string, moduleId: string) {
     const rel = await this.prisma.moduleTeacher.findUnique({
       where: { moduleId_teacherId: { moduleId, teacherId: userId } },
       select: { id: true },
     });
-    if (!rel) throw new NotFoundException('Módulo no encontrado');
+    if (rel) return;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (user?.role === Role.ADMIN) return;
+    throw new NotFoundException('Módulo no encontrado');
+  }
+
+  // Un módulo CONCLUIDO (FINISHED) queda en solo lectura: ni docente ni
+  // estudiante pueden modificar contenidos, notas, apuntes ni entregas.
+  private async ensureModuleNotFinished(moduleId: string) {
+    const module = await this.prisma.courseModule.findUnique({
+      where: { id: moduleId },
+      select: { status: true },
+    });
+    if (module?.status === ModuleStatus.FINISHED) {
+      throw new ForbiddenException(MODULE_FINISHED_MSG);
+    }
+  }
+
+  // Igual que el anterior pero resolviendo el módulo a partir del contenido.
+  private async ensureContentModuleNotFinished(contentId: string) {
+    const content = await this.prisma.moduleContent.findUnique({
+      where: { id: contentId },
+      select: { module: { select: { status: true } } },
+    });
+    if (content?.module.status === ModuleStatus.FINISHED) {
+      throw new ForbiddenException(MODULE_FINISHED_MSG);
+    }
   }
 
   // El estudiante solo opera contenidos de cursos en los que está inscrito.

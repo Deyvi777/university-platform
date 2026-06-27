@@ -55,9 +55,12 @@ const GRADE_STATUS: Record<ModuleGradeStatus, { label: string; cls: string }> = 
 export function Gradebook({
   moduleId,
   gradebook,
+  readOnly = false,
 }: {
   moduleId: string;
   gradebook: ModuleGradebook | null;
+  /** Módulo concluido: la libreta queda en solo lectura. */
+  readOnly?: boolean;
 }) {
   const [addOpen, setAddOpen] = useState(false);
 
@@ -79,31 +82,36 @@ export function Gradebook({
             Libreta de calificaciones
           </h2>
           <p className="text-xs text-muted-foreground">
-            Notas por actividad, nota del módulo (calculada) y tu observación.
-            Puedes agregar actividades y calificarlas a mano aquí.
+            {readOnly
+              ? "Módulo concluido: las calificaciones son solo de lectura."
+              : "Notas por actividad, nota del módulo (calculada) y tu observación. Puedes agregar actividades y calificarlas a mano aquí."}
           </p>
         </div>
-        <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="size-4" /> Nueva calificación
-        </Button>
+        {!readOnly && (
+          <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="size-4" /> Nueva calificación
+          </Button>
+        )}
       </div>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nueva calificación</DialogTitle>
-            <DialogDescription>
-              Crea una columna de calificación para el módulo y luego carga el
-              puntaje de cada estudiante.
-            </DialogDescription>
-          </DialogHeader>
-          <NewActivityForm
-            moduleId={moduleId}
-            onDone={() => setAddOpen(false)}
-            onCancel={() => setAddOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {!readOnly && (
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nueva calificación</DialogTitle>
+              <DialogDescription>
+                Crea una columna de calificación para el módulo y luego carga el
+                puntaje de cada estudiante.
+              </DialogDescription>
+            </DialogHeader>
+            <NewActivityForm
+              moduleId={moduleId}
+              onDone={() => setAddOpen(false)}
+              onCancel={() => setAddOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {students.length === 0 ? (
         <div className="px-6 py-12 text-center">
@@ -130,7 +138,12 @@ export function Gradebook({
                   Estudiante
                 </th>
                 {activities.map((a) => (
-                  <ActivityHeader key={a.id} moduleId={moduleId} activity={a} />
+                  <ActivityHeader
+                    key={a.id}
+                    moduleId={moduleId}
+                    activity={a}
+                    readOnly={readOnly}
+                  />
                 ))}
                 <th className="px-3 py-2.5 text-center font-medium text-muted-foreground">
                   Módulo
@@ -147,6 +160,7 @@ export function Gradebook({
                   moduleId={moduleId}
                   row={row}
                   activities={activities}
+                  readOnly={readOnly}
                 />
               ))}
             </tbody>
@@ -160,9 +174,11 @@ export function Gradebook({
 function ActivityHeader({
   moduleId,
   activity,
+  readOnly,
 }: {
   moduleId: string;
   activity: GradebookActivity;
+  readOnly: boolean;
 }) {
   const [editOpen, setEditOpen] = useState(false);
 
@@ -176,7 +192,7 @@ function ActivityHeader({
         /{activity.maxScore}
         {activity.weight ? ` · ${activity.weight}%` : ""}
       </span>
-      {activity.isOffline && (
+      {activity.isOffline && !readOnly && (
         <span className="mt-0.5 flex items-center justify-center gap-1">
           <button
             type="button"
@@ -217,14 +233,23 @@ function StudentRow({
   moduleId,
   row,
   activities,
+  readOnly,
 }: {
   moduleId: string;
   row: GradebookRow;
   activities: GradebookActivity[];
+  readOnly: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const router = useRouter();
-  const grade = row.moduleGrade ? GRADE_STATUS[row.moduleGrade.status] : null;
+  // Las etiquetas aprobado/reprobado solo se muestran cuando el módulo está
+  // concluido (readOnly). Mientras está activo se mantiene "En curso".
+  const effectiveStatus = row.moduleGrade
+    ? readOnly
+      ? row.moduleGrade.status
+      : "IN_PROGRESS"
+    : null;
+  const grade = effectiveStatus ? GRADE_STATUS[effectiveStatus] : null;
   const fullName = `${row.student.firstName} ${row.student.lastName}`;
 
   return (
@@ -241,7 +266,7 @@ function StudentRow({
         </th>
         {activities.map((a, i) => {
           const cell = row.grades[i];
-          return a.isOffline ? (
+          return a.isOffline && !readOnly ? (
             <td key={a.id} className="px-2 py-2 text-center">
               <ScoreCell
                 moduleId={moduleId}
@@ -279,25 +304,31 @@ function StudentRow({
           </div>
         </td>
         <td className="px-3 py-2.5 text-right">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditing((v) => !v)}
-            aria-expanded={editing}
-          >
-            {row.observation ? (
-              <Pencil className="size-3.5" />
-            ) : (
-              <MessageSquarePlus className="size-3.5" />
-            )}
-            <span className="hidden sm:inline">
-              {row.observation ? "Editar" : "Agregar"}
+          {readOnly ? (
+            <span className="block max-w-[12rem] truncate text-xs text-muted-foreground">
+              {row.observation || "—"}
             </span>
-          </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditing((v) => !v)}
+              aria-expanded={editing}
+            >
+              {row.observation ? (
+                <Pencil className="size-3.5" />
+              ) : (
+                <MessageSquarePlus className="size-3.5" />
+              )}
+              <span className="hidden sm:inline">
+                {row.observation ? "Editar" : "Agregar"}
+              </span>
+            </Button>
+          )}
         </td>
       </tr>
-      {editing && (
+      {editing && !readOnly && (
         <tr className="border-b bg-muted/20">
           <td colSpan={activities.length + 3} className="px-4 py-3">
             <ObservationEditor
@@ -399,7 +430,7 @@ function NewActivityForm({
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [maxScore, setMaxScore] = useState("100");
-  const [weight, setWeight] = useState("0");
+  const [weight, setWeight] = useState("100");
   const [pending, startTransition] = useTransition();
 
   function submit(e: React.FormEvent) {

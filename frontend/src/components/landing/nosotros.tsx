@@ -9,11 +9,11 @@ import {
   Handshake,
   Headset,
   type LucideIcon,
-  MapPin,
   Quote,
   Rocket,
   Users,
 } from "lucide-react";
+import { getTeam } from "@/lib/api/team";
 
 const features = [
   {
@@ -21,12 +21,14 @@ const features = [
     title: "Formación a la medida",
     description:
       "Capacitación, desarrollo corporativo y gestión académica para cada institución.",
+    badge: "bg-blue-500/15 text-blue-400 ring-blue-400/20",
   },
   {
     icon: Handshake,
     title: "Alianzas acreditadas",
     description:
       "Universidades e instituciones reconocidas que avalan cada certificación.",
+    badge: "bg-rose-500/15 text-rose-400 ring-rose-400/20",
   },
 ];
 
@@ -45,31 +47,10 @@ const values = [
   },
 ];
 
-// NOTA: cargos provisionales — reemplazar con datos reales del equipo.
-const team = [
-  {
-    image: "/landing/abaout/1-veronica.webp",
-    name: "MS.C. Veronica Montoya",
-    role: "Gerente General / Representante Legal",
-  },
-  {
-    image: "/landing/abaout/2-karen.webp",
-    name: "Lic. Karen Ugarte",
-    role: "Directora Academica",
-  },
-  {
-    image: "/landing/abaout/3-guisela.webp",
-    name: "Ing. Guisela Lia Zubieta",
-    role: "Directora de Marketing y Ventas",
-  },
-  {
-    image: "/landing/abaout/4-laura.webp",
-    name: "Ing. Laura Judith Claros",
-    role: "Jefa de Ventas",
-  },
-];
 
-export function Nosotros() {
+export async function Nosotros() {
+  const team = await getTeam();
+
   return (
     <section id="nosotros" className="bg-slate-950 pb-24 pt-32 sm:pb-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -81,34 +62,20 @@ export function Nosotros() {
               aria-hidden="true"
               className="animate-pulse-glow pointer-events-none absolute -left-10 top-1/4 -z-10 h-72 w-72 rounded-full bg-amber-400/[0.12] blur-[120px]"
             />
-            <div className="grid grid-cols-2 gap-4 sm:gap-5">
-              {/* Columna izquierda: imagen vertical + badge ámbar */}
-              <div className="space-y-4 sm:space-y-5">
-                <div className="relative aspect-[3/4] overflow-hidden rounded-[2rem] border border-white/10">
-                  <Image
-                    src="/landing/abaout/about-3.webp"
-                    alt="Profesional estudiando un programa de Certificate"
-                    fill
-                    sizes="(max-width: 1024px) 45vw, 22vw"
-                    className="object-cover"
-                  />
-                </div>
-
-                <div className="flex items-center gap-4 rounded-[1.75rem] bg-amber-400 p-5 shadow-lg shadow-amber-400/20">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white">
-                    <MapPin className="h-6 w-6 text-amber-500" />
-                  </span>
-                  <span className="text-sm font-bold leading-snug text-slate-950">
-                    Sede en Cochabamba
-                    <span className="block font-semibold text-slate-950/80">
-                      Alcance nacional
-                    </span>
-                  </span>
-                </div>
+            <div className="grid grid-cols-2 items-stretch gap-4 sm:gap-5">
+              {/* Columna izquierda: imagen vertical que ocupa toda la altura */}
+              <div className="relative overflow-hidden rounded-[2rem] border border-white/10">
+                <Image
+                  src="/landing/abaout/about-3.webp"
+                  alt="Profesional estudiando un programa de Certificate"
+                  fill
+                  sizes="(max-width: 1024px) 45vw, 22vw"
+                  className="object-cover"
+                />
               </div>
 
               {/* Columna derecha: dos imágenes horizontales (formato 3:2) */}
-              <div className="space-y-4 pt-10 sm:space-y-5 sm:pt-16">
+              <div className="space-y-4 sm:space-y-5">
                 <div className="relative aspect-[3/2] overflow-hidden rounded-[2rem] border border-white/10">
                   <Image
                     src="/landing/abaout/about-1.webp"
@@ -165,8 +132,10 @@ export function Nosotros() {
               <div className="space-y-6">
                 {features.map((feature) => (
                   <div key={feature.title} className="flex gap-4">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-400/10 ring-1 ring-amber-400/20">
-                      <feature.icon className="h-6 w-6 text-amber-400" />
+                    <span
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ring-1 ${feature.badge}`}
+                    >
+                      <feature.icon className="h-6 w-6" />
                     </span>
                     <div>
                       <h3 className="text-lg font-semibold text-white">
@@ -216,8 +185,8 @@ export function Nosotros() {
                 rel="noopener noreferrer"
                 className="group flex items-center gap-3"
               >
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-400/10 ring-1 ring-amber-400/20 transition-colors group-hover:bg-amber-400/20">
-                  <Headset className="h-5 w-5 text-amber-400" />
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/15 ring-1 ring-blue-400/20 transition-colors group-hover:bg-blue-500/25">
+                  <Headset className="h-5 w-5 text-blue-400" />
                 </span>
                 <span>
                   <span className="block text-xs font-medium text-amber-300">
@@ -287,6 +256,7 @@ export function Nosotros() {
         </div>
 
         {/* ── Equipo ───────────────────────────────────────────────── */}
+        {team.length > 0 && (
         <div className="mt-24">
           <div className="mx-auto max-w-2xl text-center">
             <p className="inline-flex items-center gap-2 border-b-2 border-amber-400 pb-1 text-sm font-bold uppercase tracking-[0.25em] text-amber-400">
@@ -306,13 +276,13 @@ export function Nosotros() {
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {team.map((member) => (
               <article
-                key={member.name}
+                key={member.id}
                 className="group relative flex flex-col rounded-3xl border border-white/10 bg-white/5 px-4 pb-6 pt-4 backdrop-blur-sm transition-all hover:-translate-y-1 hover:border-amber-400/40"
               >
                 {/* Foto recortada con efecto de relieve */}
                 <div className="relative flex h-72 w-full items-end justify-center rounded-2xl bg-gradient-to-b from-amber-400/[0.12] via-white/[0.04] to-transparent">
                   <Image
-                    src={member.image}
+                    src={member.photoUrl}
                     alt={`${member.name} — ${member.role}`}
                     width={360}
                     height={540}
@@ -334,6 +304,7 @@ export function Nosotros() {
             ))}
           </div>
         </div>
+        )}
       </div>
     </section>
   );

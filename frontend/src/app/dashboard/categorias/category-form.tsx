@@ -21,7 +21,20 @@ import {
   type CategoryFormValues,
 } from "@/app/dashboard/categorias/category-schema";
 
-export function CategoryForm({ category }: { category?: AdminCategory }) {
+export function CategoryForm({
+  category,
+  variant = "page",
+  onSuccess,
+  onCancel,
+}: {
+  category?: AdminCategory;
+  /** "page" envuelve el form en una tarjeta; "dialog" lo deja sin chrome. */
+  variant?: "page" | "dialog";
+  /** Si se pasa, se llama tras crear/editar (en vez de navegar). */
+  onSuccess?: () => void;
+  /** Si se pasa, lo invoca el botón Cancelar (en vez de navegar). */
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const isEdit = Boolean(category);
 
@@ -41,8 +54,9 @@ export function CategoryForm({ category }: { category?: AdminCategory }) {
 
     if (result.ok) {
       toast.success(isEdit ? "Categoría actualizada" : "Categoría creada");
-      router.push("/dashboard/categorias");
       router.refresh();
+      if (onSuccess) onSuccess();
+      else router.push("/dashboard/categorias");
     } else {
       toast.error(result.error);
     }
@@ -51,7 +65,11 @@ export function CategoryForm({ category }: { category?: AdminCategory }) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="max-w-xl space-y-6 rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none"
+      className={
+        variant === "dialog"
+          ? "space-y-6"
+          : "max-w-xl space-y-6 rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none"
+      }
     >
       <div>
         <Label htmlFor="name">Nombre</Label>
@@ -77,16 +95,6 @@ export function CategoryForm({ category }: { category?: AdminCategory }) {
         </p>
       </div>
 
-      <div>
-        <Label htmlFor="displayOrder">Orden de aparición</Label>
-        <Input
-          id="displayOrder"
-          type="number"
-          {...register("displayOrder", { valueAsNumber: true })}
-          className="mt-1.5 max-w-32"
-        />
-      </div>
-
       <div className="flex items-center gap-3">
         <Controller
           control={control}
@@ -110,7 +118,10 @@ export function CategoryForm({ category }: { category?: AdminCategory }) {
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.push("/dashboard/categorias")}
+          disabled={isSubmitting}
+          onClick={() =>
+            onCancel ? onCancel() : router.push("/dashboard/categorias")
+          }
         >
           Cancelar
         </Button>

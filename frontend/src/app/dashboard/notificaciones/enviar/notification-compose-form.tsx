@@ -34,9 +34,15 @@ type AudienceOption = {
 export function NotificationComposeForm({
   professors,
   students,
+  onSuccess,
+  onCancel,
 }: {
   professors: AdminUser[];
   students: AdminUser[];
+  /** Se llama tras enviar el aviso con éxito (p. ej. para cerrar el modal). */
+  onSuccess?: () => void;
+  /** Si se pasa, muestra un botón Cancelar que lo invoca (cierra el modal). */
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [audience, setAudience] = useState<NotificationAudience>("ALL");
@@ -128,6 +134,7 @@ export function NotificationComposeForm({
         setSelectedIds(new Set());
         setQuery("");
         router.refresh(); // refresca el historial de avisos enviados
+        onSuccess?.();
       } else {
         toast.error(result.error);
       }
@@ -135,7 +142,7 @@ export function NotificationComposeForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Destinatarios */}
       <section className="rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
         <h2 className="text-sm font-semibold">Destinatarios</h2>
@@ -285,14 +292,26 @@ export function NotificationComposeForm({
           </span>{" "}
           {recipientCount === 1 ? "persona" : "personas"}.
         </p>
-        <Button type="submit" disabled={isPending || recipientCount === 0}>
-          {isPending ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Send className="size-4" aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              onClick={onCancel}
+            >
+              Cancelar
+            </Button>
           )}
-          Enviar aviso
-        </Button>
+          <Button type="submit" disabled={isPending || recipientCount === 0}>
+            {isPending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Send className="size-4" aria-hidden="true" />
+            )}
+            Enviar aviso
+          </Button>
+        </div>
       </div>
     </form>
   );

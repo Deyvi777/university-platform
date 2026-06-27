@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 interface ImageUploadFieldProps {
   value: string;
   onChange: (url: string) => void;
-  folder: "programs" | "partners";
+  folder: "programs" | "partners" | "team";
   /** Relación de aspecto del recuadro de previsualización. */
-  variant?: "flyer" | "logo";
+  variant?: "flyer" | "logo" | "portrait";
   disabled?: boolean;
 }
 
@@ -66,7 +66,9 @@ export function ImageUploadField({
   const boxClasses =
     variant === "flyer"
       ? "aspect-[4/5] w-40"
-      : "aspect-square w-32";
+      : variant === "portrait"
+        ? "aspect-[3/4] w-36"
+        : "aspect-square w-32";
 
   return (
     <div className="flex items-start gap-4">

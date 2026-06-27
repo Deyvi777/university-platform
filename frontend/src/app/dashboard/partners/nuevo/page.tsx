@@ -1,5 +1,4 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { BackLink } from "@/components/dashboard/back-link";
 import { requireAdmin } from "@/lib/auth-guard";
 import { PartnerForm } from "@/app/dashboard/partners/partner-form";
 
@@ -8,12 +7,7 @@ export default async function NuevaInstitucionPage() {
 
   return (
     <div className="w-full">
-      <Link
-        href="/dashboard/partners"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" /> Volver a instituciones
-      </Link>
+      <BackLink href="/dashboard/partners">Volver a instituciones</BackLink>
       <h1 className="mt-3 text-2xl font-bold tracking-tight">
         Nueva institución
       </h1>

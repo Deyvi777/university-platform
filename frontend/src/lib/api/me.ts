@@ -136,6 +136,8 @@ export interface KardexModule {
   order: number;
   name: string;
   credits: number | null;
+  /** Estado del módulo; las etiquetas aprobado/reprobado solo aplican si es `FINISHED`. */
+  status: ModuleStatus;
   grade: { finalScore: number | null; status: ModuleGradeStatus } | null;
 }
 
@@ -238,6 +240,8 @@ export interface LearnModule {
   order: number;
   name: string;
   description: string | null;
+  /** Estado del módulo; si es `FINISHED` el aula queda en solo lectura. */
+  status: ModuleStatus;
   course: { id: string; name: string; code: string };
   /** Nota del módulo del estudiante + observación del docente; `null` si aún no hay. */
   grade: {

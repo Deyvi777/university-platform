@@ -8,7 +8,6 @@ export const categoryFormSchema = z.object({
     .string()
     .regex(/^[a-z0-9-]*$/, "Solo minúsculas, números y guiones")
     .optional(),
-  displayOrder: z.number().int().min(0),
   isActive: z.boolean(),
 });
 
@@ -20,16 +19,16 @@ export function toCategoryFormValues(
   return {
     name: category?.name ?? "",
     slug: category?.slug ?? "",
-    displayOrder: category?.displayOrder ?? 0,
     isActive: category?.isActive ?? true,
   };
 }
 
 export function toCategoryPayload(values: CategoryFormValues): CategoryPayload {
+  // `displayOrder` ya no se edita en el form: el orden se cambia con
+  // drag-and-drop en la tabla. Al crear, el backend lo agrega al final.
   return {
     name: values.name.trim(),
     slug: values.slug?.trim() || undefined,
-    displayOrder: values.displayOrder,
     isActive: values.isActive,
   };
 }

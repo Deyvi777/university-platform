@@ -61,7 +61,13 @@ export function CourseModuleItem({
   defaultOpen?: boolean;
 }) {
   const status = MODULE_STATUS[module.status];
-  const grade = module.grade ? GRADE_STATUS[module.grade.status] : null;
+  // Aprobado/reprobado solo si el módulo está concluido; activo → "En curso".
+  const effectiveStatus = module.grade
+    ? module.status === "FINISHED"
+      ? module.grade.status
+      : "IN_PROGRESS"
+    : null;
+  const grade = effectiveStatus ? GRADE_STATUS[effectiveStatus] : null;
 
   return (
     <details

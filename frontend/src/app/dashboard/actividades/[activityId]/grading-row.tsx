@@ -33,10 +33,13 @@ export function GradingRow({
   activityId,
   maxScore,
   row,
+  readOnly = false,
 }: {
   activityId: string;
   maxScore: number;
   row: GradingStudentRow;
+  /** Módulo concluido: solo lectura (no se puede calificar). */
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const sub = row.submission;
@@ -128,7 +131,25 @@ export function GradingRow({
         </p>
       )}
 
-      {/* Calificación */}
+      {/* Calificación: solo lectura cuando el módulo está concluido. */}
+      {readOnly ? (
+        <div className="mt-3 rounded-xl bg-muted/30 p-3 text-sm">
+          <p>
+            <span className="text-muted-foreground">Nota: </span>
+            <span className="font-semibold tabular-nums">
+              {sub?.score !== null && sub?.score !== undefined
+                ? `${sub.score} / ${maxScore}`
+                : "Sin calificar"}
+            </span>
+          </p>
+          {sub?.feedback && (
+            <p className="mt-1 text-xs text-foreground/80">
+              <span className="text-muted-foreground">Retroalimentación: </span>
+              {sub.feedback}
+            </p>
+          )}
+        </div>
+      ) : (
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <div className="w-28">
           <label
@@ -171,6 +192,7 @@ export function GradingRow({
           Guardar
         </Button>
       </div>
+      )}
     </li>
   );
 }

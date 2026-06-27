@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -14,7 +15,11 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CategoriesService } from './categories.service';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
+import {
+  CreateCategoryDto,
+  ReorderCategoriesDto,
+  UpdateCategoryDto,
+} from './dto/category.dto';
 
 @ApiTags('admin-categories')
 @ApiBearerAuth()
@@ -37,6 +42,11 @@ export class AdminCategoriesController {
   @Post()
   create(@Body() dto: CreateCategoryDto) {
     return this.categoriesService.create(dto);
+  }
+
+  @Put('reorder')
+  reorder(@Body() dto: ReorderCategoriesDto) {
+    return this.categoriesService.reorder(dto);
   }
 
   @Patch(':id')

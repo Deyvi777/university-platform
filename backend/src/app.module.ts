@@ -18,6 +18,7 @@ import { ProgramsModule } from './programs/programs.module';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
 import { StorageModule } from './storage/storage.module';
+import { TeamModule } from './team/team.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     StorageModule,
     CategoriesModule,
     SettingsModule,
+    TeamModule,
     UsersModule,
     CoursesModule,
     ModuleContentModule,

@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -13,7 +14,11 @@ import { Role } from '@prisma/client';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { CreatePartnerDto, UpdatePartnerDto } from './dto/partner.dto';
+import {
+  CreatePartnerDto,
+  ReorderPartnersDto,
+  UpdatePartnerDto,
+} from './dto/partner.dto';
 import { PartnersService } from './partners.service';
 
 @ApiTags('admin-partners')
@@ -37,6 +42,11 @@ export class AdminPartnersController {
   @Post()
   create(@Body() dto: CreatePartnerDto) {
     return this.partnersService.create(dto);
+  }
+
+  @Put('reorder')
+  reorder(@Body() dto: ReorderPartnersDto) {
+    return this.partnersService.reorder(dto);
   }
 
   @Patch(':id')

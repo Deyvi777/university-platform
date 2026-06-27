@@ -71,6 +71,8 @@ function toActivity(c: LearnContent): CourseActivity {
 
 export function ClassroomView({ module: learn }: { module: LearnModule }) {
   const { contents } = learn;
+  // Módulo concluido → aula en solo lectura (sin progreso, apuntes ni entregas).
+  const readOnly = learn.status === "FINISHED";
   // Las actividades presenciales no son lecciones del temario; solo aparecen en
   // "Notas". El temario y el progreso se calculan sobre el resto.
   const temarioContents = contents.filter((c) => !c.isOffline);
@@ -122,8 +124,13 @@ export function ClassroomView({ module: learn }: { module: LearnModule }) {
               content={selected}
               courseName={learn.course.name}
               courseId={learn.course.id}
+              readOnly={readOnly}
             />
-            <ProgressButton moduleId={learn.id} content={selected} />
+            <ProgressButton
+              moduleId={learn.id}
+              content={selected}
+              readOnly={readOnly}
+            />
           </>
         ) : (
           <div className="rounded-2xl border border-dashed bg-muted/20 px-6 py-16 text-center">
@@ -272,7 +279,12 @@ export function ClassroomView({ module: learn }: { module: LearnModule }) {
           ) : tab === "calificaciones" ? (
             <GradesPanel module={learn} />
           ) : (
-            <NotesPanel key={selected.id} moduleId={learn.id} content={selected} />
+            <NotesPanel
+              key={selected.id}
+              moduleId={learn.id}
+              content={selected}
+              readOnly={readOnly}
+            />
           )}
         </div>
       </aside>
@@ -284,6 +296,14 @@ export function ClassroomView({ module: learn }: { module: LearnModule }) {
 function GradesPanel({ module: learn }: { module: LearnModule }) {
   const activities = learn.contents.filter((c) => c.kind === "ACTIVITY");
   const grade = learn.grade;
+  // Aprobado/reprobado solo cuando el módulo está concluido; si está activo se
+  // muestra "En curso" aunque ya tenga nota calculada.
+  const isFinished = learn.status === "FINISHED";
+  const badgeStatus: ModuleGradeStatus | null = grade
+    ? isFinished
+      ? grade.status
+      : "IN_PROGRESS"
+    : null;
 
   return (
     <div className="space-y-4 p-4">
@@ -296,7 +316,7 @@ function GradesPanel({ module: learn }: { module: LearnModule }) {
           <span className="font-heading text-2xl font-bold tabular-nums">
             {grade?.finalScore ?? "—"}
           </span>
-          <ModuleGradeBadge status={grade?.status ?? null} />
+          <ModuleGradeBadge status={badgeStatus} />
         </div>
         {grade?.observations && (
           <div className="mt-3 rounded-lg border bg-card p-3">
@@ -407,10 +427,12 @@ function ContentMain({
   content,
   courseName,
   courseId,
+  readOnly,
 }: {
   content: LearnContent;
   courseName: string;
   courseId: string;
+  readOnly: boolean;
 }) {
   const header = (
     <div className={content.kind === "VIDEO" ? "mt-5" : ""}>
@@ -463,7 +485,11 @@ function ContentMain({
         <>
           {header}
           <div className="mt-5">
-            <StudentActivity courseId={courseId} activity={toActivity(content)} />
+            <StudentActivity
+              courseId={courseId}
+              activity={toActivity(content)}
+              readOnly={readOnly}
+            />
           </div>
         </>
       );
@@ -562,12 +588,17 @@ function PanelTabButton({
 function ProgressButton({
   moduleId,
   content,
+  readOnly,
 }: {
   moduleId: string;
   content: LearnContent;
+  readOnly: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+
+  // Módulo concluido: el progreso ya no se puede cambiar.
+  if (readOnly) return null;
 
   function toggle() {
     const next = !content.completed;
@@ -605,9 +636,11 @@ function ProgressButton({
 function NotesPanel({
   moduleId,
   content,
+  readOnly,
 }: {
   moduleId: string;
   content: LearnContent;
+  readOnly: boolean;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(content.note);
@@ -632,19 +665,26 @@ function NotesPanel({
         Apuntes privados sobre{" "}
         <span className="font-medium text-foreground">«{content.title}»</span>.
         Solo tú los ves.
+        {readOnly && " El módulo está concluido: no puedes editarlos."}
       </p>
       <Textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Escribe tus apuntes de este contenido…"
-        className="mt-3 min-h-56 resize-y"
+        placeholder={
+          readOnly
+            ? "Sin apuntes."
+            : "Escribe tus apuntes de este contenido…"
+        }
+        readOnly={readOnly}
+        className="mt-3 min-h-56 resize-y read-only:opacity-70"
       />
       <div className="mt-3 flex justify-end">
         <Button
           type="button"
           size="sm"
           onClick={save}
-          disabled={pending || !dirty}
+          disabled={pending || !dirty || readOnly}
+          hidden={readOnly}
         >
           {pending && <Loader2 className="size-4 animate-spin" />}
           Guardar

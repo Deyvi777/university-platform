@@ -45,6 +45,19 @@ export async function updatePartnerAction(
   }
 }
 
+export async function reorderPartnersAction(
+  orderedIds: string[],
+): Promise<ActionResult> {
+  try {
+    await mutateAdmin("PUT", "/admin/partners/reorder", { orderedIds });
+    revalidatePartners();
+    return { ok: true, data: undefined };
+  } catch (error) {
+    handleAdminActionError(error); // 401 → redirige a /login; rethrow control flow
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
 export async function deletePartnerAction(id: string): Promise<ActionResult> {
   try {
     await mutateAdmin("DELETE", `/admin/partners/${id}`);

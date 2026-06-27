@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -38,6 +39,8 @@ export class AuthService {
         password: await argon2.hash(dto.password),
         firstName: dto.firstName,
         lastName: dto.lastName,
+        phone: dto.phone,
+        idDocument: dto.idDocument ?? null,
       },
     });
     return this.buildAuthResponse(user);
@@ -47,12 +50,19 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-    if (!user || !user.isActive) {
+    if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
     const valid = await argon2.verify(user.password, dto.password);
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+    // Credenciales correctas pero cuenta desactivada: respondemos 403 (distinto
+    // de 401) para que el frontend muestre el mensaje de "cuenta suspendida".
+    // El check va DESPUÉS de validar la contraseña para no revelar a terceros
+    // qué correos existen o están suspendidos.
+    if (!user.isActive) {
+      throw new ForbiddenException('Account suspended');
     }
     return this.buildAuthResponse(user, dto.remember);
   }

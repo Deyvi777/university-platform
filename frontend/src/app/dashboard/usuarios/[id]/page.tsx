@@ -1,9 +1,25 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth-guard";
-import { AdminApiError, getAdminUser } from "@/lib/api/admin";
+import {
+  AdminApiError,
+  getAdminUser,
+  type AdminUserRole,
+} from "@/lib/api/admin";
 import { UserForm } from "@/app/dashboard/usuarios/user-form";
+
+/** Sección de origen según el rol del usuario editado (enlace superior + cancelar). */
+const BACK_HREF: Record<AdminUserRole, string> = {
+  ADMIN: "/dashboard/usuarios?rol=administrativos",
+  PROFESSOR: "/dashboard/usuarios?rol=docentes",
+  STUDENT: "/dashboard/usuarios?rol=estudiantes",
+};
+
+const BACK_LABEL: Record<AdminUserRole, string> = {
+  ADMIN: "Volver a administrativos",
+  PROFESSOR: "Volver a docentes",
+  STUDENT: "Volver a estudiantes",
+};
 
 export default async function EditarUsuarioPage({
   params,
@@ -21,20 +37,17 @@ export default async function EditarUsuarioPage({
     throw error;
   }
 
+  const backHref = BACK_HREF[user.role];
+
   return (
     <div className="w-full">
-      <Link
-        href="/dashboard/usuarios"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" /> Volver a usuarios
-      </Link>
+      <BackLink href={backHref}>{BACK_LABEL[user.role]}</BackLink>
       <h1 className="mt-3 text-2xl font-bold tracking-tight">Editar usuario</h1>
       <p className="mt-1 text-muted-foreground">
         {user.firstName} {user.lastName} · {user.email}
       </p>
       <div className="mt-6">
-        <UserForm user={user} />
+        <UserForm user={user} backHref={backHref} />
       </div>
     </div>
   );

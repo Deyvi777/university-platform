@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { AdminApiError, mutateAdmin, type AdminUser } from "@/lib/api/admin";
 import { handleAdminActionError } from "@/lib/auth-guard";
-import type { ActionResult, UserPayload } from "@/app/dashboard/admin-types";
+import type {
+  ActionResult,
+  BulkUploadResult,
+  UserPayload,
+} from "@/app/dashboard/admin-types";
 
 function revalidateUsers() {
   // La home admin muestra el conteo de usuarios, así que también se revalida.
@@ -36,6 +40,28 @@ export async function updateUserAction(
     );
     revalidateUsers();
     return { ok: true, data: { id: user.id } };
+  } catch (error) {
+    handleAdminActionError(error); // 401 → cierra sesión muerta; rethrow control flow
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
+/**
+ * Carga masiva de estudiantes (carga parcial). Recibe las filas ya parseadas
+ * del Excel en el cliente y las envía al backend, que valida y crea las válidas
+ * y reporta las que fallan.
+ */
+export async function bulkCreateStudentsAction(
+  students: Record<string, string>[],
+): Promise<ActionResult<BulkUploadResult>> {
+  try {
+    const result = await mutateAdmin<BulkUploadResult>(
+      "POST",
+      "/admin/users/bulk",
+      { students },
+    );
+    revalidateUsers();
+    return { ok: true, data: result };
   } catch (error) {
     handleAdminActionError(error); // 401 → cierra sesión muerta; rethrow control flow
     return { ok: false, error: errorMessage(error) };

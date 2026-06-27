@@ -1,5 +1,11 @@
-import { ArrowLeft, BookOpen, GraduationCap, Pencil } from "lucide-react";
+import {
+  BookOpen,
+  GraduationCap,
+  Pencil,
+  Settings2,
+} from "lucide-react";
 import Link from "next/link";
+import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth-guard";
 import {
@@ -49,12 +55,7 @@ export default async function CursoDetallePage({
 
   return (
     <div>
-      <Link
-        href="/dashboard/cursos"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" /> Volver a programas
-      </Link>
+      <BackLink href="/dashboard/cursos">Volver a programas</BackLink>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -119,7 +120,10 @@ export default async function CursoDetallePage({
               className="rounded-2xl border bg-card p-4 shadow-xs transition-colors hover:border-sky-200 dark:hover:border-sky-500/40 sm:p-5"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
+                <Link
+                  href={`/dashboard/modulos/${m.id}`}
+                  className="group flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
+                >
                   <span
                     aria-hidden
                     className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 font-heading text-sm font-semibold tabular-nums text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
@@ -130,11 +134,18 @@ export default async function CursoDetallePage({
                     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Módulo {m.order}
                     </span>
-                    <h3 className="truncate font-heading text-base font-semibold leading-tight">
+                    <h3 className="flex items-center gap-1.5 truncate font-heading text-base font-semibold leading-tight group-hover:text-sky-700 dark:group-hover:text-sky-300">
                       {m.name}
+                      <Settings2
+                        className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400"
+                        aria-hidden="true"
+                      />
                     </h3>
+                    <span className="text-xs text-muted-foreground group-hover:text-sky-600 dark:group-hover:text-sky-400">
+                      Gestionar módulo
+                    </span>
                   </div>
-                </div>
+                </Link>
                 <ModuleStatusControl
                   courseId={course.id}
                   moduleId={m.id}

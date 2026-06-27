@@ -7,11 +7,13 @@ import Link from "next/link";
 import type { NotificationType } from "@/lib/api/notifications";
 import { formatRelative, metaFor } from "@/lib/notifications-meta";
 import { NotificationBody } from "@/components/dashboard/notification-body";
+import { NotificationDetailDialog } from "@/components/dashboard/notification-detail-dialog";
 import { cn } from "@/lib/utils";
 
 /**
  * Una notificación del panel docente/estudiante. Mapea 1:1 con la fila que
- * entrega `GET /notifications`; `href` apunta a su detalle en el panel central.
+ * entrega `GET /notifications`. Al hacer clic se abre en un modal de detalle
+ * (no navega al panel central).
  */
 export type DashboardNotification = {
   id: string;
@@ -21,8 +23,6 @@ export type DashboardNotification = {
   /** ISO 8601. */
   createdAt: string;
   read: boolean;
-  /** Destino al hacer clic: el detalle en `/dashboard/notificaciones/:id`. */
-  href?: string;
 };
 
 /**
@@ -41,6 +41,9 @@ export function NotificationBell({
   const [notifications, setNotifications] =
     useState<DashboardNotification[]>(initialNotifications);
   const [open, setOpen] = useState(false);
+  // Notificación abierta en el modal de detalle (al hacer clic en una fila).
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = notifications.find((n) => n.id === selectedId) ?? null;
 
   const unreadCount = notifications.reduce(
     (acc, n) => acc + (n.read ? 0 : 1),
@@ -68,7 +71,16 @@ export function NotificationBell({
     });
   }
 
+  // Abre la notificación en el modal de detalle: la marca como leída, cierra el
+  // popover y muestra el modal (ambos portalados al body, conviven sin recorte).
+  function openDetail(id: string) {
+    markRead(id);
+    setOpen(false);
+    setSelectedId(id);
+  }
+
   return (
+    <>
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
         aria-label={
@@ -130,8 +142,7 @@ export function NotificationBell({
                     <li key={n.id}>
                       <NotificationRow
                         notification={n}
-                        onSeen={markRead}
-                        onNavigate={() => setOpen(false)}
+                        onOpen={openDetail}
                       />
                     </li>
                   ))}
@@ -150,6 +161,15 @@ export function NotificationBell({
         </Popover.Positioner>
       </Popover.Portal>
     </Popover.Root>
+
+      <NotificationDetailDialog
+        notification={selected}
+        open={selectedId !== null}
+        onOpenChange={(o) => {
+          if (!o) setSelectedId(null);
+        }}
+      />
+    </>
   );
 }
 
@@ -174,14 +194,12 @@ function EmptyState() {
 
 function NotificationRow({
   notification,
-  onSeen,
-  onNavigate,
+  onOpen,
 }: {
   notification: DashboardNotification;
-  onSeen: (id: string) => void;
-  onNavigate: () => void;
+  onOpen: (id: string) => void;
 }) {
-  const { id, type, title, body, createdAt, read, href } = notification;
+  const { id, type, title, body, createdAt, read } = notification;
   const meta = metaFor(type);
   const Icon = meta.icon;
 
@@ -231,21 +249,8 @@ function NotificationRow({
     !read && "bg-sky-500/[0.05]",
   );
 
-  function handleClick() {
-    onSeen(id);
-    onNavigate();
-  }
-
-  if (href) {
-    return (
-      <Link href={href} onClick={handleClick} className={rowClass}>
-        {content}
-      </Link>
-    );
-  }
-
   return (
-    <button type="button" onClick={handleClick} className={rowClass}>
+    <button type="button" onClick={() => onOpen(id)} className={rowClass}>
       {content}
     </button>
   );

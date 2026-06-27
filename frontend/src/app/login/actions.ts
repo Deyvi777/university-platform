@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
-import { AuthError } from "next-auth";
+import { AuthError, CredentialsSignin } from "next-auth";
 import { z } from "zod";
 import { signIn } from "@/auth";
 
@@ -11,7 +11,7 @@ const loginSchema = z.object({
   email: z.email({ message: "Ingresa un correo electrónico válido." }),
   password: z
     .string()
-    .min(8, { message: "La contraseña debe tener al menos 8 caracteres." }),
+    .min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
 });
 
 export type LoginState = {
@@ -33,8 +33,15 @@ export type LoginState = {
 
 const INVALID_CREDENTIALS =
   "Correo o contraseña incorrectos. Verifica tus datos e inténtalo de nuevo.";
+const ACCOUNT_SUSPENDED =
+  "Tu cuenta ha sido suspendida. Comunícate con administración para solucionar el problema.";
 const UNEXPECTED_ERROR =
   "No pudimos iniciar sesión en este momento. Inténtalo nuevamente en unos minutos.";
+
+/** Detecta el `code` que pone Auth.js cuando la cuenta está suspendida (403). */
+function isSuspended(resultUrl: string | undefined): boolean {
+  return typeof resultUrl === "string" && /[?&]code=account_suspended/.test(resultUrl);
+}
 
 export async function authenticate(
   _prevState: LoginState,
@@ -88,10 +95,17 @@ export async function authenticate(
   } catch (error) {
     // Por robustez seguimos contemplando que alguna versión lance AuthError.
     unstable_rethrow(error);
+    if (error instanceof CredentialsSignin && error.code === "account_suspended") {
+      return { values, error: ACCOUNT_SUSPENDED };
+    }
     if (error instanceof AuthError) {
       return { values, error: INVALID_CREDENTIALS };
     }
     return { values, error: UNEXPECTED_ERROR };
+  }
+
+  if (isSuspended(result)) {
+    return { values, error: ACCOUNT_SUSPENDED };
   }
 
   if (!result || /[?&]error=/.test(result)) {

@@ -1,15 +1,21 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import {
   ContentKind,
   ModuleGradeStatus,
+  ModuleStatus,
   NotificationType,
   Prisma,
+  Role,
   SubmissionStatus,
 } from '@prisma/client';
+
+const MODULE_FINISHED_MSG =
+  'El módulo está concluido; no se pueden realizar cambios.';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { GradeSubmissionDto, SubmitActivityDto } from './dto/grading.dto';
@@ -42,7 +48,11 @@ export class GradingService {
         isPublished: true,
         dueDate: true,
         module: {
-          select: { courseId: true, course: { select: { status: true } } },
+          select: {
+            courseId: true,
+            status: true,
+            course: { select: { status: true } },
+          },
         },
       },
     });
@@ -61,6 +71,10 @@ export class GradingService {
     });
     if (!enrolled || content.module.course.status === 'DRAFT') {
       throw new NotFoundException('Actividad no encontrada');
+    }
+    // Módulo concluido → solo lectura: no se aceptan más entregas.
+    if (content.module.status === ModuleStatus.FINISHED) {
+      throw new ForbiddenException(MODULE_FINISHED_MSG);
     }
 
     const existing = await this.prisma.submission.findUnique({
@@ -109,6 +123,7 @@ export class GradingService {
             id: true,
             name: true,
             order: true,
+            status: true,
             courseId: true,
             course: { select: { id: true, name: true } },
           },
@@ -154,6 +169,7 @@ export class GradingService {
           id: content.module.id,
           name: content.module.name,
           order: content.module.order,
+          status: content.module.status,
         },
         course: content.module.course,
       },
@@ -198,6 +214,7 @@ export class GradingService {
       throw new NotFoundException('Actividad no encontrada');
     }
     await this.ensureTeaches(teacherId, content.moduleId);
+    await this.ensureModuleNotFinished(content.moduleId);
 
     const enrolled = await this.prisma.enrollment.findUnique({
       where: {
@@ -437,6 +454,7 @@ export class GradingService {
     observations: string,
   ) {
     await this.ensureTeaches(teacherId, moduleId);
+    await this.ensureModuleNotFinished(moduleId);
     const module = await this.prisma.courseModule.findUnique({
       where: { id: moduleId },
       select: { courseId: true },
@@ -465,12 +483,31 @@ export class GradingService {
     return { success: true };
   }
 
-  // El docente solo califica actividades de módulos que dicta.
+  // El docente solo califica actividades de módulos que dicta. El ADMIN puede
+  // calificar cualquier módulo (igual que un docente) desde el panel.
   private async ensureTeaches(teacherId: string, moduleId: string) {
     const rel = await this.prisma.moduleTeacher.findUnique({
       where: { moduleId_teacherId: { moduleId, teacherId } },
       select: { id: true },
     });
-    if (!rel) throw new NotFoundException('Módulo no encontrado');
+    if (rel) return;
+    const user = await this.prisma.user.findUnique({
+      where: { id: teacherId },
+      select: { role: true },
+    });
+    if (user?.role === Role.ADMIN) return;
+    throw new NotFoundException('Módulo no encontrado');
+  }
+
+  // Un módulo CONCLUIDO queda en solo lectura: el docente no puede calificar
+  // ni editar observaciones.
+  private async ensureModuleNotFinished(moduleId: string) {
+    const module = await this.prisma.courseModule.findUnique({
+      where: { id: moduleId },
+      select: { status: true },
+    });
+    if (module?.status === ModuleStatus.FINISHED) {
+      throw new ForbiddenException(MODULE_FINISHED_MSG);
+    }
   }
 }

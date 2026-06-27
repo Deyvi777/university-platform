@@ -1,5 +1,5 @@
-import { ArrowLeft, Layers } from "lucide-react";
-import Link from "next/link";
+import { Layers, Lock } from "lucide-react";
+import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
 import { getModuleGradebook, getTeacherModule } from "@/lib/api/teacher";
@@ -14,7 +14,7 @@ export default async function ModuleManagePage({
 }: {
   params: Promise<{ moduleId: string }>;
 }) {
-  await requireUser();
+  const session = await requireUser();
   const { moduleId } = await params;
   const [mod, gradebook] = await Promise.all([
     getTeacherModule(moduleId),
@@ -24,15 +24,15 @@ export default async function ModuleManagePage({
     notFound();
   }
 
+  // El ADMIN llega aquí desde el detalle del programa; el docente desde su curso.
+  const isAdmin = session.user.role === "ADMIN";
+  const backHref = isAdmin
+    ? `/dashboard/cursos/${mod.course.id}`
+    : `/dashboard/mis-cursos/${mod.course.id}`;
+
   return (
     <div className="w-full">
-      <Link
-        href={`/dashboard/mis-cursos/${mod.course.id}`}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        Volver al curso
-      </Link>
+      <BackLink href={backHref}>Volver al {isAdmin ? "programa" : "curso"}</BackLink>
 
       <header className="mt-4">
         <p className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
@@ -49,11 +49,20 @@ export default async function ModuleManagePage({
         )}
       </header>
 
+      {mod.status === "FINISHED" && (
+        <p className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <Lock className="size-4 shrink-0" aria-hidden="true" />
+          Este módulo está concluido. Puedes consultar el contenido y las notas,
+          pero no realizar cambios.
+        </p>
+      )}
+
       <div className="mt-8">
         <ModuleWorkspace
           moduleId={mod.id}
           contents={mod.contents}
           gradebook={gradebook}
+          readOnly={mod.status === "FINISHED"}
         />
       </div>
     </div>

@@ -131,7 +131,7 @@ export function EnrollmentControl({
                   <>
                     No hay estudiantes registrados.{" "}
                     <Link
-                      href="/dashboard/usuarios/nuevo"
+                      href="/dashboard/usuarios/nuevo?rol=estudiantes"
                       className="font-medium text-foreground underline underline-offset-2"
                     >
                       Crea un estudiante

@@ -7,7 +7,11 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { slugify } from '../common/utils/slugify';
-import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto';
+import {
+  CreateProgramDto,
+  ReorderProgramsDto,
+  UpdateProgramDto,
+} from './dto/program.dto';
 
 const categorySelect = { id: true, name: true, slug: true } as const;
 
@@ -33,7 +37,8 @@ export class ProgramsService {
         duration: true,
         category: { select: categorySelect },
       },
-      orderBy: { startDate: 'asc' },
+      // El orden lo define el admin (drag-and-drop); `startDate` solo desempata.
+      orderBy: [{ displayOrder: 'asc' }, { startDate: 'asc' }],
     });
   }
 
@@ -68,7 +73,7 @@ export class ProgramsService {
         updatedAt: true,
         category: { select: categorySelect },
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
     });
   }
 
@@ -92,10 +97,18 @@ export class ProgramsService {
     const slug = await this.buildUniqueSlug(dto.slug ?? slugify(dto.title));
     const { modules, teachers, categoryId, ...scalars } = dto;
 
+    // El nuevo programa se agrega al final de la lista (mayor displayOrder + 1).
+    const last = await this.prisma.program.findFirst({
+      orderBy: { displayOrder: 'desc' },
+      select: { displayOrder: true },
+    });
+    const displayOrder = (last?.displayOrder ?? -1) + 1;
+
     return this.prisma.program.create({
       data: {
         ...scalars,
         slug,
+        displayOrder,
         category: { connect: { id: categoryId } },
         startDate: new Date(dto.startDate),
         enrollmentFee: new Prisma.Decimal(dto.enrollmentFee),
@@ -177,6 +190,29 @@ export class ProgramsService {
   async remove(id: string) {
     await this.findOneAdmin(id);
     await this.prisma.program.delete({ where: { id } });
+    return { success: true };
+  }
+
+  /** Reordena los programas según `orderedIds` (drag-and-drop del panel). */
+  async reorder(dto: ReorderProgramsDto) {
+    const current = await this.prisma.program.findMany({
+      orderBy: { displayOrder: 'asc' },
+      select: { id: true },
+    });
+    const currentSet = new Set(current.map((p) => p.id));
+    const provided = dto.orderedIds.filter((id) => currentSet.has(id));
+    const providedSet = new Set(provided);
+    const rest = current.map((p) => p.id).filter((id) => !providedSet.has(id));
+    const finalOrder = [...provided, ...rest];
+
+    await this.prisma.$transaction(
+      finalOrder.map((id, i) =>
+        this.prisma.program.update({
+          where: { id },
+          data: { displayOrder: i + 1 },
+        }),
+      ),
+    );
     return { success: true };
   }
 

@@ -54,8 +54,7 @@ export default async function ProgramPage({ params }: Props) {
           {/* Encabezado */}
           <div className="mt-8 grid items-start gap-12 lg:grid-cols-[1fr_420px]">
             <div>
-              <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-sm font-medium tracking-wide text-amber-300 backdrop-blur-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              <p className="mb-6 flex w-fit mx-auto rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-sm font-medium tracking-wide text-amber-300 backdrop-blur-sm">
                 {program.category.name}
               </p>
 
@@ -81,13 +80,13 @@ export default async function ProgramPage({ params }: Props) {
 
               <div className="mt-10 flex flex-wrap items-center gap-4">
                 <Link
-                  href="/#contacto"
+                  href="/contacto"
                   className="rounded-full bg-amber-400 px-8 py-3.5 text-base font-semibold text-slate-950 shadow-lg shadow-amber-400/20 transition-all hover:bg-amber-300 hover:shadow-amber-300/30"
                 >
                   Inscríbete ahora
                 </Link>
                 <Link
-                  href="/#contacto"
+                  href="/contacto"
                   className="rounded-full border border-white/30 px-8 py-3.5 text-base font-medium text-white backdrop-blur-sm transition-colors hover:border-white/60 hover:bg-white/10"
                 >
                   Solicitar información
@@ -240,7 +239,7 @@ export default async function ProgramPage({ params }: Props) {
                 </p>
               )}
               <Link
-                href="/#contacto"
+                href="/contacto"
                 className="mt-8 block rounded-full bg-amber-400 px-8 py-3.5 text-center text-base font-semibold text-slate-950 shadow-lg shadow-amber-400/20 transition-all hover:bg-amber-300 hover:shadow-amber-300/30"
               >
                 Quiero inscribirme

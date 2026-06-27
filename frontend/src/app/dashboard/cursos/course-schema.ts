@@ -37,7 +37,7 @@ export function toFormValues(course?: AdminCourse): CourseFormValues {
       modality: "",
       startDate: "",
       endDate: "",
-      passingScore: 70,
+      passingScore: 71,
       status: "DRAFT",
       modules: [{ name: "" }],
     };

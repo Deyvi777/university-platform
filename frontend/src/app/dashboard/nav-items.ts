@@ -2,6 +2,7 @@ import {
   Bell,
   BookOpen,
   Building2,
+  ClipboardList,
   GraduationCap,
   LayoutDashboard,
   Presentation,
@@ -11,6 +12,7 @@ import {
   ShieldCheck,
   Tags,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,6 +30,7 @@ export type NavIcon =
   | "courses"
   | "categories"
   | "partners"
+  | "team"
   | "users"
   | "social"
   | "admins"
@@ -35,6 +38,7 @@ export type NavIcon =
   | "students"
   | "notifications"
   | "send-notification"
+  | "student-grades"
   | "kardex";
 
 export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
@@ -43,6 +47,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   courses: BookOpen,
   categories: Tags,
   partners: Building2,
+  team: UsersRound,
   users: Users,
   social: Share2,
   admins: ShieldCheck,
@@ -50,6 +55,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   students: GraduationCap,
   notifications: Bell,
   "send-notification": Send,
+  "student-grades": ClipboardList,
   kardex: ScrollText,
 };
 
@@ -156,6 +162,11 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
             label: "Programas",
             icon: "courses",
           },
+          {
+            href: "/dashboard/notas-estudiantes",
+            label: "Notas de estudiantes",
+            icon: "student-grades",
+          },
         ],
       },
       {
@@ -198,6 +209,11 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
             href: "/dashboard/partners",
             label: "Instituciones",
             icon: "partners",
+          },
+          {
+            href: "/dashboard/equipo",
+            label: "Equipo",
+            icon: "team",
           },
           {
             href: "/dashboard/configuracion",

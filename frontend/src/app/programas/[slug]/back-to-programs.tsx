@@ -30,9 +30,24 @@ export function BackToPrograms() {
         // Entrada directa al programa (sin historial del landing): a la sección.
         router.push("/#programas");
       }}
-      className="text-sm font-medium text-slate-300 transition-colors hover:text-white"
+      className="group inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/5 py-2 pl-2.5 pr-5 text-sm font-medium text-slate-300 backdrop-blur-sm transition-all duration-300 hover:border-amber-400/30 hover:bg-white/10 hover:text-white hover:shadow-[0_0_24px_-6px_rgba(251,191,36,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
     >
-      ← Volver a programas
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400/15 text-amber-300 transition-all duration-300 group-hover:bg-amber-400 group-hover:text-slate-950">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-0.5"
+          aria-hidden="true"
+        >
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+      </span>
+      Volver a programas
     </button>
   );
 }

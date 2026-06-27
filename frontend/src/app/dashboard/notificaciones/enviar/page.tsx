@@ -5,10 +5,10 @@ import {
   type AnnouncementAudience,
 } from "@/lib/api/admin";
 import { AnnouncementHistory } from "./announcement-history";
-import { NotificationComposeForm } from "./notification-compose-form";
+import { NewAnnouncementDialog } from "./new-announcement-dialog";
 
 export const metadata = {
-  title: "Enviar aviso",
+  title: "Avisos",
 };
 
 const AUDIENCE_VALUES: AnnouncementAudience[] = [
@@ -45,19 +45,18 @@ export default async function SendNotificationPage({
 
   return (
     <div>
-      <header>
-        <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-          Enviar aviso
-        </h1>
-        <p className="mt-2 max-w-xl text-muted-foreground">
-          Envía una notificación a un docente o estudiante, a varios, o a todos
-          a la vez. La recibirán en su centro de notificaciones.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+            Avisos
+          </h1>
+          <p className="mt-2 max-w-xl text-muted-foreground">
+            Envía notificaciones a docentes y estudiantes, a todos o a usuarios
+            específicos. Aquí también ves el historial de avisos enviados.
+          </p>
+        </div>
+        <NewAnnouncementDialog professors={professors} students={students} />
       </header>
-
-      <div className="mt-8">
-        <NotificationComposeForm professors={professors} students={students} />
-      </div>
 
       <div className="mt-10">
         <AnnouncementHistory

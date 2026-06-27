@@ -46,6 +46,19 @@ export async function updateProgramAction(
   }
 }
 
+export async function reorderProgramsAction(
+  orderedIds: string[],
+): Promise<ActionResult> {
+  try {
+    await mutateAdmin("PUT", "/admin/programs/reorder", { orderedIds });
+    revalidatePrograms();
+    return { ok: true, data: undefined };
+  } catch (error) {
+    handleAdminActionError(error); // 401 → redirige a /login; rethrow control flow
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
 export async function deleteProgramAction(id: string): Promise<ActionResult> {
   try {
     await mutateAdmin("DELETE", `/admin/programs/${id}`);

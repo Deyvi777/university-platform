@@ -8,7 +8,15 @@ export const createUserSchema = z.object({
   firstName: z.string().trim().min(1, 'El nombre es obligatorio'),
   lastName: z.string().trim().min(1, 'El apellido es obligatorio'),
   email: z.email('Ingresa un correo electrónico válido'),
-  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  phone: z.string().trim().min(1, 'El teléfono es obligatorio'),
+  // Documento de identidad (carnet): opcional. Cadena vacía → null.
+  idDocument: z
+    .string()
+    .trim()
+    .transform((v) => (v.length === 0 ? null : v))
+    .nullable()
+    .optional(),
   role: z.enum([Role.PROFESSOR, Role.STUDENT]),
   isActive: z.boolean().default(true),
 });

@@ -2,11 +2,13 @@ import {
   ArrowUpRight,
   Building2,
   BookOpen,
+  ClipboardList,
   GraduationCap,
   Send,
   Share2,
   Tags,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -15,6 +17,7 @@ import {
   listAdminCourses,
   listAdminPartners,
   listAdminPrograms,
+  listAdminTeam,
   listAdminUsers,
 } from "@/lib/api/admin";
 import { cn } from "@/lib/utils";
@@ -114,13 +117,15 @@ type HomeCard = {
 };
 
 async function AdminHome({ name }: { name?: string | null }) {
-  const [programs, categories, partners, users, courses] = await Promise.all([
-    listAdminPrograms(),
-    listAdminCategories(),
-    listAdminPartners(),
-    listAdminUsers(),
-    listAdminCourses(),
-  ]);
+  const [programs, categories, partners, team, users, courses] =
+    await Promise.all([
+      listAdminPrograms(),
+      listAdminCategories(),
+      listAdminPartners(),
+      listAdminTeam(),
+      listAdminUsers(),
+      listAdminCourses(),
+    ]);
 
   const firstName = name?.trim().split(/\s+/)[0];
 
@@ -134,6 +139,16 @@ async function AdminHome({ name }: { name?: string | null }) {
       count: courses.length,
       icon: BookOpen,
       tint: "sky",
+    },
+    {
+      href: "/dashboard/notas-estudiantes",
+      label: "Notas de estudiantes",
+      category: "Seguimiento académico",
+      description:
+        "Consulta el detalle de notas y el kárdex de cada estudiante, con descarga en PDF.",
+      count: users.filter((u) => u.role === "STUDENT").length,
+      icon: ClipboardList,
+      tint: "violet",
     },
   ];
 
@@ -164,6 +179,15 @@ async function AdminHome({ name }: { name?: string | null }) {
       count: partners.length,
       icon: Building2,
       tint: "emerald",
+    },
+    {
+      href: "/dashboard/equipo",
+      label: "Equipo",
+      category: "Nosotros",
+      description: "Integrantes del equipo que se muestran en la landing.",
+      count: team.length,
+      icon: UsersRound,
+      tint: "violet",
     },
     {
       href: "/dashboard/configuracion",

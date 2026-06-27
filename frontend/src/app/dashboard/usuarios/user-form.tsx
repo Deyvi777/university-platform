@@ -10,13 +10,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type { AdminUser } from "@/lib/api/admin";
 import {
@@ -29,15 +22,28 @@ import {
   toCreateUserPayload,
   toEditUserPayload,
   toUserFormValues,
+  type UserFormRole,
   type UserFormValues,
 } from "@/app/dashboard/usuarios/user-schema";
 
-const ROLE_OPTIONS = [
-  { value: "PROFESSOR", label: "Docente" },
-  { value: "STUDENT", label: "Estudiante" },
-] as const;
-
-export function UserForm({ user }: { user?: AdminUser }) {
+export function UserForm({
+  user,
+  defaultRole,
+  backHref = "/dashboard/usuarios",
+  variant = "page",
+  onSuccess,
+  onCancel,
+}: {
+  user?: AdminUser;
+  defaultRole?: UserFormRole;
+  backHref?: string;
+  /** "page" envuelve el form en una tarjeta; "dialog" lo deja sin chrome. */
+  variant?: "page" | "dialog";
+  /** Si se pasa, se llama tras crear/editar (en vez de navegar a `backHref`). */
+  onSuccess?: () => void;
+  /** Si se pasa, lo invoca el botón Cancelar (en vez de navegar a `backHref`). */
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const isEdit = Boolean(user);
   const [showPassword, setShowPassword] = useState(false);
@@ -54,7 +60,7 @@ export function UserForm({ user }: { user?: AdminUser }) {
   const { register, control, handleSubmit, setError, formState } =
     useForm<UserFormValues>({
       resolver,
-      defaultValues: toUserFormValues(user),
+      defaultValues: toUserFormValues(user, defaultRole),
     });
   const { errors, isSubmitting } = formState;
 
@@ -67,8 +73,9 @@ export function UserForm({ user }: { user?: AdminUser }) {
 
     if (result.ok) {
       toast.success(isEdit ? "Usuario actualizado" : "Usuario creado");
-      router.push("/dashboard/usuarios");
       router.refresh();
+      if (onSuccess) onSuccess();
+      else router.push(backHref);
       return;
     }
 
@@ -85,7 +92,11 @@ export function UserForm({ user }: { user?: AdminUser }) {
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
-      className="max-w-2xl space-y-6 rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none"
+      className={
+        variant === "dialog"
+          ? "space-y-6"
+          : "max-w-2xl space-y-6 rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none"
+      }
     >
       {formError && (
         <div
@@ -150,6 +161,49 @@ export function UserForm({ user }: { user?: AdminUser }) {
         )}
       </div>
 
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="phone">Teléfono</Label>
+          <Input
+            id="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            aria-invalid={errors.phone ? true : undefined}
+            aria-describedby={errors.phone ? "phone-error" : undefined}
+            {...register("phone")}
+          />
+          {errors.phone && (
+            <p id="phone-error" className="text-xs text-destructive">
+              {errors.phone.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="idDocument">
+            Documento de identidad
+            <span className="ml-2 font-normal text-muted-foreground">
+              (opcional)
+            </span>
+          </Label>
+          <Input
+            id="idDocument"
+            inputMode="numeric"
+            aria-invalid={errors.idDocument ? true : undefined}
+            aria-describedby={
+              errors.idDocument ? "idDocument-error" : undefined
+            }
+            {...register("idDocument")}
+          />
+          {errors.idDocument && (
+            <p id="idDocument-error" className="text-xs text-destructive">
+              {errors.idDocument.message}
+            </p>
+          )}
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         <Label htmlFor="password">
           Contraseña
@@ -164,7 +218,7 @@ export function UserForm({ user }: { user?: AdminUser }) {
             id="password"
             type={showPassword ? "text" : "password"}
             autoComplete="new-password"
-            placeholder={isEdit ? "••••••••" : "Mínimo 8 caracteres"}
+            placeholder={isEdit ? "••••••••" : "Mínimo 6 caracteres"}
             className="pr-10"
             aria-invalid={errors.password ? true : undefined}
             aria-describedby={errors.password ? "password-error" : undefined}
@@ -189,45 +243,6 @@ export function UserForm({ user }: { user?: AdminUser }) {
         {errors.password && (
           <p id="password-error" className="text-xs text-destructive">
             {errors.password.message}
-          </p>
-        )}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="role">Rol</Label>
-        <Controller
-          control={control}
-          name="role"
-          render={({ field }) => (
-            <Select
-              items={ROLE_OPTIONS}
-              value={field.value}
-              onValueChange={(value) => field.onChange(value)}
-            >
-              <SelectTrigger
-                id="role"
-                className="w-full"
-                aria-invalid={errors.role ? true : undefined}
-                aria-describedby={errors.role ? "role-error" : undefined}
-              >
-                <SelectValue placeholder="Selecciona un rol" />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-        <p className="text-xs text-muted-foreground">
-          Solo puedes crear docentes y estudiantes desde este panel.
-        </p>
-        {errors.role && (
-          <p id="role-error" className="text-xs text-destructive">
-            {errors.role.message}
           </p>
         )}
       </div>
@@ -258,7 +273,7 @@ export function UserForm({ user }: { user?: AdminUser }) {
           type="button"
           variant="outline"
           disabled={isSubmitting}
-          onClick={() => router.push("/dashboard/usuarios")}
+          onClick={() => (onCancel ? onCancel() : router.push(backHref))}
         >
           Cancelar
         </Button>

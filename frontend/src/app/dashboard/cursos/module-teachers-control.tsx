@@ -150,7 +150,7 @@ export function ModuleTeachersControl({
               <p className="text-sm text-muted-foreground">
                 No hay docentes registrados.{" "}
                 <Link
-                  href="/dashboard/usuarios/nuevo"
+                  href="/dashboard/usuarios/nuevo?rol=docentes"
                   className="font-medium text-foreground underline underline-offset-2"
                 >
                   Crea un docente

@@ -1,5 +1,5 @@
-import { ArrowLeft, CalendarClock, ClipboardList } from "lucide-react";
-import Link from "next/link";
+import { CalendarClock, ClipboardList } from "lucide-react";
+import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
 import { getActivityGrading } from "@/lib/api/teacher";
@@ -35,6 +35,7 @@ export default async function ActivityGradingPage({
   }
 
   const { activity, students } = data;
+  const readOnly = activity.module.status === "FINISHED";
   const due = formatDue(activity.dueDate);
   const gradedCount = students.filter(
     (s) => s.submission?.status === "GRADED",
@@ -42,13 +43,7 @@ export default async function ActivityGradingPage({
 
   return (
     <div className="w-full">
-      <Link
-        href={`/dashboard/modulos/${activity.module.id}`}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        Volver al módulo
-      </Link>
+      <BackLink href={`/dashboard/modulos/${activity.module.id}`}>Volver al módulo</BackLink>
 
       <header className="mt-4 flex items-start gap-3">
         <span
@@ -102,6 +97,7 @@ export default async function ActivityGradingPage({
               activityId={activity.id}
               maxScore={activity.maxScore}
               row={row}
+              readOnly={readOnly}
             />
           ))}
         </ul>

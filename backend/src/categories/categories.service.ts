@@ -5,7 +5,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { slugify } from '../common/utils/slugify';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
+import {
+  CreateCategoryDto,
+  ReorderCategoriesDto,
+  UpdateCategoryDto,
+} from './dto/category.dto';
 
 @Injectable()
 export class CategoriesService {
@@ -42,9 +46,41 @@ export class CategoriesService {
 
   async create(dto: CreateCategoryDto) {
     const slug = await this.buildUniqueSlug(dto.slug ?? slugify(dto.name));
+    // Si no se especifica orden, se agrega al final de la lista.
+    let displayOrder = dto.displayOrder;
+    if (displayOrder === undefined) {
+      const last = await this.prisma.programCategory.findFirst({
+        orderBy: { displayOrder: 'desc' },
+        select: { displayOrder: true },
+      });
+      displayOrder = (last?.displayOrder ?? -1) + 1;
+    }
     return this.prisma.programCategory.create({
-      data: { ...dto, slug },
+      data: { ...dto, slug, displayOrder },
     });
+  }
+
+  /** Reordena las categorías según `orderedIds` (drag-and-drop del panel). */
+  async reorder(dto: ReorderCategoriesDto) {
+    const current = await this.prisma.programCategory.findMany({
+      orderBy: { displayOrder: 'asc' },
+      select: { id: true },
+    });
+    const currentSet = new Set(current.map((c) => c.id));
+    const provided = dto.orderedIds.filter((id) => currentSet.has(id));
+    const providedSet = new Set(provided);
+    const rest = current.map((c) => c.id).filter((id) => !providedSet.has(id));
+    const finalOrder = [...provided, ...rest];
+
+    await this.prisma.$transaction(
+      finalOrder.map((id, i) =>
+        this.prisma.programCategory.update({
+          where: { id },
+          data: { displayOrder: i + 1 },
+        }),
+      ),
+    );
+    return { success: true };
   }
 
   async update(id: string, dto: UpdateCategoryDto) {

@@ -339,6 +339,33 @@ const partners: Prisma.PartnerCreateInput[] = [
   },
 ];
 
+const teamMembers: Prisma.TeamMemberCreateInput[] = [
+  {
+    name: 'MS.C. Veronica Montoya',
+    role: 'Gerente General / Representante Legal',
+    photoUrl: '/landing/abaout/1-veronica.webp',
+    displayOrder: 1,
+  },
+  {
+    name: 'Lic. Karen Ugarte',
+    role: 'Directora Academica',
+    photoUrl: '/landing/abaout/2-karen.webp',
+    displayOrder: 2,
+  },
+  {
+    name: 'Ing. Guisela Lia Zubieta',
+    role: 'Directora de Marketing y Ventas',
+    photoUrl: '/landing/abaout/3-guisela.webp',
+    displayOrder: 3,
+  },
+  {
+    name: 'Ing. Laura Judith Claros',
+    role: 'Jefa de Ventas',
+    photoUrl: '/landing/abaout/4-laura.webp',
+    displayOrder: 4,
+  },
+];
+
 async function main() {
   // Categorías base (idempotente). Los programas se conectan por slug.
   const categories = [
@@ -370,6 +397,19 @@ async function main() {
     console.log(`Institución aliada creada: ${partner.name}`);
   }
 
+  // Equipo (idempotente por nombre): mantiene el plantel actual de la landing.
+  for (const data of teamMembers) {
+    const existing = await prisma.teamMember.findFirst({
+      where: { name: data.name },
+    });
+    if (existing) {
+      await prisma.teamMember.update({ where: { id: existing.id }, data });
+    } else {
+      await prisma.teamMember.create({ data });
+    }
+    console.log(`Integrante del equipo listo: ${data.name}`);
+  }
+
   // Configuración de la landing: enlaces a redes sociales (fila singleton).
   await prisma.siteSettings.upsert({
     where: { id: 'singleton' },
@@ -398,6 +438,7 @@ async function main() {
       password: hashed,
       firstName: 'Administrador',
       lastName: 'Certificate',
+      phone: '70000000',
       role: Role.ADMIN,
     },
   });

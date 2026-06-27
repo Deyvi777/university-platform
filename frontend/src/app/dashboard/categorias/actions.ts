@@ -46,6 +46,19 @@ export async function updateCategoryAction(
   }
 }
 
+export async function reorderCategoriesAction(
+  orderedIds: string[],
+): Promise<ActionResult> {
+  try {
+    await mutateAdmin("PUT", "/admin/categories/reorder", { orderedIds });
+    revalidateCategories();
+    return { ok: true, data: undefined };
+  } catch (error) {
+    handleAdminActionError(error); // 401 → redirige a /login; rethrow control flow
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
 export async function deleteCategoryAction(id: string): Promise<ActionResult> {
   try {
     await mutateAdmin("DELETE", `/admin/categories/${id}`);

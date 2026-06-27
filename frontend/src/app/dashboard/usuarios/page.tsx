@@ -1,51 +1,37 @@
-import { Pencil, Plus, Users } from "lucide-react";
-import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-guard";
 import {
   listAdminUsers,
   type AdminUser,
   type AdminUserRole,
 } from "@/lib/api/admin";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { DeleteButton } from "@/components/admin/delete-button";
-import { deleteUserAction } from "@/app/dashboard/usuarios/actions";
-import { RoleBadge, StatusBadge } from "@/app/dashboard/usuarios/user-badges";
-
-const dateFmt = new Intl.DateTimeFormat("es-BO", {
-  timeZone: "UTC",
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
+import { UsersTable } from "@/app/dashboard/usuarios/users-table";
+import type { UserFormRole } from "@/app/dashboard/usuarios/user-schema";
 
 type RolFilter = "todos" | "administrativos" | "docentes" | "estudiantes";
 
-const FILTERS: { key: RolFilter; label: string; href: string }[] = [
-  { key: "todos", label: "Todos", href: "/dashboard/usuarios" },
-  {
-    key: "administrativos",
-    label: "Administrativos",
-    href: "/dashboard/usuarios?rol=administrativos",
-  },
-  {
-    key: "docentes",
-    label: "Docentes",
-    href: "/dashboard/usuarios?rol=docentes",
-  },
-  {
-    key: "estudiantes",
-    label: "Estudiantes",
-    href: "/dashboard/usuarios?rol=estudiantes",
-  },
-];
+/** Título de la sección según el rol con el que se entró desde el sidebar. */
+const PAGE_TITLE: Record<RolFilter, string> = {
+  todos: "Usuarios",
+  administrativos: "Administrativos",
+  docentes: "Docentes",
+  estudiantes: "Estudiantes",
+};
+
+/** Texto del botón "Crear ..." según la sección actual. */
+const CREATE_LABEL: Record<RolFilter, string> = {
+  todos: "Crear usuario",
+  administrativos: "Crear usuario",
+  docentes: "Crear docente",
+  estudiantes: "Crear estudiante",
+};
+
+/** Rol con el que se crea desde cada sección (administrativos no crea). */
+const CREATE_ROLE: Record<RolFilter, UserFormRole> = {
+  todos: "PROFESSOR",
+  administrativos: "PROFESSOR",
+  docentes: "PROFESSOR",
+  estudiantes: "STUDENT",
+};
 
 function normalizeFilter(value: string | string[] | undefined): RolFilter {
   if (
@@ -114,161 +100,35 @@ export default async function UsuariosAdminPage({
 
   const noun = nounFor(filter, users.length);
 
+  if (loadError) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {PAGE_TITLE[filter]}
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          Personas con acceso a la plataforma.
+        </p>
+        <div className="mt-4 rounded-2xl border bg-card px-4 py-10 text-center text-destructive shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
+          {loadError}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {filter === "administrativos" ? "Administrativos" : "Usuarios"}
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            {loadError
-              ? "Personas con acceso a la plataforma."
-              : `${users.length} ${noun}.`}
-          </p>
-        </div>
-        {canCreate && (
-          <Button
-            nativeButton={false}
-            render={<Link href="/dashboard/usuarios/nuevo" />}
-          >
-            <Plus className="size-4" /> Crear usuario
-          </Button>
-        )}
-      </div>
-
-      {/* Filtro por rol — navegación por URL (?rol=...), sin estado de cliente. */}
-      <nav
-        aria-label="Filtrar usuarios por rol"
-        className="mt-6 inline-flex items-center gap-1 rounded-lg bg-muted p-1"
-      >
-        {FILTERS.map((f) => {
-          const active = f.key === filter;
-          return (
-            <Link
-              key={f.key}
-              href={f.href}
-              aria-current={active ? "page" : undefined}
-              className={
-                active
-                  ? "rounded-md bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm"
-                  : "rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              }
-            >
-              {f.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Aviso de solo-lectura para administrativos. */}
-      {filter === "administrativos" && !loadError && (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-          Las cuentas administrativas se gestionan de forma interna. Desde aquí
-          puedes consultarlas, pero no crear nuevas.
-        </p>
-      )}
-
-      <div className="mt-4 overflow-hidden rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Correo</TableHead>
-              <TableHead>Rol</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Creado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loadError && (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="py-10 text-center text-destructive"
-                >
-                  {loadError}
-                </TableCell>
-              </TableRow>
-            )}
-
-            {!loadError && users.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="py-14">
-                  <div className="flex flex-col items-center gap-3 text-center">
-                    <span
-                      className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                      aria-hidden="true"
-                    >
-                      <Users className="size-5" />
-                    </span>
-                    <div>
-                      <p className="font-medium">{EMPTY_TITLE[filter]}</p>
-                      {canCreate && (
-                        <p className="text-sm text-muted-foreground">
-                          Crea el primero para empezar.
-                        </p>
-                      )}
-                    </div>
-                    {canCreate && (
-                      <Button
-                        nativeButton={false}
-                        size="sm"
-                        render={<Link href="/dashboard/usuarios/nuevo" />}
-                      >
-                        <Plus className="size-4" /> Crear usuario
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-
-            {!loadError &&
-              users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">
-                    {user.firstName} {user.lastName}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {user.email}
-                  </TableCell>
-                  <TableCell>
-                    <RoleBadge role={user.role} />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge isActive={user.isActive} />
-                  </TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">
-                    {dateFmt.format(new Date(user.createdAt))}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        nativeButton={false}
-                        render={
-                          <Link
-                            href={`/dashboard/usuarios/${user.id}`}
-                            aria-label={`Editar ${user.firstName} ${user.lastName}`}
-                          />
-                        }
-                        variant="ghost"
-                        size="icon-sm"
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <DeleteButton
-                        action={deleteUserAction.bind(null, user.id)}
-                        confirmMessage={`¿Eliminar a "${user.firstName} ${user.lastName}"? Esta acción no se puede deshacer.`}
-                      />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
-      </div>
+      <UsersTable
+        users={users}
+        canCreate={canCreate}
+        createRole={CREATE_ROLE[filter]}
+        createLabel={CREATE_LABEL[filter]}
+        emptyTitle={EMPTY_TITLE[filter]}
+        title={PAGE_TITLE[filter]}
+        subtitle={`${users.length} ${noun}.`}
+        showReadOnlyNotice={filter === "administrativos"}
+        showBulkUpload={filter === "estudiantes"}
+      />
     </div>
   );
 }

@@ -17,10 +17,13 @@ export function ModuleWorkspace({
   moduleId,
   contents,
   gradebook,
+  readOnly = false,
 }: {
   moduleId: string;
   contents: TeacherContent[];
   gradebook: ModuleGradebook | null;
+  /** Módulo concluido (FINISHED): todo en solo lectura. */
+  readOnly?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("contenido");
 
@@ -49,9 +52,17 @@ export function ModuleWorkspace({
 
       <div className="mt-5">
         {tab === "contenido" ? (
-          <ContentManager moduleId={moduleId} contents={contents} />
+          <ContentManager
+            moduleId={moduleId}
+            contents={contents}
+            readOnly={readOnly}
+          />
         ) : (
-          <Gradebook moduleId={moduleId} gradebook={gradebook} />
+          <Gradebook
+            moduleId={moduleId}
+            gradebook={gradebook}
+            readOnly={readOnly}
+          />
         )}
       </div>
     </div>

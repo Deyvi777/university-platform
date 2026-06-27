@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { ProgramCategory } from "@/lib/api/programs";
+import type { KardexCourse } from "@/lib/api/me";
 
 export interface AdminCategory {
   id: string;
@@ -77,6 +78,15 @@ export interface AdminPartner {
   isPublished: boolean;
 }
 
+export interface AdminTeamMember {
+  id: string;
+  name: string;
+  role: string;
+  photoUrl: string;
+  displayOrder: number;
+  isPublished: boolean;
+}
+
 export type AdminUserRole = "ADMIN" | "PROFESSOR" | "STUDENT";
 
 export interface AdminUser {
@@ -84,6 +94,8 @@ export interface AdminUser {
   email: string;
   firstName: string;
   lastName: string;
+  phone: string;
+  idDocument: string | null;
   role: AdminUserRole;
   isActive: boolean;
   createdAt: string;
@@ -237,6 +249,14 @@ export async function getAdminPartner(id: string): Promise<AdminPartner> {
   return parse(await adminFetch(`/admin/partners/${id}`));
 }
 
+export async function listAdminTeam(): Promise<AdminTeamMember[]> {
+  return parse(await adminFetch("/admin/team"));
+}
+
+export async function getAdminTeamMember(id: string): Promise<AdminTeamMember> {
+  return parse(await adminFetch(`/admin/team/${id}`));
+}
+
 export async function listAdminCategories(): Promise<AdminCategory[]> {
   return parse(await adminFetch("/admin/categories"));
 }
@@ -254,6 +274,67 @@ export async function listAdminUsers(
 
 export async function getAdminUser(id: string): Promise<AdminUser> {
   return parse(await adminFetch(`/admin/users/${id}`));
+}
+
+// ---- Notas de un estudiante (vista del ADMIN) ----
+
+export type ModuleGradeStatus = "IN_PROGRESS" | "PASSED" | "FAILED";
+export type ModuleStatus = "DRAFT" | "ACTIVE" | "FINISHED";
+export type SubmissionStatus =
+  | "PENDING"
+  | "SUBMITTED"
+  | "LATE"
+  | "GRADED";
+
+/** Una actividad de un módulo con la nota del estudiante. */
+export interface StudentGradeActivity {
+  id: string;
+  title: string;
+  maxScore: number | null;
+  weight: number | null;
+  /** Actividad presencial calificada a mano (sin entrega del estudiante). */
+  isOffline: boolean;
+  /** Puntaje obtenido; `null` si aún no se calificó/entregó. */
+  score: number | null;
+  submissionStatus: SubmissionStatus | null;
+}
+
+export interface StudentGradeModule {
+  id: string;
+  order: number;
+  name: string;
+  credits: number | null;
+  status: ModuleStatus;
+  activities: StudentGradeActivity[];
+  grade: {
+    finalScore: number | null;
+    status: ModuleGradeStatus;
+    observations: string | null;
+  } | null;
+}
+
+/** Un programa inscrito con el detalle de notas por módulo/actividad. */
+export interface StudentGradeCourse {
+  id: string;
+  code: string;
+  name: string;
+  status: CourseStatus;
+  passingScore: number;
+  modules: StudentGradeModule[];
+}
+
+/** Detalle de notas (por actividad) de un estudiante — vista del ADMIN. */
+export async function getStudentGrades(
+  studentId: string,
+): Promise<StudentGradeCourse[]> {
+  return parse(await adminFetch(`/admin/students/${studentId}/grades`));
+}
+
+/** Kárdex de un estudiante (igual al que ve el propio estudiante). */
+export async function getStudentKardex(
+  studentId: string,
+): Promise<KardexCourse[]> {
+  return parse(await adminFetch(`/admin/students/${studentId}/kardex`));
 }
 
 export type AnnouncementAudience =

@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NotificationType, Prisma, Role } from '@prisma/client';
+import { ContentKind, NotificationType, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { slugify } from '../common/utils/slugify';
@@ -181,6 +181,7 @@ export class CoursesService {
             order: true,
             name: true,
             credits: true,
+            status: true,
             grades: {
               where: { studentId },
               select: { finalScore: true, status: true },
@@ -198,6 +199,7 @@ export class CoursesService {
           order: m.order,
           name: m.name,
           credits: m.credits,
+          status: m.status,
           grade: g
             ? {
                 finalScore: g.finalScore !== null ? Number(g.finalScore) : null,
@@ -223,11 +225,107 @@ export class CoursesService {
         passingScore: Number(c.passingScore),
         moduleCount: modules.length,
         gradedCount: scored.length,
-        passedCount: modules.filter((m) => m.grade?.status === 'PASSED').length,
+        // Aprobados: solo cuentan los módulos CONCLUIDOS y aprobados (mientras
+        // el módulo está activo no se considera aprobado/reprobado).
+        passedCount: modules.filter(
+          (m) => m.status === 'FINISHED' && m.grade?.status === 'PASSED',
+        ).length,
         average,
         modules,
       };
     });
+  }
+
+  /**
+   * Detalle de notas de un estudiante para el panel del ADMIN: sus programas
+   * inscritos → cada módulo → cada actividad con su puntaje, más la nota final
+   * (ponderada) del módulo y la observación del docente. Es la versión granular
+   * del kárdex (que solo muestra la nota final del módulo). Mantiene la misma
+   * visibilidad que el estudiante: solo cursos ACTIVE/FINISHED y se excluyen los
+   * módulos en borrador.
+   */
+  async getStudentGradeDetail(studentId: string) {
+    const courses = await this.prisma.course.findMany({
+      where: {
+        enrollments: { some: { studentId } },
+        status: { in: ['ACTIVE', 'FINISHED'] },
+      },
+      orderBy: { startDate: { sort: 'desc', nulls: 'last' } },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        status: true,
+        passingScore: true,
+        modules: {
+          where: { status: { not: 'DRAFT' } },
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            order: true,
+            name: true,
+            credits: true,
+            status: true,
+            contents: {
+              where: { kind: ContentKind.ACTIVITY },
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                title: true,
+                maxScore: true,
+                weight: true,
+                isOffline: true,
+                submissions: {
+                  where: { studentId },
+                  select: { score: true, status: true },
+                },
+              },
+            },
+            grades: {
+              where: { studentId },
+              select: { finalScore: true, status: true, observations: true },
+            },
+          },
+        },
+      },
+    });
+
+    return courses.map((c) => ({
+      id: c.id,
+      code: c.code,
+      name: c.name,
+      status: c.status,
+      passingScore: Number(c.passingScore),
+      modules: c.modules.map((m) => {
+        const g = m.grades[0];
+        return {
+          id: m.id,
+          order: m.order,
+          name: m.name,
+          credits: m.credits,
+          status: m.status,
+          activities: m.contents.map((a) => {
+            const sub = a.submissions[0];
+            return {
+              id: a.id,
+              title: a.title,
+              maxScore: a.maxScore !== null ? Number(a.maxScore) : null,
+              weight: a.weight !== null ? Number(a.weight) : null,
+              isOffline: a.isOffline,
+              score: sub && sub.score !== null ? Number(sub.score) : null,
+              submissionStatus: sub?.status ?? null,
+            };
+          }),
+          grade: g
+            ? {
+                finalScore: g.finalScore !== null ? Number(g.finalScore) : null,
+                status: g.status,
+                observations: g.observations,
+              }
+            : null,
+        };
+      }),
+    }));
   }
 
   /**

@@ -102,7 +102,6 @@ export default async function DashboardLayout({
                 body: n.body,
                 createdAt: n.createdAt,
                 read: n.read,
-                href: `/dashboard/notificaciones/${n.id}`,
               }))}
             />
           )}

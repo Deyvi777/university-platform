@@ -41,5 +41,10 @@ export const createProgramSchema = z.object({
 
 export const updateProgramSchema = createProgramSchema.partial();
 
+export const reorderProgramsSchema = z.object({
+  orderedIds: z.array(z.string().min(1)).min(1),
+});
+
 export class CreateProgramDto extends createZodDto(createProgramSchema) {}
 export class UpdateProgramDto extends createZodDto(updateProgramSchema) {}
+export class ReorderProgramsDto extends createZodDto(reorderProgramsSchema) {}

@@ -26,7 +26,7 @@ export const createCourseSchema = z.object({
   // Fechas ISO ("2026-08-03"); se convierten a Date en el servicio.
   startDate: z.string().min(1).nullish(),
   endDate: z.string().min(1).nullish(),
-  passingScore: z.coerce.number().min(0).max(100).default(70),
+  passingScore: z.coerce.number().min(0).max(100).default(71),
   status: z
     .enum([
       CourseStatus.DRAFT,

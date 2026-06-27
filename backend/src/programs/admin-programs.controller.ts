@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -13,7 +14,11 @@ import { Role } from '@prisma/client';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto';
+import {
+  CreateProgramDto,
+  ReorderProgramsDto,
+  UpdateProgramDto,
+} from './dto/program.dto';
 import { ProgramsService } from './programs.service';
 
 @ApiTags('admin-programs')
@@ -37,6 +42,11 @@ export class AdminProgramsController {
   @Post()
   create(@Body() dto: CreateProgramDto) {
     return this.programsService.create(dto);
+  }
+
+  @Put('reorder')
+  reorder(@Body() dto: ReorderProgramsDto) {
+    return this.programsService.reorder(dto);
   }
 
   @Patch(':id')

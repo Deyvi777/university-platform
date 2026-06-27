@@ -22,7 +22,20 @@ import {
   type PartnerFormValues,
 } from "@/app/dashboard/partners/partner-schema";
 
-export function PartnerForm({ partner }: { partner?: AdminPartner }) {
+export function PartnerForm({
+  partner,
+  variant = "page",
+  onSuccess,
+  onCancel,
+}: {
+  partner?: AdminPartner;
+  /** "page" envuelve el form en una tarjeta; "dialog" lo deja sin chrome. */
+  variant?: "page" | "dialog";
+  /** Si se pasa, se llama tras crear/editar (en vez de navegar). */
+  onSuccess?: () => void;
+  /** Si se pasa, lo invoca el botón Cancelar (en vez de navegar). */
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const isEdit = Boolean(partner);
 
@@ -42,8 +55,9 @@ export function PartnerForm({ partner }: { partner?: AdminPartner }) {
 
     if (result.ok) {
       toast.success(isEdit ? "Institución actualizada" : "Institución creada");
-      router.push("/dashboard/partners");
       router.refresh();
+      if (onSuccess) onSuccess();
+      else router.push("/dashboard/partners");
     } else {
       toast.error(result.error);
     }
@@ -52,7 +66,11 @@ export function PartnerForm({ partner }: { partner?: AdminPartner }) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="max-w-xl space-y-6 rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none"
+      className={
+        variant === "dialog"
+          ? "space-y-6"
+          : "max-w-xl space-y-6 rounded-2xl border bg-card p-6 shadow-sm shadow-blue-950/[0.04] dark:shadow-none"
+      }
     >
       <div>
         <Label>Logo</Label>
@@ -85,19 +103,6 @@ export function PartnerForm({ partner }: { partner?: AdminPartner }) {
         )}
       </div>
 
-      <div>
-        <Label htmlFor="displayOrder">Orden de aparición</Label>
-        <Input
-          id="displayOrder"
-          type="number"
-          {...register("displayOrder", { valueAsNumber: true })}
-          className="mt-1.5 max-w-32"
-        />
-        <p className="mt-1 text-xs text-muted-foreground">
-          Menor número aparece primero.
-        </p>
-      </div>
-
       <div className="flex items-center gap-3">
         <Controller
           control={control}
@@ -121,7 +126,10 @@ export function PartnerForm({ partner }: { partner?: AdminPartner }) {
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.push("/dashboard/partners")}
+          disabled={isSubmitting}
+          onClick={() =>
+            onCancel ? onCancel() : router.push("/dashboard/partners")
+          }
         >
           Cancelar
         </Button>

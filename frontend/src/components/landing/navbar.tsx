@@ -17,8 +17,8 @@ function sectionFromHref(href: string): string {
 }
 
 const navLinks = [
-  { href: "/#contacto", label: "Contacto" },
   { href: "/nosotros", label: "Nosotros" },
+  { href: "/contacto", label: "Contacto" },
 ];
 
 export function Navbar() {

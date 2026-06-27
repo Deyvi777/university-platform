@@ -23,6 +23,8 @@ Usado por `User.role` y por el decorador `@Roles(...)` de `RolesGuard` para prot
 - **PROFESSOR** — gestiona el **temario** de **sus** módulos como una lista ordenable de `ModuleContent` (tema/video/material/actividad) vía `/me/modules/...` (módulo `backend/src/module-content/`) y **califica** vía la libreta (`/me/modules/:id/gradebook`, `/me/modules/:id/students/:sid/observation`) o por actividad (`/me/activities/.../grade`, módulo `backend/src/grading/`), lo que recalcula la `ModuleGrade` ponderada. Ve sus cursos en `GET /me/courses`.
 - **STUDENT** — ve sus cursos (`GET /me/courses[/:id]`), **entrega actividades** (texto/archivo) vía `/me/activities/:id/submit`, y consulta su **kárdex** consolidado en `GET /me/kardex`.
 
+**Notas de estudiantes (vista del ADMIN).** El admin consulta las notas de cualquier estudiante vía `/admin/students/:id/kardex` (mismo payload que `GET /me/kardex` del estudiante) y `/admin/students/:id/grades` (**detalle por actividad**: programas → módulos → cada `ACTIVITY` con su puntaje + la `ModuleGrade` final y su observación). Ambos guardados `@Roles(ADMIN)`, en `backend/src/courses/admin-student-grades.controller.ts`, reutilizando `CoursesService.getKardex`/`getStudentGradeDetail` (misma visibilidad que el estudiante: cursos `ACTIVE`/`FINISHED`, sin módulos `DRAFT`). UI en `frontend/src/app/dashboard/notas-estudiantes/` (ver CLAUDE.md, sección Admin).
+
 Los endpoints `/me/*` solo exigen `JwtAuthGuard`: el servicio autoriza por **inscripción** (estudiante) o **docencia** (`ModuleTeacher`) según el recurso. Subidas de archivo de docente/estudiante vía `POST /me/uploads` (carpeta `materials`/`submissions` según rol; ver CLAUDE.md → Storage module).
 
 ### Enums de la capa académica (LMS)
@@ -49,65 +51,68 @@ Los endpoints `/me/*` solo exigen `JwtAuthGuard`: el servicio autoriza por **ins
 
 ### `User` → tabla `users`
 
-| Campo                     | Tipo            | Notas                                 |
-| ------------------------- | --------------- | ------------------------------------- |
-| `id`                      | `String` (uuid) | PK                                    |
-| `email`                   | `String`        | `@unique`                             |
-| `password`                | `String`        | hash argon2 (ver `backend/src/auth/`) |
-| `firstName` / `lastName`  | `String`        |                                       |
-| `role`                    | `Role`          | default `STUDENT`                     |
-| `isActive`                | `Boolean`       | default `true`                        |
-| `createdAt` / `updatedAt` | `DateTime`      |                                       |
+| Campo                     | Tipo            | Notas                                      |
+| ------------------------- | --------------- | ------------------------------------------ |
+| `id`                      | `String` (uuid) | PK                                         |
+| `email`                   | `String`        | `@unique`                                  |
+| `password`                | `String`        | hash argon2 (ver `backend/src/auth/`)      |
+| `firstName` / `lastName`  | `String`        |                                            |
+| `phone`                   | `String`        | teléfono de contacto (**obligatorio**)     |
+| `idDocument`              | `String?`       | documento de identidad / carnet (opcional) |
+| `role`                    | `Role`          | default `STUDENT`                          |
+| `isActive`                | `Boolean`       | default `true`                             |
+| `createdAt` / `updatedAt` | `DateTime`      |                                            |
 
-Fuente de verdad de identidad y RBAC; NextAuth no gestiona usuarios (ver CLAUDE.md, "Auth flow"). `isActive=false` invalida al usuario en autenticación: `AuthService.login` rechaza el ingreso y `JwtStrategy.validate` hace que **todo token ya emitido** devuelva **401**. En el frontend ese 401 (igual que un token vencido o una DB reseedeada) ya no rompe el panel: se enruta a `/api/auth/session-expired`, que cierra la sesión muerta de NextAuth y manda a `/login?expired=1` (ver `frontend/AGENTS.md`).
+Fuente de verdad de identidad y RBAC; NextAuth no gestiona usuarios (ver CLAUDE.md, "Auth flow"). **Cuenta desactivada (`isActive=false`):** `AuthService.login` valida primero correo+contraseña y, si son correctos pero la cuenta está inactiva, responde **403** (no 401) para que el login muestre el mensaje de **cuenta suspendida** ("comunícate con administración"); el chequeo va después de validar la contraseña para no revelar qué correos existen. Además `JwtStrategy.validate` hace que **todo token ya emitido** de un usuario inactivo devuelva **401**; en el frontend ese 401 (igual que un token vencido o una DB reseedeada) se enruta a `/api/auth/session-expired`, que cierra la sesión muerta de NextAuth y manda a `/login?expired=1` (ver `frontend/AGENTS.md`). La contraseña exige **mínimo 6 caracteres** (DTOs de `register`/`login`/`create`/`update`/carga masiva y los schemas Zod del frontend).
 
-**Gestión admin** (`backend/src/users/`, módulo solo-admin sin controlador público): `/admin/users` (guardado `@Roles(ADMIN)`) con `findAll(?role=PROFESSOR|STUDENT)`/`findOne`/`create`/`update`/`remove`. El formulario del panel **solo emite cuentas PROFESSOR o STUDENT** (el `role` del DTO Zod excluye `ADMIN` → `400`; correo duplicado → `409`). La contraseña se hashea con argon2 y **ninguna respuesta incluye el hash** (`safeSelect`). UI en `frontend/src/app/dashboard/usuarios/`.
+**Gestión admin** (`backend/src/users/`, módulo solo-admin sin controlador público): `/admin/users` (guardado `@Roles(ADMIN)`) con `findAll(?role=PROFESSOR|STUDENT|ADMIN)`/`findOne`/`create`/`update`/`remove` + **`POST /admin/users/bulk`** (carga masiva). El formulario del panel **solo emite cuentas PROFESSOR o STUDENT** (el `role` del DTO Zod excluye `ADMIN` → `400`; correo duplicado → `409`); en **edición** el rol **no se envía** (el update parcial conserva el rol actual, incluido ADMIN). La contraseña se hashea con argon2 y **ninguna respuesta incluye el hash** (`safeSelect`, que sí expone `phone`/`idDocument`). **Carga masiva de estudiantes** (`bulkCreateStudents`): recibe `{ students: [...] }` (filas parseadas de un Excel en el cliente), valida **fila por fila** con Zod y hace **carga parcial** (crea las válidas como STUDENT, reporta `{ total, created, errors[{ index, email, message }] }`; detecta duplicados dentro del archivo y contra la BD vía `P2002`). UI en `frontend/src/app/dashboard/usuarios/` (ver CLAUDE.md, sección Admin).
 
 Relaciones académicas (todas opcionales, dependen del rol): `taughtModules` (`ModuleTeacher[]`, módulos que dicta como docente vía la tabla intermedia de co-docencia), `enrollments` (`Enrollment[]`, cursos en que está inscrito como estudiante), `submissions` (`Submission[]`, sus entregas), `gradedSubmissions` (`Submission[]` que calificó — relación `"SubmissionGrader"`), `moduleGrades` (`ModuleGrade[]`, su kárdex — relación `"StudentGrades"`), `gradedModules` (`ModuleGrade[]` que calificó — relación `"ModuleGrader"`). Relaciones de notificaciones: `notifications` (`Notification[]`, las que recibe), `sentAnnouncements` (`Announcement[]`, los avisos que envió como admin — relación `"AnnouncementSender"`). Un mismo `User` con rol PROFESSOR/STUDENT cuelga de estas relaciones.
 
 ### `ProgramCategory` → tabla `program_categories`
 
-| Campo                     | Tipo            | Notas                                                                      |
-| ------------------------- | --------------- | -------------------------------------------------------------------------- |
-| `id`                      | `String` (uuid) | PK                                                                         |
-| `name`                    | `String`        | ej. "Maestría", "Diplomado"                                                |
-| `slug`                    | `String`        | `@unique`, auto-generado desde `name` vía `slugify` con reintento numérico |
-| `displayOrder`            | `Int`           | default `0`; ordena tabs en landing y filas en admin                       |
-| `isActive`                | `Boolean`       | default `true`; solo categorías activas se exponen en `GET /categories`    |
-| `createdAt` / `updatedAt` | `DateTime`      |                                                                            |
-| `programs`                | `Program[]`     | relación inversa 1:N                                                       |
+| Campo                     | Tipo            | Notas                                                                                                 |
+| ------------------------- | --------------- | ----------------------------------------------------------------------------------------------------- |
+| `id`                      | `String` (uuid) | PK                                                                                                    |
+| `name`                    | `String`        | ej. "Maestría", "Diplomado"                                                                           |
+| `slug`                    | `String`        | `@unique`, auto-generado desde `name` vía `slugify` con reintento numérico                            |
+| `displayOrder`            | `Int`           | default `0`; ordena tabs en landing y filas en admin (se cambia por **drag-and-drop**, no en el form) |
+| `isActive`                | `Boolean`       | default `true`; solo categorías activas se exponen en `GET /categories`                               |
+| `createdAt` / `updatedAt` | `DateTime`      |                                                                                                       |
+| `programs`                | `Program[]`     | relación inversa 1:N                                                                                  |
 
-Gestión completa vía `/admin/categories` (CRUD). Borrar una categoría con `programs.count > 0` devuelve `409 Conflict`. Reemplaza el antiguo enum fijo `ProgramCategory` (MAESTRIA/DIPLOMADO) — esos dos valores siguen existiendo como filas semilla (`slug: maestria`, `slug: diplomado`) pero ahora son datos, no tipos.
+Gestión completa vía `/admin/categories` (CRUD) + **`PUT /admin/categories/reorder`** (`{ orderedIds }`, drag-and-drop). El form de crear/editar **no** edita `displayOrder`; al crear se agrega al final. Borrar una categoría con `programs.count > 0` devuelve `409 Conflict`. Reemplaza el antiguo enum fijo `ProgramCategory` (MAESTRIA/DIPLOMADO) — esos dos valores siguen existiendo como filas semilla (`slug: maestria`, `slug: diplomado`) pero ahora son datos, no tipos.
 
 ### `Program` → tabla `programs`
 
-| Campo                     | Tipo               | Notas                                                                       |
-| ------------------------- | ------------------ | --------------------------------------------------------------------------- |
-| `id`                      | `String` (uuid)    | PK                                                                          |
-| `slug`                    | `String`           | `@unique`, auto-generado desde `title` vía `slugify` con reintento numérico |
-| `title`                   | `String`           |                                                                             |
-| `categoryId`              | `String`           | FK → `ProgramCategory.id`                                                   |
-| `category`                | `ProgramCategory`  | relación N:1                                                                |
-| `flyerUrl`                | `String`           | path de imagen (ver convenciones)                                           |
-| `objective`               | `String`           | objetivo del programa                                                       |
-| `targetAudience`          | `String`           | "dirigido a"                                                                |
-| `modality`                | `String`           | ej. "Virtual con clases en vivo"                                            |
-| `startDate`               | `DateTime`         | inicio de clases (UTC)                                                      |
-| `duration`                | `String`           | ej. "18 meses (4 semestres)"                                                |
-| `schedule`                | `String`           | ej. "Viernes 19:00–22:00 y sábados 09:00–12:00"                             |
-| `requirements`            | `String[]`         | lista de requisitos                                                         |
-| `enrollmentFee`           | `Decimal(10,2)`    | matrícula                                                                   |
-| `totalCost`               | `Decimal(10,2)`    | inversión total                                                             |
-| `currency`                | `String`           | default `"Bs"`                                                              |
-| `paymentFacilities`       | `String?`          | texto libre, facilidades de pago                                            |
-| `isPublished`             | `Boolean`          | default `true`; solo publicados se exponen públicamente                     |
-| `createdAt` / `updatedAt` | `DateTime`         |                                                                             |
-| `modules`                 | `ProgramModule[]`  | relación 1:N, `onDelete: Cascade`                                           |
-| `teachers`                | `ProgramTeacher[]` | relación 1:N, `onDelete: Cascade`                                           |
+| Campo                     | Tipo               | Notas                                                                                                                     |
+| ------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `id`                      | `String` (uuid)    | PK                                                                                                                        |
+| `slug`                    | `String`           | `@unique`, auto-generado desde `title` vía `slugify` con reintento numérico                                               |
+| `title`                   | `String`           |                                                                                                                           |
+| `categoryId`              | `String`           | FK → `ProgramCategory.id`                                                                                                 |
+| `category`                | `ProgramCategory`  | relación N:1                                                                                                              |
+| `flyerUrl`                | `String`           | path de imagen (ver convenciones)                                                                                         |
+| `objective`               | `String`           | objetivo del programa                                                                                                     |
+| `targetAudience`          | `String`           | "dirigido a"                                                                                                              |
+| `modality`                | `String`           | ej. "Virtual con clases en vivo"                                                                                          |
+| `startDate`               | `DateTime`         | inicio de clases (UTC)                                                                                                    |
+| `duration`                | `String`           | ej. "18 meses (4 semestres)"                                                                                              |
+| `schedule`                | `String`           | ej. "Viernes 19:00–22:00 y sábados 09:00–12:00"                                                                           |
+| `requirements`            | `String[]`         | lista de requisitos                                                                                                       |
+| `enrollmentFee`           | `Decimal(10,2)`    | matrícula                                                                                                                 |
+| `totalCost`               | `Decimal(10,2)`    | inversión total                                                                                                           |
+| `currency`                | `String`           | default `"Bs"`                                                                                                            |
+| `paymentFacilities`       | `String?`          | texto libre, facilidades de pago                                                                                          |
+| `isPublished`             | `Boolean`          | default `true`; solo publicados se exponen públicamente                                                                   |
+| `displayOrder`            | `Int`              | default `0`; **orden manual** (drag-and-drop del panel) que rige tanto la tabla del dashboard como el orden en la landing |
+| `createdAt` / `updatedAt` | `DateTime`         |                                                                                                                           |
+| `modules`                 | `ProgramModule[]`  | relación 1:N, `onDelete: Cascade`                                                                                         |
+| `teachers`                | `ProgramTeacher[]` | relación 1:N, `onDelete: Cascade`                                                                                         |
 
 Índice: `@@index([categoryId, isPublished])`.
 
-Endpoints públicos: `GET /programs` (filtrable por `?category=<slug>`), `GET /programs/:slug`. Admin: `/admin/programs` (CRUD; `modules`/`teachers` se reemplazan completos en cada `update` dentro de una transacción).
+Endpoints públicos: `GET /programs` (filtrable por `?category=<slug>`, ordenado por `displayOrder` y `startDate` como desempate), `GET /programs/:slug`. Admin: `/admin/programs` (CRUD; `modules`/`teachers` se reemplazan completos en cada `update` dentro de una transacción) + **`PUT /admin/programs/reorder`** (`{ orderedIds }`, drag-and-drop). Al **crear**, el programa se agrega al final (mayor `displayOrder`+1); el form de crear/editar **no** edita `displayOrder` (el orden se cambia solo por drag-and-drop). Mismo patrón de reorden que `categories`/`partners`/`team`.
 
 ### `ProgramModule` → tabla `program_modules`
 
@@ -134,16 +139,16 @@ Endpoints públicos: `GET /programs` (filtrable por `?category=<slug>`), `GET /p
 
 ### `Partner` → tabla `partners`
 
-| Campo                     | Tipo            | Notas                                                      |
-| ------------------------- | --------------- | ---------------------------------------------------------- |
-| `id`                      | `String` (uuid) | PK                                                         |
-| `name`                    | `String`        | nombre de la institución aliada                            |
-| `logoUrl`                 | `String`        | `@unique`, path de imagen (ej. `/landing/partners/2.webp`) |
-| `displayOrder`            | `Int`           | default `0`                                                |
-| `isPublished`             | `Boolean`       | default `true`                                             |
-| `createdAt` / `updatedAt` | `DateTime`      |                                                            |
+| Campo                     | Tipo            | Notas                                                       |
+| ------------------------- | --------------- | ----------------------------------------------------------- |
+| `id`                      | `String` (uuid) | PK                                                          |
+| `name`                    | `String`        | nombre de la institución aliada                             |
+| `logoUrl`                 | `String`        | `@unique`, path de imagen (ej. `/landing/partners/2.webp`)  |
+| `displayOrder`            | `Int`           | default `0`; se cambia por **drag-and-drop**, no en el form |
+| `isPublished`             | `Boolean`       | default `true`                                              |
+| `createdAt` / `updatedAt` | `DateTime`      |                                                             |
 
-Índice: `@@index([isPublished, displayOrder])`. Endpoints públicos: `GET /partners` (solo publicados, ordenados). Admin: `/admin/partners` (CRUD).
+Índice: `@@index([isPublished, displayOrder])`. Endpoints públicos: `GET /partners` (solo publicados, ordenados). Admin: `/admin/partners` (CRUD) + **`PUT /admin/partners/reorder`** (`{ orderedIds }`, drag-and-drop). El form de crear/editar **no** edita `displayOrder`; al crear se agrega al final.
 
 ### `SiteSettings` → tabla `site_settings`
 
@@ -170,27 +175,29 @@ Capa académica **real**, separada del marketing de la landing. Decisiones de di
 
 - **`Course` es independiente de `Program`** (el `Program` de la landing es solo marketing/catálogo; el `Course` es la operación académica). No hay FK entre ambos.
 - **La inscripción es a nivel de curso** (`Enrollment` = estudiante ↔ curso): inscribir a un estudiante en un `Course` le da acceso a **todos** sus módulos. El **kárdex** de un estudiante es el conjunto de sus `ModuleGrade` (una nota final por módulo).
-- Flujos por rol: **ADMIN** crea cursos/módulos, asigna docentes (vía `ModuleTeacher`) e inscribe estudiantes; **PROFESSOR** arma el temario de sus módulos creando **contenidos** (`ModuleContent`: tema/video/material/actividad), los reordena por drag-and-drop y califica entregas; **STUDENT** recorre el temario en el aula, marca contenidos como completados, toma apuntes, entrega actividades y consulta su kárdex.
+- Flujos por rol: **ADMIN** crea cursos/módulos, asigna docentes (vía `ModuleTeacher`) e inscribe estudiantes — y además **puede gestionar cualquier módulo como un docente** (entra desde el detalle del programa: `ensureTeaches` en `ModuleContentService`/`GradingService` deja pasar a un usuario `ADMIN` aunque no figure en `ModuleTeacher`); **PROFESSOR** arma el temario de sus módulos creando **contenidos** (`ModuleContent`: tema/video/material/actividad), los reordena por drag-and-drop y califica entregas; **STUDENT** recorre el temario en el aula, marca contenidos como completados, toma apuntes, entrega actividades y consulta su kárdex.
 - **Temario = lista ordenable de `ModuleContent`.** Un módulo ya **no** tiene tablas separadas de temas/materiales/actividades: tiene una sola lista de contenidos heterogéneos (`kind`), ordenada por `order` (reordenable). El estudiante ve esa misma lista/orden en el aula.
-- **Nota de módulo automática (ponderada).** Al calificar una entrega (`GradingService`, módulo `backend/src/grading/`), la `ModuleGrade` del estudiante se **recalcula**: cada contenido `ACTIVITY` publicado con `weight > 0` se normaliza a base 100 (`score/maxScore*100`) y se pondera por su `weight`; las no calificadas cuentan como 0. `status` queda `IN_PROGRESS` hasta calificar todas las actividades ponderadas, luego `PASSED`/`FAILED` según `Course.passingScore`. El kárdex (`GET /me/kardex`) consolida estas notas por curso.
+- **Nota de módulo automática (ponderada).** Al calificar una entrega (`GradingService`, módulo `backend/src/grading/`), la `ModuleGrade` del estudiante se **recalcula**: cada contenido `ACTIVITY` publicado con `weight > 0` se normaliza a base 100 (`score/maxScore*100`) y se pondera por su `weight`; las no calificadas cuentan como 0. `status` queda `IN_PROGRESS` hasta calificar todas las actividades ponderadas, luego `PASSED`/`FAILED` según `Course.passingScore`. El kárdex (`GET /me/kardex`) consolida estas notas por curso. (Default de `weight` al **crear** una actividad/calificación en el panel: **100%**.)
+- **Las etiquetas Aprobado/Reprobado solo se muestran cuando el módulo está `FINISHED`.** Mientras el módulo está `ACTIVE`, la nota final se muestra como número pero con etiqueta neutra "En curso" (el frontend fuerza el badge a `IN_PROGRESS` si el módulo no está concluido) — en la libreta del docente, las "Notas" del aula, el detalle del curso y el kárdex. El `passedCount` del kárdex ("Aprobados X/Y") cuenta solo módulos **`FINISHED` y `PASSED`**.
+- **Módulo `FINISHED` = solo lectura (backend = fuente de verdad).** Cuando un módulo se marca Concluido, `ModuleContentService` y `GradingService` rechazan con **403** toda escritura sobre él: crear/editar/eliminar/reordenar contenidos, marcar progreso y guardar apuntes (estudiante), entregar actividad (estudiante) y calificar/observación (docente) — vía los helpers `ensureModuleNotFinished`/`ensureContentModuleNotFinished`. El frontend además oculta/inhabilita esas acciones y muestra un aviso (ver CLAUDE.md/AGENTS.md).
 
 Las rutas de archivos (`ModuleContent.url`, `Submission.fileUrl`) siguen la misma convención que el resto: paths relativos `/files/...` del módulo `storage`, nunca URLs absolutas.
 
 ### `Course` → tabla `courses`
 
-| Campo                     | Tipo             | Notas                                              |
-| ------------------------- | ---------------- | -------------------------------------------------- |
-| `id`                      | `String` (uuid)  | PK                                                 |
-| `code`                    | `String`         | `@unique`, código institucional (ej. `MBA-2026-I`) |
-| `name`                    | `String`         |                                                    |
-| `description`             | `String?`        |                                                    |
-| `modality`                | `String?`        | ej. "Virtual con clases en vivo"                   |
-| `startDate` / `endDate`   | `DateTime?`      |                                                    |
-| `passingScore`            | `Decimal(5,2)`   | default `70`; nota mínima de aprobación            |
-| `status`                  | `CourseStatus`   | default `DRAFT`                                    |
-| `createdAt` / `updatedAt` | `DateTime`       |                                                    |
-| `modules`                 | `CourseModule[]` | 1:N, `onDelete: Cascade`                           |
-| `enrollments`             | `Enrollment[]`   | 1:N, `onDelete: Cascade`                           |
+| Campo                     | Tipo             | Notas                                                                                                                                                                  |
+| ------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                      | `String` (uuid)  | PK                                                                                                                                                                     |
+| `code`                    | `String`         | `@unique`, código institucional (ej. `MBA-2026-I`)                                                                                                                     |
+| `name`                    | `String`         |                                                                                                                                                                        |
+| `description`             | `String?`        |                                                                                                                                                                        |
+| `modality`                | `String?`        | ej. "Virtual con clases en vivo"                                                                                                                                       |
+| `startDate` / `endDate`   | `DateTime?`      |                                                                                                                                                                        |
+| `passingScore`            | `Decimal(5,2)`   | nota mínima de aprobación. `@default(70)` en el schema, pero el **formulario de creación y el DTO Zod usan `71`** (valor por defecto efectivo al crear desde el panel) |
+| `status`                  | `CourseStatus`   | default `DRAFT`                                                                                                                                                        |
+| `createdAt` / `updatedAt` | `DateTime`       |                                                                                                                                                                        |
+| `modules`                 | `CourseModule[]` | 1:N, `onDelete: Cascade`                                                                                                                                               |
+| `enrollments`             | `Enrollment[]`   | 1:N, `onDelete: Cascade`                                                                                                                                               |
 
 Índice: `@@index([status])`.
 
@@ -262,7 +269,7 @@ Un **contenido del temario** de un módulo, creado por el docente. Reemplaza el 
 | `instructions`            | `String?`       | **ACTIVITY**                                                                                                                                            |
 | `dueDate`                 | `DateTime?`     | **ACTIVITY**                                                                                                                                            |
 | `maxScore`                | `Decimal(5,2)?` | **ACTIVITY**: default 100 al crear                                                                                                                      |
-| `weight`                  | `Decimal(5,2)?` | **ACTIVITY**: peso (%) en la nota del módulo (default 0)                                                                                                |
+| `weight`                  | `Decimal(5,2)?` | **ACTIVITY**: peso (%) en la nota del módulo. El **formulario de creación** lo inicia en **100%** (al editar conserva el valor guardado)                |
 | `isOffline`               | `Boolean`       | **ACTIVITY**: presencial — la califica el docente a mano en la libreta (sin entrega del estudiante); no aparece en el temario del aula. default `false` |
 | `createdAt` / `updatedAt` | `DateTime`      |                                                                                                                                                         |
 | `submissions`             | `Submission[]`  | 1:N (solo `kind = ACTIVITY`)                                                                                                                            |
@@ -419,5 +426,6 @@ Idempotente (`upsert` por `slug`/clave única). Siembra:
 - 3 programas (2 maestrías + 1 diplomado) conectados por `category: { connect: { slug: ... } }`, cada uno con sus `modules` y `teachers`.
 - 8 instituciones aliadas (`partners`).
 - 1 fila `SiteSettings` (`upsert` por id `"singleton"`) con enlaces de redes de ejemplo.
+- 1 usuario ADMIN (`admin@certificate.bo`) con `phone` (campo obligatorio del modelo `User`).
 
 Ejecutar con `pnpm --filter backend exec prisma db seed`.

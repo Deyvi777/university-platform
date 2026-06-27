@@ -6,7 +6,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:4000";
 
-const FOLDERS = ["programs", "partners"] as const;
+const FOLDERS = ["programs", "partners", "team"] as const;
 type Folder = (typeof FOLDERS)[number];
 
 export async function POST(request: Request) {

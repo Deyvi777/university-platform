@@ -1,14 +1,37 @@
 "use client";
 
+import { GraduationCap, UserRoundCheck, Award } from "lucide-react";
+
 const stats = [
-  { value: "+40", label: "Programas de postgrado" },
-  { value: "+5.000", label: "Profesionales certificados" },
-  { value: "100%", label: "Docentes con grado de maestría" },
+  {
+    value: "+40",
+    label: "Programas de postgrado",
+    icon: GraduationCap,
+    badge: "bg-blue-500/15 text-blue-400 ring-blue-400/20",
+  },
+  {
+    value: "+5.000",
+    label: "Profesionales certificados",
+    icon: UserRoundCheck,
+    badge: "bg-rose-500/15 text-rose-400 ring-rose-400/20",
+  },
+  {
+    value: "100%",
+    label: "Docentes con grado de maestría",
+    icon: Award,
+    badge: "bg-blue-500/15 text-blue-400 ring-blue-400/20",
+  },
 ];
 
 function scrollTo(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 }
+
+// WhatsApp de Certificate (formato internacional sin "+") + mensaje predefinido.
+const WHATSAPP_NUMBER = "59177933003";
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+  "¡Hola! Me gustaría hablar con un asesor sobre los programas de postgrado de Certificate.",
+)}`;
 
 export function Hero() {
   return (
@@ -50,26 +73,35 @@ export function Hero() {
             >
               Explorar programas
             </button>
-            <button
-              type="button"
-              onClick={() => scrollTo("contacto")}
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-full border border-white/30 px-8 py-3.5 text-base font-medium text-white backdrop-blur-sm transition-colors hover:border-white/60 hover:bg-white/10"
             >
               Hablar con un asesor
-            </button>
+            </a>
           </div>
 
           <dl className="mt-16 grid max-w-xl grid-cols-3 gap-4 border-t border-white/15 pt-8 sm:gap-6">
-            {stats.map((stat) => (
-              <div key={stat.label}>
-                <dt className="order-last mt-1 text-xs leading-snug text-slate-300 sm:text-sm">
-                  {stat.label}
-                </dt>
-                <dd className="text-2xl font-bold text-white sm:text-3xl">
-                  {stat.value}
-                </dd>
-              </div>
-            ))}
+            {stats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="flex flex-col">
+                  <span
+                    className={`flex h-11 w-11 items-center justify-center rounded-full ring-1 ${stat.badge}`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <dt className="order-last mt-1 text-xs leading-snug text-slate-300 sm:text-sm">
+                    {stat.label}
+                  </dt>
+                  <dd className="mt-4 text-2xl font-bold text-white sm:text-3xl">
+                    {stat.value}
+                  </dd>
+                </div>
+              );
+            })}
           </dl>
         </div>
       </div>
