@@ -1,14 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
 import { Popover } from "@base-ui/react/popover";
-import { ArrowRight, Bell, BellRing, Check } from "lucide-react";
+import {
+  ArrowRight,
+  Bell,
+  BellRing,
+  Check,
+  ClipboardList,
+  MessageSquare,
+} from "lucide-react";
 import Link from "next/link";
 import type { NotificationType } from "@/lib/api/notifications";
+import {
+  notificationActionFor,
+  type NotificationAction,
+} from "@/lib/notification-action";
 import { formatRelative, metaFor } from "@/lib/notifications-meta";
 import { NotificationBody } from "@/components/dashboard/notification-body";
 import { NotificationDetailDialog } from "@/components/dashboard/notification-detail-dialog";
 import { cn } from "@/lib/utils";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 /**
  * Una notificación del panel docente/estudiante. Mapea 1:1 con la fila que
@@ -23,6 +37,8 @@ export type DashboardNotification = {
   /** ISO 8601. */
   createdAt: string;
   read: boolean;
+  /** Contexto opcional (p. ej. chat: { moduleId, fromUserId }). */
+  data?: Record<string, unknown> | null;
 };
 
 /**
@@ -35,8 +51,14 @@ export type DashboardNotification = {
  */
 export function NotificationBell({
   initialNotifications = [],
+  role,
+  token,
 }: {
   initialNotifications?: DashboardNotification[];
+  /** Rol del usuario (define a dónde lleva el botón "Ir al chat"). */
+  role?: string;
+  /** Token del backend para autenticar el socket de notificaciones. */
+  token?: string;
 }) {
   const [notifications, setNotifications] =
     useState<DashboardNotification[]>(initialNotifications);
@@ -44,6 +66,38 @@ export function NotificationBell({
   // Notificación abierta en el modal de detalle (al hacer clic en una fila).
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = notifications.find((n) => n.id === selectedId) ?? null;
+
+  // Push en tiempo real por WebSocket (reemplaza el polling): el backend emite
+  // `notification:new` a la sala del usuario al crear una notificación. La
+  // anteponemos a la lista (deduplicando por id) y el badge se actualiza solo.
+  useEffect(() => {
+    if (!token) return;
+    const socket = io(`${API_URL}/notifications`, {
+      auth: { token },
+      transports: ["websocket"],
+    });
+    socket.on("notification:new", (n: DashboardNotification) => {
+      setNotifications((prev) =>
+        prev.some((x) => x.id === n.id) ? prev : [n, ...prev],
+      );
+    });
+    // El usuario abrió un chat: marca como leídas sus notificaciones de esa
+    // conversación (las empareja por `conversationKey`), sin recargar.
+    socket.on("notification:read", (p: { conversationKey?: string }) => {
+      if (!p?.conversationKey) return;
+      setNotifications((prev) =>
+        prev.map((n) =>
+          !n.read && n.data?.conversationKey === p.conversationKey
+            ? { ...n, read: true }
+            : n,
+        ),
+      );
+    });
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+    };
+  }, [token]);
 
   const unreadCount = notifications.reduce(
     (acc, n) => acc + (n.read ? 0 : 1),
@@ -143,6 +197,13 @@ export function NotificationBell({
                       <NotificationRow
                         notification={n}
                         onOpen={openDetail}
+                        action={notificationActionFor(n.type, n.data, role)}
+                        onNavigate={() => {
+                          // Ir al chat/actividad también marca la notificación
+                          // como leída (optimista + PATCH al backend).
+                          markRead(n.id);
+                          setOpen(false);
+                        }}
                       />
                     </li>
                   ))}
@@ -164,6 +225,12 @@ export function NotificationBell({
 
       <NotificationDetailDialog
         notification={selected}
+        action={
+          selected
+            ? notificationActionFor(selected.type, selected.data, role)
+            : null
+        }
+        onNavigate={() => setSelectedId(null)}
         open={selectedId !== null}
         onOpenChange={(o) => {
           if (!o) setSelectedId(null);
@@ -195,13 +262,19 @@ function EmptyState() {
 function NotificationRow({
   notification,
   onOpen,
+  action,
+  onNavigate,
 }: {
   notification: DashboardNotification;
   onOpen: (id: string) => void;
+  /** Botón "ir a…" (chat / actividad) si la notificación lo tiene. */
+  action?: NotificationAction | null;
+  onNavigate?: () => void;
 }) {
   const { id, type, title, body, createdAt, read } = notification;
   const meta = metaFor(type);
   const Icon = meta.icon;
+  const ActionIcon = action?.kind === "activity" ? ClipboardList : MessageSquare;
 
   const content = (
     <div className="flex items-start gap-3">
@@ -244,14 +317,31 @@ function NotificationRow({
     </div>
   );
 
-  const rowClass = cn(
-    "block w-full px-4 py-3 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/60",
-    !read && "bg-sky-500/[0.05]",
-  );
-
   return (
-    <button type="button" onClick={() => onOpen(id)} className={rowClass}>
-      {content}
-    </button>
+    <div className={cn(!read && "bg-sky-500/[0.05]")}>
+      <button
+        type="button"
+        onClick={() => onOpen(id)}
+        className="block w-full px-4 pt-3 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:bg-muted/60"
+      >
+        {content}
+      </button>
+      {/* Botón de acción (ir al chat / a la actividad) fuera del botón de la
+          fila para no anidar elementos interactivos. */}
+      {action ? (
+        <div className="px-4 pb-3 pl-[3.75rem] pt-1.5">
+          <Link
+            href={action.href}
+            onClick={onNavigate}
+            className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 dark:text-blue-300"
+          >
+            <ActionIcon className="size-3.5" aria-hidden="true" />
+            {action.label}
+          </Link>
+        </div>
+      ) : (
+        <div className="pb-1" />
+      )}
+    </div>
   );
 }

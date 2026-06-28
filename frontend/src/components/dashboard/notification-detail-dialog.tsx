@@ -1,5 +1,7 @@
 "use client";
 
+import { ClipboardList, MessageSquare } from "lucide-react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { NotificationBody } from "@/components/dashboard/notification-body";
 import type { NotificationType } from "@/lib/api/notifications";
+import type { NotificationAction } from "@/lib/notification-action";
 import { formatFull, metaFor } from "@/lib/notifications-meta";
 import { cn } from "@/lib/utils";
 
@@ -29,13 +32,19 @@ export function NotificationDetailDialog({
   notification,
   open,
   onOpenChange,
+  action,
+  onNavigate,
 }: {
   notification: DetailNotification | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Botón "ir a…" (chat / actividad) si la notificación lo tiene. */
+  action?: NotificationAction | null;
+  onNavigate?: () => void;
 }) {
   const meta = notification ? metaFor(notification.type) : null;
   const Icon = meta?.icon;
+  const ActionIcon = action?.kind === "activity" ? ClipboardList : MessageSquare;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -68,8 +77,20 @@ export function NotificationDetailDialog({
             </DialogHeader>
             <NotificationBody
               text={notification.body}
-              className="text-base leading-relaxed text-foreground/90"
+              className="text-base leading-relaxed whitespace-pre-line text-foreground/90"
             />
+            {action && (
+              <div className="mt-2">
+                <Link
+                  href={action.href}
+                  onClick={onNavigate}
+                  className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 dark:text-blue-300"
+                >
+                  <ActionIcon className="size-4" aria-hidden="true" />
+                  {action.label}
+                </Link>
+              </div>
+            )}
           </>
         )}
       </DialogContent>

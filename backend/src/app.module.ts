@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
+import { ChatModule } from './chat/chat.module';
 import { CoursesModule } from './courses/courses.module';
 import { GradingModule } from './grading/grading.module';
 import { ModuleContentModule } from './module-content/module-content.module';
@@ -39,6 +40,7 @@ import { UsersModule } from './users/users.module';
     ModuleContentModule,
     GradingModule,
     NotificationsModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [

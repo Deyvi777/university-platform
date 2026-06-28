@@ -1,16 +1,34 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Download, Loader2 } from "lucide-react";
+import { Check, Download, Loader2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { SOCIAL_DEFS } from "@/components/landing/social-defs";
 import type { GradingStudentRow } from "@/lib/api/teacher";
 import type { SubmissionStatus } from "@/lib/api/me";
 import { cn } from "@/lib/utils";
 import { gradeSubmissionAction } from "./actions";
+
+const WHATSAPP_PATH =
+  SOCIAL_DEFS.find((s) => s.key === "whatsapp")?.path ?? "";
+
+/** Teléfono a formato internacional para `wa.me` (local boliviano → +591). */
+function toWaNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.startsWith("591") ? digits : `591${digits}`;
+}
 
 const STATUS_META: Record<SubmissionStatus, { label: string; badge: string }> = {
   PENDING: { label: "Sin entregar", badge: "bg-muted text-muted-foreground" },
@@ -31,11 +49,13 @@ const STATUS_META: Record<SubmissionStatus, { label: string; badge: string }> = 
 
 export function GradingRow({
   activityId,
+  activityTitle,
   maxScore,
   row,
   readOnly = false,
 }: {
   activityId: string;
+  activityTitle: string;
   maxScore: number;
   row: GradingStudentRow;
   /** Módulo concluido: solo lectura (no se puede calificar). */
@@ -50,9 +70,23 @@ export function GradingRow({
     sub?.score !== null && sub?.score !== undefined ? String(sub.score) : "",
   );
   const [feedback, setFeedback] = useState(sub?.feedback ?? "");
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  function save() {
+  const fullName = `${row.student.firstName} ${row.student.lastName}`;
+  const waNumber = toWaNumber(row.student.phone);
+  // Mensaje de WhatsApp con la nota y la retroalimentación.
+  const trimmedFeedback = feedback.trim();
+  const waMessage =
+    `Hola ${row.student.firstName}, tu calificación en la actividad ` +
+    `«${activityTitle}» es ${score}/${maxScore}.` +
+    (trimmedFeedback ? `\n\nRetroalimentación: ${trimmedFeedback}` : "");
+  const waUrl = waNumber
+    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`
+    : "";
+
+  // Valida y abre el diálogo de confirmación (enviar por WhatsApp o solo guardar).
+  function attemptSave() {
     const value = Number(score);
     if (score.trim() === "" || Number.isNaN(value)) {
       toast.error("Ingresa una nota");
@@ -62,13 +96,19 @@ export function GradingRow({
       toast.error(`La nota debe estar entre 0 y ${maxScore}`);
       return;
     }
+    setConfirmOpen(true);
+  }
+
+  function doSave() {
+    const value = Number(score);
     startTransition(async () => {
       const result = await gradeSubmissionAction(activityId, row.student.id, {
         score: value,
-        feedback: feedback.trim() || null,
+        feedback: trimmedFeedback || null,
       });
       if (result.ok) {
         toast.success("Calificación guardada");
+        setConfirmOpen(false);
         router.refresh();
       } else {
         toast.error(result.error);
@@ -183,7 +223,12 @@ export function GradingRow({
             className="mt-1 min-h-10"
           />
         </div>
-        <Button type="button" size="sm" disabled={pending} onClick={save}>
+        <Button
+          type="button"
+          size="sm"
+          disabled={pending}
+          onClick={attemptSave}
+        >
           {pending ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
@@ -193,6 +238,77 @@ export function GradingRow({
         </Button>
       </div>
       )}
+
+      {/* Confirmación: enviar la nota + retroalimentación por WhatsApp o solo guardar */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Guardar calificación</DialogTitle>
+            <DialogDescription>
+              ¿Quieres enviar la nota y la retroalimentación a{" "}
+              <span className="font-medium text-foreground">{fullName}</span> por
+              WhatsApp?
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Vista previa del mensaje */}
+          <div className="rounded-xl border bg-muted/30 p-3 text-sm whitespace-pre-line text-foreground/90">
+            {waMessage}
+          </div>
+
+          {!waNumber && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Este estudiante no tiene un teléfono registrado, así que solo se
+              podrá guardar.
+            </p>
+          )}
+
+          <div className="mt-1 flex flex-col items-stretch gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={pending}
+              onClick={() => setConfirmOpen(false)}
+              className="h-auto min-h-12 whitespace-normal px-4 py-2 text-sm leading-tight"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={pending}
+              onClick={doSave}
+              className="h-auto min-h-12 flex-1 whitespace-normal px-4 py-2 text-center text-sm leading-tight"
+            >
+              <Save className="size-5" />
+              No enviar, solo guardar
+            </Button>
+            {waNumber && (
+              <Button
+                nativeButton={false}
+                className="h-auto min-h-12 flex-1 whitespace-normal bg-green-600 px-4 py-2 text-center text-sm leading-tight text-white hover:bg-green-700 focus-visible:ring-green-600/40 dark:bg-green-600 dark:hover:bg-green-700"
+                render={
+                  <a
+                    href={waUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={doSave}
+                  />
+                }
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="size-5"
+                  aria-hidden="true"
+                >
+                  <path d={WHATSAPP_PATH} />
+                </svg>
+                Enviar y guardar
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </li>
   );
 }

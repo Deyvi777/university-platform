@@ -22,6 +22,7 @@ const userSelect = {
   firstName: true,
   lastName: true,
   email: true,
+  phone: true,
 } satisfies Prisma.UserSelect;
 
 // Un módulo con sus docentes asignados (co-docencia), listo para el panel.
@@ -135,7 +136,18 @@ export class CoursesService {
           modules: {
             where: { status: { not: 'DRAFT' } },
             orderBy: { order: 'asc' },
-            select: { id: true, order: true, name: true, status: true },
+            select: {
+              id: true,
+              order: true,
+              name: true,
+              status: true,
+              teachers: {
+                orderBy: { assignedAt: 'asc' },
+                select: {
+                  teacher: { select: { firstName: true, lastName: true } },
+                },
+              },
+            },
           },
         },
       });
@@ -148,7 +160,13 @@ export class CoursesService {
         startDate: c.startDate,
         moduleCount: c._count.modules,
         myModules: null,
-        modules: c.modules,
+        modules: c.modules.map((m) => ({
+          id: m.id,
+          order: m.order,
+          name: m.name,
+          status: m.status,
+          teachers: m.teachers.map((t) => t.teacher),
+        })),
       }));
     }
 
@@ -581,7 +599,7 @@ export class CoursesService {
     const previous = new Set(module.teachers.map((t) => t.teacherId));
     const newlyAssigned = dto.teacherIds.filter((id) => !previous.has(id));
 
-    await this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       await tx.moduleTeacher.deleteMany({ where: { moduleId } });
       if (dto.teacherIds.length > 0) {
         await tx.moduleTeacher.createMany({
@@ -589,7 +607,7 @@ export class CoursesService {
         });
       }
       if (newlyAssigned.length > 0) {
-        await this.notifications.createMany(
+        return this.notifications.createMany(
           newlyAssigned.map((teacherId) => ({
             userId: teacherId,
             type: NotificationType.MODULE_ASSIGNMENT,
@@ -600,7 +618,10 @@ export class CoursesService {
           tx,
         );
       }
+      return [];
     });
+    // Push en tiempo real tras el commit.
+    this.notifications.emitNotifications(created);
 
     return this.prisma.courseModule.findUniqueOrThrow({
       where: { id: moduleId },
@@ -648,7 +669,7 @@ export class CoursesService {
     const already = new Set(course.enrollments.map((e) => e.studentId));
     const newlyEnrolled = dto.studentIds.filter((id) => !already.has(id));
 
-    await this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       // `skipDuplicates` evita el 409 por @@unique([studentId, courseId]) si el
       // estudiante ya estaba inscrito.
       await tx.enrollment.createMany({
@@ -656,7 +677,7 @@ export class CoursesService {
         skipDuplicates: true,
       });
       if (newlyEnrolled.length > 0) {
-        await this.notifications.createMany(
+        return this.notifications.createMany(
           newlyEnrolled.map((studentId) => ({
             userId: studentId,
             type: NotificationType.ENROLLMENT,
@@ -667,7 +688,10 @@ export class CoursesService {
           tx,
         );
       }
+      return [];
     });
+    // Push en tiempo real tras el commit.
+    this.notifications.emitNotifications(created);
 
     return this.findOneAdmin(courseId);
   }

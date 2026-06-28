@@ -11,7 +11,8 @@ export type NotificationType =
   | "MODULE_ASSIGNMENT"
   | "ANNOUNCEMENT"
   | "GRADE"
-  | "ACTIVITY_PUBLISHED";
+  | "ACTIVITY_PUBLISHED"
+  | "MESSAGE";
 
 /** Notificación tal como la entrega `GET /notifications`. */
 export interface ApiNotification {

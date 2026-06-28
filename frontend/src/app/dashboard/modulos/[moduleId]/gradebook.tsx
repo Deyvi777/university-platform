@@ -1,7 +1,10 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useMemo, useState, useTransition } from "react";
 import {
+  ChevronDown,
+  ChevronsUpDown,
+  ChevronUp,
   Loader2,
   MessageSquarePlus,
   Pencil,
@@ -15,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { WhatsAppButton } from "@/app/dashboard/usuarios/whatsapp-button";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +56,62 @@ const GRADE_STATUS: Record<ModuleGradeStatus, { label: string; cls: string }> = 
   },
 };
 
+// Clave de ordenamiento: "name", "module" o el id de una actividad (columna).
+type SortDir = "asc" | "desc";
+
+function studentName(row: GradebookRow): string {
+  return `${row.student.firstName} ${row.student.lastName}`;
+}
+
+// Valor numérico de una fila para una columna de nota (actividad o módulo).
+// `null` (sin nota) se ordena siempre al final.
+function numericValue(row: GradebookRow, key: string): number | null {
+  if (key === "module") return row.moduleGrade?.finalScore ?? null;
+  return row.grades.find((g) => g.activityId === key)?.score ?? null;
+}
+
+/** Encabezado de columna ordenable: etiqueta + indicador de orden. */
+function SortHeaderButton({
+  active,
+  dir,
+  onClick,
+  label,
+  children,
+  className,
+}: {
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Ordenar por ${label}`}
+      className={cn(
+        "inline-flex items-center gap-1 rounded px-1 py-0.5 align-middle transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+        active && "text-foreground",
+        className,
+      )}
+    >
+      {children}
+      {!active ? (
+        <ChevronsUpDown
+          className="size-3.5 shrink-0 opacity-60"
+          aria-hidden="true"
+        />
+      ) : dir === "asc" ? (
+        <ChevronUp className="size-3.5 shrink-0" aria-hidden="true" />
+      ) : (
+        <ChevronDown className="size-3.5 shrink-0" aria-hidden="true" />
+      )}
+    </button>
+  );
+}
+
 export function Gradebook({
   moduleId,
   gradebook,
@@ -63,6 +123,34 @@ export function Gradebook({
   readOnly?: boolean;
 }) {
   const [addOpen, setAddOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<string>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  function toggleSort(key: string) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  const students = useMemo(() => {
+    const rows = gradebook ? [...gradebook.students] : [];
+    rows.sort((a, b) => {
+      if (sortKey === "name") {
+        const cmp = studentName(a).localeCompare(studentName(b), "es");
+        return sortDir === "asc" ? cmp : -cmp;
+      }
+      const va = numericValue(a, sortKey);
+      const vb = numericValue(b, sortKey);
+      if (va === null && vb === null) return 0;
+      if (va === null) return 1; // sin nota: siempre al final
+      if (vb === null) return -1;
+      return sortDir === "asc" ? va - vb : vb - va;
+    });
+    return rows;
+  }, [gradebook, sortKey, sortDir]);
 
   if (!gradebook) {
     return (
@@ -72,7 +160,7 @@ export function Gradebook({
     );
   }
 
-  const { activities, students } = gradebook;
+  const { activities } = gradebook;
 
   return (
     <section className="rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
@@ -135,7 +223,15 @@ export function Gradebook({
             <thead>
               <tr className="border-b bg-muted/30 text-left">
                 <th className="sticky left-0 z-10 bg-muted/30 px-4 py-2.5 font-medium text-muted-foreground">
-                  Estudiante
+                  <SortHeaderButton
+                    active={sortKey === "name"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("name")}
+                    label="nombre del estudiante"
+                    className="-ml-1"
+                  >
+                    Estudiante
+                  </SortHeaderButton>
                 </th>
                 {activities.map((a) => (
                   <ActivityHeader
@@ -143,10 +239,20 @@ export function Gradebook({
                     moduleId={moduleId}
                     activity={a}
                     readOnly={readOnly}
+                    active={sortKey === a.id}
+                    dir={sortDir}
+                    onSort={() => toggleSort(a.id)}
                   />
                 ))}
                 <th className="px-3 py-2.5 text-center font-medium text-muted-foreground">
-                  Módulo
+                  <SortHeaderButton
+                    active={sortKey === "module"}
+                    dir={sortDir}
+                    onClick={() => toggleSort("module")}
+                    label="nota del módulo"
+                  >
+                    Módulo
+                  </SortHeaderButton>
                 </th>
                 <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
                   Observación
@@ -175,10 +281,16 @@ function ActivityHeader({
   moduleId,
   activity,
   readOnly,
+  active,
+  dir,
+  onSort,
 }: {
   moduleId: string;
   activity: GradebookActivity;
   readOnly: boolean;
+  active: boolean;
+  dir: SortDir;
+  onSort: () => void;
 }) {
   const [editOpen, setEditOpen] = useState(false);
 
@@ -187,8 +299,16 @@ function ActivityHeader({
       className="px-3 py-2.5 text-center font-medium text-muted-foreground"
       title={activity.title}
     >
-      <span className="block max-w-[8rem] truncate">{activity.title}</span>
-      <span className="text-[0.65rem] font-normal text-muted-foreground/70">
+      <SortHeaderButton
+        active={active}
+        dir={dir}
+        onClick={onSort}
+        label={`«${activity.title}»`}
+        className="max-w-[9rem]"
+      >
+        <span className="block truncate">{activity.title}</span>
+      </SortHeaderButton>
+      <span className="block text-[0.65rem] font-normal text-muted-foreground/70">
         /{activity.maxScore}
         {activity.weight ? ` · ${activity.weight}%` : ""}
       </span>
@@ -240,7 +360,7 @@ function StudentRow({
   activities: GradebookActivity[];
   readOnly: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const router = useRouter();
   // Las etiquetas aprobado/reprobado solo se muestran cuando el módulo está
   // concluido (readOnly). Mientras está activo se mantiene "En curso".
@@ -304,47 +424,62 @@ function StudentRow({
           </div>
         </td>
         <td className="px-3 py-2.5 text-right">
-          {readOnly ? (
-            <span className="block max-w-[12rem] truncate text-xs text-muted-foreground">
-              {row.observation || "—"}
-            </span>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setEditing((v) => !v)}
-              aria-expanded={editing}
-            >
-              {row.observation ? (
-                <Pencil className="size-3.5" />
-              ) : (
-                <MessageSquarePlus className="size-3.5" />
-              )}
-              <span className="hidden sm:inline">
-                {row.observation ? "Editar" : "Agregar"}
+          <div className="flex items-center justify-end gap-1">
+            <WhatsAppButton phone={row.student.phone} name={fullName} />
+            {readOnly ? (
+              <span className="block max-w-[12rem] truncate text-xs text-muted-foreground">
+                {row.observation || "—"}
               </span>
-            </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditOpen(true)}
+              >
+                {row.observation ? (
+                  <Pencil className="size-3.5" />
+                ) : (
+                  <MessageSquarePlus className="size-3.5" />
+                )}
+                <span className="hidden sm:inline">
+                  {row.observation ? "Editar" : "Agregar"}
+                </span>
+              </Button>
+            )}
+          </div>
+          {!readOnly && (
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {row.observation
+                        ? "Editar observación"
+                        : "Agregar observación"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Comentario sobre el desempeño de{" "}
+                      <span className="font-medium text-foreground">
+                        {fullName}
+                      </span>{" "}
+                      en el módulo. El estudiante lo verá en sus notas.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <ObservationEditor
+                    moduleId={moduleId}
+                    studentId={row.student.id}
+                    initial={row.observation}
+                    onDone={() => {
+                      setEditOpen(false);
+                      router.refresh();
+                    }}
+                    onCancel={() => setEditOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
           )}
         </td>
       </tr>
-      {editing && !readOnly && (
-        <tr className="border-b bg-muted/20">
-          <td colSpan={activities.length + 3} className="px-4 py-3">
-            <ObservationEditor
-              moduleId={moduleId}
-              studentId={row.student.id}
-              studentName={fullName}
-              initial={row.observation}
-              onDone={() => {
-                setEditing(false);
-                router.refresh();
-              }}
-              onCancel={() => setEditing(false)}
-            />
-          </td>
-        </tr>
-      )}
     </>
   );
 }
@@ -602,17 +737,17 @@ function EditActivityForm({
   );
 }
 
+/** Editor de la observación del estudiante. Se monta/desmonta con su Dialog, por
+ * lo que el textarea se reinicializa al abrir sin `useEffect`. */
 function ObservationEditor({
   moduleId,
   studentId,
-  studentName,
   initial,
   onDone,
   onCancel,
 }: {
   moduleId: string;
   studentId: string;
-  studentName: string;
   initial: string;
   onDone: () => void;
   onCancel: () => void;
@@ -634,18 +769,15 @@ function ObservationEditor({
 
   return (
     <div>
-      <label className="text-xs font-medium text-muted-foreground">
-        Observación para{" "}
-        <span className="font-semibold text-foreground">{studentName}</span>
-      </label>
       <Textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Comentario sobre el desempeño del estudiante en el módulo…"
-        className="mt-1.5 min-h-20"
+        className="min-h-28"
+        aria-label="Observación del estudiante"
         autoFocus
       />
-      <div className="mt-2 flex justify-end gap-2">
+      <div className="mt-4 flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Cancelar
         </Button>

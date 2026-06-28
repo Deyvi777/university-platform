@@ -1,9 +1,4 @@
-import {
-  BookOpen,
-  GraduationCap,
-  Pencil,
-  Settings2,
-} from "lucide-react";
+import { BookOpen, Pencil, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
@@ -20,6 +15,7 @@ import { CourseStatusBadge } from "@/app/dashboard/cursos/course-badges";
 import { ModuleTeachersControl } from "@/app/dashboard/cursos/module-teachers-control";
 import { ModuleStatusControl } from "@/app/dashboard/cursos/module-status-control";
 import { EnrollmentControl } from "@/app/dashboard/cursos/enrollment-control";
+import { CourseDetailTabs } from "./course-detail-tabs";
 
 const dateFmt = new Intl.DateTimeFormat("es-BO", {
   timeZone: "UTC",
@@ -81,114 +77,88 @@ export default async function CursoDetallePage({
         </Button>
       </div>
 
-      {/* Módulos + docentes (co-docencia) */}
-      <section className="mt-8" aria-labelledby="modulos">
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
-            <BookOpen className="size-4.5" />
-          </span>
-          <div>
-            <h2 id="modulos" className="font-heading text-lg font-semibold">
-              Módulos y docentes
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Asigna uno o varios docentes a cargo de cada módulo.
-            </p>
-          </div>
-        </div>
-        {course.modules.length === 0 ? (
-          <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-muted/20 px-4 py-10 text-center">
-            <span className="flex size-10 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
-              <BookOpen className="size-5" />
-            </span>
-            <p className="text-sm text-muted-foreground">
-              Este programa aún no tiene módulos.{" "}
-              <Link
-                href={`/dashboard/cursos/${course.id}/editar`}
-                className="font-medium text-foreground underline underline-offset-2"
-              >
-                Edita el programa
-              </Link>{" "}
-              para agregarlos.
-            </p>
-          </div>
-        ) : (
-        <ol className="mt-4 space-y-3">
-          {course.modules.map((m) => (
-            <li
-              key={m.id}
-              className="rounded-2xl border bg-card p-4 shadow-xs transition-colors hover:border-sky-200 dark:hover:border-sky-500/40 sm:p-5"
-            >
-              <div className="flex items-start justify-between gap-3">
+      {/* Pestañas grandes: Módulos y docentes | Estudiantes inscritos */}
+      <CourseDetailTabs
+        moduleCount={course.modules.length}
+        studentCount={enrolledStudents.length}
+        modules={
+          course.modules.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-muted/20 px-4 py-10 text-center">
+              <span className="flex size-10 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
+                <BookOpen className="size-5" />
+              </span>
+              <p className="text-sm text-muted-foreground">
+                Este programa aún no tiene módulos.{" "}
                 <Link
-                  href={`/dashboard/modulos/${m.id}`}
-                  className="group flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
+                  href={`/dashboard/cursos/${course.id}/editar`}
+                  className="font-medium text-foreground underline underline-offset-2"
                 >
-                  <span
-                    aria-hidden
-                    className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 font-heading text-sm font-semibold tabular-nums text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
-                  >
-                    {m.order}
-                  </span>
-                  <div className="min-w-0">
-                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Módulo {m.order}
-                    </span>
-                    <h3 className="flex items-center gap-1.5 truncate font-heading text-base font-semibold leading-tight group-hover:text-sky-700 dark:group-hover:text-sky-300">
-                      {m.name}
-                      <Settings2
-                        className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400"
-                        aria-hidden="true"
-                      />
-                    </h3>
-                    <span className="text-xs text-muted-foreground group-hover:text-sky-600 dark:group-hover:text-sky-400">
-                      Gestionar módulo
-                    </span>
+                  Edita el programa
+                </Link>{" "}
+                para agregarlos.
+              </p>
+            </div>
+          ) : (
+            <ol className="space-y-3">
+              {course.modules.map((m) => (
+                <li
+                  key={m.id}
+                  className="rounded-2xl border bg-card p-4 shadow-xs transition-colors hover:border-sky-200 dark:hover:border-sky-500/40 sm:p-5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <Link
+                      href={`/dashboard/modulos/${m.id}`}
+                      className="group flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
+                    >
+                      <span
+                        aria-hidden
+                        className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 font-heading text-sm font-semibold tabular-nums text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
+                      >
+                        {m.order}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Módulo {m.order}
+                        </span>
+                        <h3 className="flex items-center gap-1.5 truncate font-heading text-base font-semibold leading-tight group-hover:text-sky-700 dark:group-hover:text-sky-300">
+                          {m.name}
+                          <Settings2
+                            className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-400"
+                            aria-hidden="true"
+                          />
+                        </h3>
+                        <span className="text-xs text-muted-foreground group-hover:text-sky-600 dark:group-hover:text-sky-400">
+                          Gestionar módulo
+                        </span>
+                      </div>
+                    </Link>
+                    <ModuleStatusControl
+                      courseId={course.id}
+                      moduleId={m.id}
+                      status={m.status}
+                    />
                   </div>
-                </Link>
-                <ModuleStatusControl
-                  courseId={course.id}
-                  moduleId={m.id}
-                  status={m.status}
-                />
-              </div>
-              <div className="mt-4 border-t pt-4">
-                <ModuleTeachersControl
-                  courseId={course.id}
-                  moduleId={m.id}
-                  professors={professors}
-                  assignedIds={m.teachers.map((t) => t.teacher.id)}
-                />
-              </div>
-            </li>
-          ))}
-        </ol>
-        )}
-      </section>
-
-      {/* Estudiantes inscritos */}
-      <section className="mt-10" aria-labelledby="estudiantes">
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
-            <GraduationCap className="size-4.5" />
-          </span>
-          <div>
-            <h2 id="estudiantes" className="font-heading text-lg font-semibold">
-              Estudiantes
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Inscribe a los estudiantes que pueden cursar el programa.
-            </p>
-          </div>
-        </div>
-        <div className="mt-4">
+                  <div className="mt-4 border-t pt-4">
+                    <ModuleTeachersControl
+                      courseId={course.id}
+                      moduleId={m.id}
+                      professors={professors}
+                      assignedIds={m.teachers.map((t) => t.teacher.id)}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )
+        }
+        students={
           <EnrollmentControl
             courseId={course.id}
             students={students}
             enrolled={enrolledStudents}
           />
-        </div>
-      </section>
+        }
+      />
     </div>
   );
 }

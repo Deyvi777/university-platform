@@ -1,8 +1,9 @@
-import { Layers, Lock } from "lucide-react";
+import { Layers, Lock, UsersRound } from "lucide-react";
 import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
 import { getLearnModule } from "@/lib/api/me";
+import { getChatContacts } from "@/lib/api/chat";
 import { ClassroomView } from "./classroom-view";
 
 export const metadata = {
@@ -11,12 +12,25 @@ export const metadata = {
 
 export default async function ClassroomPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ moduleId: string }>;
+  searchParams: Promise<{ chat?: string | string[]; content?: string | string[] }>;
 }) {
-  await requireUser();
+  const session = await requireUser();
   const { moduleId } = await params;
-  const mod = await getLearnModule(moduleId);
+  const { chat, content } = await searchParams;
+  const chatParam = Array.isArray(chat) ? chat[0] : chat;
+  // `?chat=1` solo abre la pestaña; `?chat=<id>` además preselecciona el contacto.
+  const initialChatContactId =
+    chatParam && chatParam !== "1" ? chatParam : undefined;
+  const openChat = Boolean(chatParam);
+  // `?content=<id>` (desde una notificación de actividad) abre ese contenido.
+  const initialContentId = Array.isArray(content) ? content[0] : content;
+  const [mod, chatContacts] = await Promise.all([
+    getLearnModule(moduleId),
+    getChatContacts(moduleId),
+  ]);
   if (!mod) {
     notFound();
   }
@@ -38,6 +52,19 @@ export default async function ClassroomPage({
             {mod.description}
           </p>
         )}
+        {mod.teachers.length > 0 && (
+          <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <UsersRound className="size-4 shrink-0" aria-hidden="true" />
+            <span>
+              <span className="font-medium text-foreground">
+                {mod.teachers.length === 1 ? "Docente" : "Docentes"}:
+              </span>{" "}
+              {mod.teachers
+                .map((t) => `${t.firstName} ${t.lastName}`)
+                .join(", ")}
+            </span>
+          </p>
+        )}
       </header>
 
       {mod.status === "FINISHED" && (
@@ -49,7 +76,17 @@ export default async function ClassroomPage({
       )}
 
       <div className="mt-6">
-        <ClassroomView module={mod} />
+        <ClassroomView
+          module={mod}
+          chat={{
+            contacts: chatContacts,
+            currentUserId: session.user.id,
+            token: session.accessToken ?? "",
+          }}
+          initialChatContactId={initialChatContactId}
+          openChat={openChat}
+          initialContentId={initialContentId}
+        />
       </div>
     </div>
   );

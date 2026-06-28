@@ -3,6 +3,7 @@ import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
 import { getModuleGradebook, getTeacherModule } from "@/lib/api/teacher";
+import { getChatContacts } from "@/lib/api/chat";
 import { ModuleWorkspace } from "./module-workspace";
 
 export const metadata = {
@@ -11,21 +12,31 @@ export const metadata = {
 
 export default async function ModuleManagePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ moduleId: string }>;
+  searchParams: Promise<{ chat?: string | string[] }>;
 }) {
   const session = await requireUser();
   const { moduleId } = await params;
-  const [mod, gradebook] = await Promise.all([
+  const { chat } = await searchParams;
+  const chatParam = Array.isArray(chat) ? chat[0] : chat;
+  // `?chat=1` solo abre la pestaña; `?chat=<id>` además preselecciona el contacto.
+  const initialChatContactId =
+    chatParam && chatParam !== "1" ? chatParam : undefined;
+  const openChat = Boolean(chatParam);
+  // El ADMIN gestiona el módulo sin chat (entra desde el detalle del programa).
+  const isAdmin = session.user.role === "ADMIN";
+  const showChat = !isAdmin;
+  const [mod, gradebook, chatContacts] = await Promise.all([
     getTeacherModule(moduleId),
     getModuleGradebook(moduleId),
+    showChat ? getChatContacts(moduleId) : Promise.resolve([]),
   ]);
   if (!mod) {
     notFound();
   }
 
-  // El ADMIN llega aquí desde el detalle del programa; el docente desde su curso.
-  const isAdmin = session.user.role === "ADMIN";
   const backHref = isAdmin
     ? `/dashboard/cursos/${mod.course.id}`
     : `/dashboard/mis-cursos/${mod.course.id}`;
@@ -63,6 +74,14 @@ export default async function ModuleManagePage({
           contents={mod.contents}
           gradebook={gradebook}
           readOnly={mod.status === "FINISHED"}
+          chat={{
+            contacts: chatContacts,
+            currentUserId: session.user.id,
+            token: session.accessToken ?? "",
+          }}
+          initialChatContactId={initialChatContactId}
+          openChat={openChat}
+          showChat={showChat}
         />
       </div>
     </div>

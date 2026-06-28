@@ -95,6 +95,8 @@ export default async function DashboardLayout({
           {/* Centro de notificaciones (docentes y estudiantes) */}
           {showNotifications && (
             <NotificationBell
+              role={role}
+              token={session?.accessToken}
               initialNotifications={notifications.map((n) => ({
                 id: n.id,
                 type: n.type,
@@ -102,6 +104,7 @@ export default async function DashboardLayout({
                 body: n.body,
                 createdAt: n.createdAt,
                 read: n.read,
+                data: n.data,
               }))}
             />
           )}

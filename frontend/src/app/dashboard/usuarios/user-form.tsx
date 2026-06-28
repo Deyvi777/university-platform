@@ -46,6 +46,11 @@ export function UserForm({
 }) {
   const router = useRouter();
   const isEdit = Boolean(user);
+  // Etiqueta del botón de creación según el rol que se está creando.
+  const createLabel =
+    (defaultRole ?? "PROFESSOR") === "STUDENT"
+      ? "Crear estudiante"
+      : "Crear docente";
   const [showPassword, setShowPassword] = useState(false);
   // Error a nivel de formulario (p. ej. 409 correo duplicado del backend).
   const [formError, setFormError] = useState<string | null>(null);
@@ -267,7 +272,7 @@ export function UserForm({
       <div className="flex items-center gap-3 pt-2">
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-          {isEdit ? "Guardar cambios" : "Crear usuario"}
+          {isEdit ? "Guardar cambios" : createLabel}
         </Button>
         <Button
           type="button"

@@ -17,7 +17,6 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ModuleContentService } from './module-content.service';
 import {
-  ContentNoteDto,
   ContentProgressDto,
   CreateContentDto,
   ReorderContentsDto,
@@ -94,14 +93,5 @@ export class ModuleContentController {
     @Body() dto: ContentProgressDto,
   ) {
     return this.content.setContentProgress(user.id, contentId, dto.completed);
-  }
-
-  @Put('contents/:contentId/note')
-  setContentNote(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('contentId') contentId: string,
-    @Body() dto: ContentNoteDto,
-  ) {
-    return this.content.setContentNote(user.id, contentId, dto.body);
   }
 }

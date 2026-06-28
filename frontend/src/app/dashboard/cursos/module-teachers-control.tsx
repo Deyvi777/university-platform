@@ -1,17 +1,33 @@
 "use client";
 
-import { Check, Loader2, Users, UserPlus, X } from "lucide-react";
+import { Check, Loader2, Search, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { setModuleTeachersAction } from "@/app/dashboard/cursos/actions";
 
 type Teacher = { id: string; firstName: string; lastName: string };
 
 function sameSet(a: Set<string>, ids: string[]): boolean {
   return a.size === ids.length && ids.every((id) => a.has(id));
+}
+
+/** Normaliza para buscar sin distinguir mayúsculas ni acentos (nombres en es). */
+function normalize(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 function initials(firstName: string, lastName: string): string {
@@ -67,11 +83,25 @@ export function ModuleTeachersControl({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set(assignedIds));
   const [pending, setPending] = useState(false);
 
   const assigned = professors.filter((p) => assignedIds.includes(p.id));
   const dirty = !sameSet(selected, assignedIds);
+  // Filtro por nombre o apellido (sin acentos/mayúsculas).
+  const q = normalize(query.trim());
+  const filtered = q
+    ? professors.filter((p) =>
+        normalize(`${p.firstName} ${p.lastName}`).includes(q),
+      )
+    : professors;
+
+  function openDialog() {
+    setSelected(new Set(assignedIds));
+    setQuery("");
+    setOpen(true);
+  }
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -124,26 +154,29 @@ export function ModuleTeachersControl({
           </span>
         )}
 
-        {/* Acción primaria del módulo: sólido institucional sobrio (token primary) */}
+        {/* Acción primaria del módulo: abre el modal de asignación de docentes. */}
         <Button
           type="button"
           size="sm"
-          aria-expanded={open}
           className="shadow-xs"
-          onClick={() => {
-            setSelected(new Set(assignedIds));
-            setOpen((v) => !v);
-          }}
+          onClick={openDialog}
         >
           <UserPlus className="size-4" />
           {assigned.length > 0 ? "Editar docentes" : "Asignar docentes"}
         </Button>
       </div>
 
-      {open && (
-        <div className="rounded-xl border bg-muted/30 p-3 shadow-xs">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="flex max-h-[85vh] max-w-lg flex-col">
+          <DialogHeader>
+            <DialogTitle>Docentes del módulo</DialogTitle>
+            <DialogDescription>
+              Busca y selecciona uno o varios docentes a cargo de este módulo.
+            </DialogDescription>
+          </DialogHeader>
+
           {professors.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+            <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
               <span className="flex size-10 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
                 <Users className="size-5" />
               </span>
@@ -160,40 +193,77 @@ export function ModuleTeachersControl({
             </div>
           ) : (
             <>
-              <p className="mb-2 px-1 text-xs font-medium text-muted-foreground">
-                Selecciona los docentes a cargo de este módulo
-              </p>
-              <ul className="max-h-56 space-y-0.5 overflow-auto">
-                {professors.map((p) => {
-                  const checked = selected.has(p.id);
-                  return (
-                    <li key={p.id}>
-                      <label
-                        className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 py-2 text-sm transition-colors ${
-                          checked
-                            ? "border-sky-300 bg-sky-50 dark:border-sky-500/40 dark:bg-sky-500/10"
-                            : "border-transparent hover:bg-background"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="size-4 shrink-0 accent-sky-500"
-                          checked={checked}
-                          onChange={() => toggle(p.id)}
-                        />
-                        <Avatar teacher={p} className="size-7 text-[0.7rem]" />
-                        <span className="truncate font-medium">
-                          {p.firstName} {p.lastName}
-                        </span>
-                        {checked && (
-                          <Check className="ml-auto size-4 shrink-0 text-sky-600 dark:text-sky-400" />
-                        )}
-                      </label>
-                    </li>
-                  );
-                })}
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <Input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar por nombre o apellido…"
+                  aria-label="Buscar docente por nombre o apellido"
+                  className="pl-9"
+                  autoFocus
+                />
+              </div>
+
+              <ul className="-mx-1 min-h-0 flex-1 space-y-0.5 overflow-auto px-1 py-1">
+                {filtered.length === 0 ? (
+                  <li className="px-2 py-8 text-center text-sm text-muted-foreground">
+                    Ningún docente coincide con «{query.trim()}».
+                  </li>
+                ) : (
+                  filtered.map((p) => {
+                    const checked = selected.has(p.id);
+                    return (
+                      <li key={p.id}>
+                        <label
+                          className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 py-2 text-sm transition-colors ${
+                            checked
+                              ? "border-sky-300 bg-sky-50 dark:border-sky-500/40 dark:bg-sky-500/10"
+                              : "border-transparent hover:bg-muted/60"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="size-4 shrink-0 accent-sky-500"
+                            checked={checked}
+                            onChange={() => toggle(p.id)}
+                          />
+                          <Avatar
+                            teacher={p}
+                            className="size-7 text-[0.7rem]"
+                          />
+                          <span className="truncate font-medium">
+                            {p.firstName} {p.lastName}
+                          </span>
+                          {checked && (
+                            <Check className="ml-auto size-4 shrink-0 text-sky-600 dark:text-sky-400" />
+                          )}
+                        </label>
+                      </li>
+                    );
+                  })
+                )}
               </ul>
-              <div className="mt-3 flex items-center gap-2 border-t pt-3">
+
+              <div className="flex items-center gap-2 border-t pt-3">
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {selected.size}{" "}
+                  {selected.size === 1 ? "seleccionado" : "seleccionados"}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto"
+                  disabled={pending}
+                  onClick={() => setOpen(false)}
+                >
+                  Cancelar
+                </Button>
                 <Button
                   type="button"
                   size="sm"
@@ -207,25 +277,11 @@ export function ModuleTeachersControl({
                   )}
                   Guardar
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={pending}
-                  onClick={() => setOpen(false)}
-                >
-                  <X className="size-4" />
-                  Cancelar
-                </Button>
-                <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-                  {selected.size}{" "}
-                  {selected.size === 1 ? "seleccionado" : "seleccionados"}
-                </span>
               </div>
             </>
           )}
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

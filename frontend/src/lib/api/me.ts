@@ -14,12 +14,20 @@ export interface MyCourseModule {
   order: number;
 }
 
+/** Docente a cargo (solo nombre y apellido) para mostrar en listados. */
+export interface ModuleTeacherName {
+  firstName: string;
+  lastName: string;
+}
+
 /** Un módulo del curso (lista para el acordeón de programas del estudiante). */
 export interface ProgramModule {
   id: string;
   order: number;
   name: string;
   status: ModuleStatus;
+  /** Docentes a cargo del módulo (co-docencia); puede estar vacío. */
+  teachers: ModuleTeacherName[];
 }
 
 /** Curso asignado al usuario (docente/estudiante). */
@@ -203,8 +211,8 @@ export type ContentKind = "TEXT" | "VIDEO" | "MATERIAL" | "ACTIVITY";
 
 /**
  * Un contenido del aula (entrada del temario). Los campos específicos del tipo
- * solo aplican según `kind`. Además trae el progreso y apuntes del estudiante, y
- * —para actividades— su entrega/nota.
+ * solo aplican según `kind`. Además trae el progreso del estudiante y —para
+ * actividades— su entrega/nota.
  */
 export interface LearnContent {
   id: string;
@@ -228,8 +236,6 @@ export interface LearnContent {
   isOffline: boolean;
   /** El estudiante marcó este contenido como completado. */
   completed: boolean;
-  /** Apuntes personales del estudiante sobre este contenido ("" si vacío). */
-  note: string;
   /** Entrega del estudiante (solo actividades); `null` si no aplica/no entregó. */
   submission: StudentSubmission | null;
 }
@@ -243,6 +249,8 @@ export interface LearnModule {
   /** Estado del módulo; si es `FINISHED` el aula queda en solo lectura. */
   status: ModuleStatus;
   course: { id: string; name: string; code: string };
+  /** Docentes a cargo del módulo (co-docencia); puede estar vacío. */
+  teachers: ModuleTeacherName[];
   /** Nota del módulo del estudiante + observación del docente; `null` si aún no hay. */
   grade: {
     finalScore: number | null;

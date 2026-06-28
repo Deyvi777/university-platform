@@ -1,22 +1,40 @@
 "use client";
 
-import { Check, GraduationCap, Loader2, UserPlus, X } from "lucide-react";
+import { Check, GraduationCap, Loader2, Search, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { WhatsAppButton } from "@/app/dashboard/usuarios/whatsapp-button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DeleteButton } from "@/components/admin/delete-button";
 import {
   addEnrollmentsAction,
   removeEnrollmentAction,
 } from "@/app/dashboard/cursos/actions";
 
+/** Normaliza para buscar sin distinguir mayúsculas ni acentos (nombres en es). */
+function normalize(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 type Student = {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
 };
 
 function initials(firstName: string, lastName: string): string {
@@ -62,11 +80,25 @@ export function EnrollmentControl({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pendingAdd, setPendingAdd] = useState(false);
 
   const enrolledIds = new Set(enrolled.map((s) => s.id));
   const available = students.filter((s) => !enrolledIds.has(s.id));
+  // Filtro por nombre o apellido (sin acentos/mayúsculas).
+  const q = normalize(query.trim());
+  const filtered = q
+    ? available.filter((s) =>
+        normalize(`${s.firstName} ${s.lastName}`).includes(q),
+      )
+    : available;
+
+  function openDialog() {
+    setSelected(new Set());
+    setQuery("");
+    setOpen(true);
+  }
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -85,6 +117,7 @@ export function EnrollmentControl({
     if (result.ok) {
       toast.success("Estudiantes inscritos");
       setSelected(new Set());
+      setQuery("");
       setOpen(false);
       router.refresh();
     } else {
@@ -105,24 +138,23 @@ export function EnrollmentControl({
             : "estudiantes inscritos"}{" "}
           · acceso a todos los módulos.
         </p>
-        {/* Acción primaria de la sección: sólido institucional sobrio (token primary) */}
-        <Button
-          type="button"
-          aria-expanded={open}
-          className="shadow-xs"
-          onClick={() => {
-            setSelected(new Set());
-            setOpen((v) => !v);
-          }}
-        >
+        {/* Acción primaria de la sección: abre el modal de inscripción. */}
+        <Button type="button" className="shadow-xs" onClick={openDialog}>
           <UserPlus className="size-4" /> Inscribir estudiantes
         </Button>
       </div>
 
-      {open && (
-        <div className="rounded-xl border bg-muted/30 p-3 shadow-xs">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="flex max-h-[85vh] max-w-lg flex-col">
+          <DialogHeader>
+            <DialogTitle>Inscribir estudiantes</DialogTitle>
+            <DialogDescription>
+              Busca y selecciona a los estudiantes que podrán cursar el programa.
+            </DialogDescription>
+          </DialogHeader>
+
           {available.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+            <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
               <span className="flex size-10 items-center justify-center rounded-full bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
                 <GraduationCap className="size-5" />
               </span>
@@ -145,45 +177,74 @@ export function EnrollmentControl({
             </div>
           ) : (
             <>
-              <p className="mb-2 px-1 text-xs font-medium text-muted-foreground">
-                Selecciona los estudiantes a inscribir
-              </p>
-              <ul className="max-h-56 space-y-0.5 overflow-auto">
-                {available.map((s) => {
-                  const checked = selected.has(s.id);
-                  return (
-                    <li key={s.id}>
-                      <label
-                        className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 py-2 text-sm transition-colors ${
-                          checked
-                            ? "border-sky-300 bg-sky-50 dark:border-sky-500/40 dark:bg-sky-500/10"
-                            : "border-transparent hover:bg-background"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="size-4 shrink-0 accent-sky-500"
-                          checked={checked}
-                          onChange={() => toggle(s.id)}
-                        />
-                        <Avatar student={s} />
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium">
-                            {s.firstName} {s.lastName}
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <Input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar por nombre o apellido…"
+                  aria-label="Buscar estudiante por nombre o apellido"
+                  className="pl-9"
+                  autoFocus
+                />
+              </div>
+
+              <ul className="-mx-1 min-h-0 flex-1 space-y-0.5 overflow-auto px-1 py-1">
+                {filtered.length === 0 ? (
+                  <li className="px-2 py-8 text-center text-sm text-muted-foreground">
+                    Ningún estudiante coincide con «{query.trim()}».
+                  </li>
+                ) : (
+                  filtered.map((s) => {
+                    const checked = selected.has(s.id);
+                    return (
+                      <li key={s.id}>
+                        <label
+                          className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 py-2 text-sm transition-colors ${
+                            checked
+                              ? "border-sky-300 bg-sky-50 dark:border-sky-500/40 dark:bg-sky-500/10"
+                              : "border-transparent hover:bg-muted/60"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="size-4 shrink-0 accent-sky-500"
+                            checked={checked}
+                            onChange={() => toggle(s.id)}
+                          />
+                          <Avatar student={s} />
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">
+                              {s.firstName} {s.lastName}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {s.email}
+                            </span>
                           </span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {s.email}
-                          </span>
-                        </span>
-                        {checked && (
-                          <Check className="ml-auto size-4 shrink-0 text-sky-600 dark:text-sky-400" />
-                        )}
-                      </label>
-                    </li>
-                  );
-                })}
+                          {checked && (
+                            <Check className="ml-auto size-4 shrink-0 text-sky-600 dark:text-sky-400" />
+                          )}
+                        </label>
+                      </li>
+                    );
+                  })
+                )}
               </ul>
-              <div className="mt-3 flex items-center gap-2 border-t pt-3">
+
+              <div className="flex items-center justify-end gap-2 border-t pt-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={pendingAdd}
+                  onClick={() => setOpen(false)}
+                >
+                  Cancelar
+                </Button>
                 <Button
                   type="button"
                   size="sm"
@@ -197,21 +258,11 @@ export function EnrollmentControl({
                   )}
                   Inscribir ({selected.size})
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={pendingAdd}
-                  onClick={() => setOpen(false)}
-                >
-                  <X className="size-4" />
-                  Cancelar
-                </Button>
               </div>
             </>
           )}
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {enrolled.length > 0 ? (
         <ul className="divide-y rounded-xl border bg-card">
@@ -229,6 +280,10 @@ export function EnrollmentControl({
                   {s.email}
                 </p>
               </div>
+              <WhatsAppButton
+                phone={s.phone}
+                name={`${s.firstName} ${s.lastName}`}
+              />
               <DeleteButton
                 action={() => removeEnrollmentAction(courseId, s.id)}
                 title="¿Quitar este estudiante?"

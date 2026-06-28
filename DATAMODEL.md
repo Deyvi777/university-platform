@@ -42,10 +42,12 @@ Los endpoints `/me/*` solo exigen `JwtAuthGuard`: el servicio autoriza por **ins
 
 ### Enums de notificaciones
 
-| Enum                   | Valores                                                                          | Usado en                |
-| ---------------------- | -------------------------------------------------------------------------------- | ----------------------- |
-| `NotificationType`     | `ENROLLMENT \| MODULE_ASSIGNMENT \| ANNOUNCEMENT \| GRADE \| ACTIVITY_PUBLISHED` | `Notification.type`     |
-| `AnnouncementAudience` | `ALL \| PROFESSORS \| STUDENTS \| SELECTED`                                      | `Announcement.audience` |
+| Enum                   | Valores                                                                                     | Usado en                |
+| ---------------------- | ------------------------------------------------------------------------------------------- | ----------------------- |
+| `NotificationType`     | `ENROLLMENT \| MODULE_ASSIGNMENT \| ANNOUNCEMENT \| GRADE \| ACTIVITY_PUBLISHED \| MESSAGE` | `Notification.type`     |
+| `AnnouncementAudience` | `ALL \| PROFESSORS \| STUDENTS \| SELECTED`                                                 | `Announcement.audience` |
+
+`MESSAGE` = mensaje de chat recibido (docente ↔ estudiante dentro de un módulo); ver `ChatMessage` y el gateway WebSocket más abajo.
 
 ## Modelos
 
@@ -67,7 +69,7 @@ Fuente de verdad de identidad y RBAC; NextAuth no gestiona usuarios (ver CLAUDE.
 
 **Gestión admin** (`backend/src/users/`, módulo solo-admin sin controlador público): `/admin/users` (guardado `@Roles(ADMIN)`) con `findAll(?role=PROFESSOR|STUDENT|ADMIN)`/`findOne`/`create`/`update`/`remove` + **`POST /admin/users/bulk`** (carga masiva). El formulario del panel **solo emite cuentas PROFESSOR o STUDENT** (el `role` del DTO Zod excluye `ADMIN` → `400`; correo duplicado → `409`); en **edición** el rol **no se envía** (el update parcial conserva el rol actual, incluido ADMIN). La contraseña se hashea con argon2 y **ninguna respuesta incluye el hash** (`safeSelect`, que sí expone `phone`/`idDocument`). **Carga masiva de estudiantes** (`bulkCreateStudents`): recibe `{ students: [...] }` (filas parseadas de un Excel en el cliente), valida **fila por fila** con Zod y hace **carga parcial** (crea las válidas como STUDENT, reporta `{ total, created, errors[{ index, email, message }] }`; detecta duplicados dentro del archivo y contra la BD vía `P2002`). UI en `frontend/src/app/dashboard/usuarios/` (ver CLAUDE.md, sección Admin).
 
-Relaciones académicas (todas opcionales, dependen del rol): `taughtModules` (`ModuleTeacher[]`, módulos que dicta como docente vía la tabla intermedia de co-docencia), `enrollments` (`Enrollment[]`, cursos en que está inscrito como estudiante), `submissions` (`Submission[]`, sus entregas), `gradedSubmissions` (`Submission[]` que calificó — relación `"SubmissionGrader"`), `moduleGrades` (`ModuleGrade[]`, su kárdex — relación `"StudentGrades"`), `gradedModules` (`ModuleGrade[]` que calificó — relación `"ModuleGrader"`). Relaciones de notificaciones: `notifications` (`Notification[]`, las que recibe), `sentAnnouncements` (`Announcement[]`, los avisos que envió como admin — relación `"AnnouncementSender"`). Un mismo `User` con rol PROFESSOR/STUDENT cuelga de estas relaciones.
+Relaciones académicas (todas opcionales, dependen del rol): `taughtModules` (`ModuleTeacher[]`, módulos que dicta como docente vía la tabla intermedia de co-docencia), `enrollments` (`Enrollment[]`, cursos en que está inscrito como estudiante), `submissions` (`Submission[]`, sus entregas), `gradedSubmissions` (`Submission[]` que calificó — relación `"SubmissionGrader"`), `moduleGrades` (`ModuleGrade[]`, su kárdex — relación `"StudentGrades"`), `gradedModules` (`ModuleGrade[]` que calificó — relación `"ModuleGrader"`), `contentProgress` (`ContentProgress[]`). Relaciones de notificaciones: `notifications` (`Notification[]`, las que recibe), `sentAnnouncements` (`Announcement[]`, los avisos que envió como admin — relación `"AnnouncementSender"`). Relaciones de **chat**: `chatAsStudent` / `chatAsTeacher` (`ChatMessage[]`, conversaciones donde es el estudiante / el docente — relaciones `"ChatStudent"` / `"ChatTeacher"`) y `sentMessages` (`ChatMessage[]` que envió — relación `"ChatSender"`). Un mismo `User` con rol PROFESSOR/STUDENT cuelga de estas relaciones.
 
 ### `ProgramCategory` → tabla `program_categories`
 
@@ -175,11 +177,11 @@ Capa académica **real**, separada del marketing de la landing. Decisiones de di
 
 - **`Course` es independiente de `Program`** (el `Program` de la landing es solo marketing/catálogo; el `Course` es la operación académica). No hay FK entre ambos.
 - **La inscripción es a nivel de curso** (`Enrollment` = estudiante ↔ curso): inscribir a un estudiante en un `Course` le da acceso a **todos** sus módulos. El **kárdex** de un estudiante es el conjunto de sus `ModuleGrade` (una nota final por módulo).
-- Flujos por rol: **ADMIN** crea cursos/módulos, asigna docentes (vía `ModuleTeacher`) e inscribe estudiantes — y además **puede gestionar cualquier módulo como un docente** (entra desde el detalle del programa: `ensureTeaches` en `ModuleContentService`/`GradingService` deja pasar a un usuario `ADMIN` aunque no figure en `ModuleTeacher`); **PROFESSOR** arma el temario de sus módulos creando **contenidos** (`ModuleContent`: tema/video/material/actividad), los reordena por drag-and-drop y califica entregas; **STUDENT** recorre el temario en el aula, marca contenidos como completados, toma apuntes, entrega actividades y consulta su kárdex.
+- Flujos por rol: **ADMIN** crea cursos/módulos, asigna docentes (vía `ModuleTeacher`) e inscribe estudiantes — y además **puede gestionar cualquier módulo como un docente** (entra desde el detalle del programa: `ensureTeaches` en `ModuleContentService`/`GradingService` deja pasar a un usuario `ADMIN` aunque no figure en `ModuleTeacher`); **PROFESSOR** arma el temario de sus módulos creando **contenidos** (`ModuleContent`: tema/video/material/actividad), los reordena por drag-and-drop, califica entregas y **conversa con sus estudiantes por chat** dentro de cada módulo; **STUDENT** recorre el temario en el aula, marca contenidos como completados, entrega actividades, **chatea con el/los docente(s) del módulo** y consulta su kárdex. (El **chat** docente↔estudiante es mensajería 1 a 1 por módulo, vía `ChatMessage` + WebSocket — ver más abajo.)
 - **Temario = lista ordenable de `ModuleContent`.** Un módulo ya **no** tiene tablas separadas de temas/materiales/actividades: tiene una sola lista de contenidos heterogéneos (`kind`), ordenada por `order` (reordenable). El estudiante ve esa misma lista/orden en el aula.
 - **Nota de módulo automática (ponderada).** Al calificar una entrega (`GradingService`, módulo `backend/src/grading/`), la `ModuleGrade` del estudiante se **recalcula**: cada contenido `ACTIVITY` publicado con `weight > 0` se normaliza a base 100 (`score/maxScore*100`) y se pondera por su `weight`; las no calificadas cuentan como 0. `status` queda `IN_PROGRESS` hasta calificar todas las actividades ponderadas, luego `PASSED`/`FAILED` según `Course.passingScore`. El kárdex (`GET /me/kardex`) consolida estas notas por curso. (Default de `weight` al **crear** una actividad/calificación en el panel: **100%**.)
 - **Las etiquetas Aprobado/Reprobado solo se muestran cuando el módulo está `FINISHED`.** Mientras el módulo está `ACTIVE`, la nota final se muestra como número pero con etiqueta neutra "En curso" (el frontend fuerza el badge a `IN_PROGRESS` si el módulo no está concluido) — en la libreta del docente, las "Notas" del aula, el detalle del curso y el kárdex. El `passedCount` del kárdex ("Aprobados X/Y") cuenta solo módulos **`FINISHED` y `PASSED`**.
-- **Módulo `FINISHED` = solo lectura (backend = fuente de verdad).** Cuando un módulo se marca Concluido, `ModuleContentService` y `GradingService` rechazan con **403** toda escritura sobre él: crear/editar/eliminar/reordenar contenidos, marcar progreso y guardar apuntes (estudiante), entregar actividad (estudiante) y calificar/observación (docente) — vía los helpers `ensureModuleNotFinished`/`ensureContentModuleNotFinished`. El frontend además oculta/inhabilita esas acciones y muestra un aviso (ver CLAUDE.md/AGENTS.md).
+- **Módulo `FINISHED` = solo lectura (backend = fuente de verdad).** Cuando un módulo se marca Concluido, `ModuleContentService` y `GradingService` rechazan con **403** toda escritura sobre él: crear/editar/eliminar/reordenar contenidos, marcar progreso (estudiante), entregar actividad (estudiante) y calificar/observación (docente) — vía los helpers `ensureModuleNotFinished`/`ensureContentModuleNotFinished`. El frontend además oculta/inhabilita esas acciones y muestra un aviso (ver CLAUDE.md/AGENTS.md). (El **chat** no se bloquea por estado: la comunicación sigue disponible.)
 
 Las rutas de archivos (`ModuleContent.url`, `Submission.fileUrl`) siguen la misma convención que el resto: paths relativos `/files/...` del módulo `storage`, nunca URLs absolutas.
 
@@ -253,27 +255,27 @@ Inscripción estudiante ↔ curso.
 
 Un **contenido del temario** de un módulo, creado por el docente. Reemplaza el antiguo trío `Topic`/`Material`/`Activity`: el temario es ahora **una sola lista ordenable** de contenidos heterogéneos. Cada fila es de un `kind` (`ContentKind`) y usa solo el subconjunto de campos que aplica a su tipo (el resto queda `null`).
 
-| Campo                     | Tipo            | Notas                                                                                                                                                   |
-| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                      | `String` (uuid) | PK                                                                                                                                                      |
-| `moduleId`                | `String`        | FK → `CourseModule.id`, `onDelete: Cascade`                                                                                                             |
-| `order`                   | `Int`           | posición en el temario (reordenable por drag-and-drop)                                                                                                  |
-| `kind`                    | `ContentKind`   | `TEXT \| VIDEO \| MATERIAL \| ACTIVITY`                                                                                                                 |
-| `title`                   | `String`        |                                                                                                                                                         |
-| `isPublished`             | `Boolean`       | default `true`                                                                                                                                          |
-| `body`                    | `String?`       | **TEXT**: HTML del editor enriquecido (Tiptap)                                                                                                          |
-| `videoUrl`                | `String?`       | **VIDEO**: enlace YouTube/Vimeo                                                                                                                         |
-| `materialType`            | `MaterialType?` | **MATERIAL**: `FILE \| LINK`                                                                                                                            |
-| `url`                     | `String?`       | **MATERIAL**: ruta `/files/...` (subida) o enlace externo                                                                                               |
-| `activityType`            | `ActivityType?` | **ACTIVITY**                                                                                                                                            |
-| `instructions`            | `String?`       | **ACTIVITY**                                                                                                                                            |
-| `dueDate`                 | `DateTime?`     | **ACTIVITY**                                                                                                                                            |
-| `maxScore`                | `Decimal(5,2)?` | **ACTIVITY**: default 100 al crear                                                                                                                      |
-| `weight`                  | `Decimal(5,2)?` | **ACTIVITY**: peso (%) en la nota del módulo. El **formulario de creación** lo inicia en **100%** (al editar conserva el valor guardado)                |
-| `isOffline`               | `Boolean`       | **ACTIVITY**: presencial — la califica el docente a mano en la libreta (sin entrega del estudiante); no aparece en el temario del aula. default `false` |
-| `createdAt` / `updatedAt` | `DateTime`      |                                                                                                                                                         |
-| `submissions`             | `Submission[]`  | 1:N (solo `kind = ACTIVITY`)                                                                                                                            |
-| `progress` / `notes`      | relaciones      | 1:N (`ContentProgress` / `ContentNote`)                                                                                                                 |
+| Campo                     | Tipo                | Notas                                                                                                                                                   |
+| ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                      | `String` (uuid)     | PK                                                                                                                                                      |
+| `moduleId`                | `String`            | FK → `CourseModule.id`, `onDelete: Cascade`                                                                                                             |
+| `order`                   | `Int`               | posición en el temario (reordenable por drag-and-drop)                                                                                                  |
+| `kind`                    | `ContentKind`       | `TEXT \| VIDEO \| MATERIAL \| ACTIVITY`                                                                                                                 |
+| `title`                   | `String`            |                                                                                                                                                         |
+| `isPublished`             | `Boolean`           | default `true`                                                                                                                                          |
+| `body`                    | `String?`           | **TEXT**: HTML del editor enriquecido (Tiptap)                                                                                                          |
+| `videoUrl`                | `String?`           | **VIDEO**: enlace YouTube/Vimeo                                                                                                                         |
+| `materialType`            | `MaterialType?`     | **MATERIAL**: `FILE \| LINK`                                                                                                                            |
+| `url`                     | `String?`           | **MATERIAL**: ruta `/files/...` (subida) o enlace externo                                                                                               |
+| `activityType`            | `ActivityType?`     | **ACTIVITY**                                                                                                                                            |
+| `instructions`            | `String?`           | **ACTIVITY**                                                                                                                                            |
+| `dueDate`                 | `DateTime?`         | **ACTIVITY**                                                                                                                                            |
+| `maxScore`                | `Decimal(5,2)?`     | **ACTIVITY**: default 100 al crear                                                                                                                      |
+| `weight`                  | `Decimal(5,2)?`     | **ACTIVITY**: peso (%) en la nota del módulo. El **formulario de creación** lo inicia en **100%** (al editar conserva el valor guardado)                |
+| `isOffline`               | `Boolean`           | **ACTIVITY**: presencial — la califica el docente a mano en la libreta (sin entrega del estudiante); no aparece en el temario del aula. default `false` |
+| `createdAt` / `updatedAt` | `DateTime`          |                                                                                                                                                         |
+| `submissions`             | `Submission[]`      | 1:N (solo `kind = ACTIVITY`)                                                                                                                            |
+| `progress`                | `ContentProgress[]` | 1:N (avance por estudiante)                                                                                                                             |
 
 Índices: `@@unique([moduleId, order])`, `@@index([moduleId])`.
 
@@ -292,19 +294,7 @@ Progreso de un estudiante en un contenido (si lo marcó como completado). Alimen
 
 Índices: `@@unique([studentId, contentId])`, `@@index([contentId])`.
 
-### `ContentNote` → tabla `content_notes`
-
-Apuntes privados de un estudiante sobre un contenido ("Tus notas"). Solo los ve su autor.
-
-| Campo                     | Tipo            | Notas                                        |
-| ------------------------- | --------------- | -------------------------------------------- |
-| `id`                      | `String` (uuid) | PK                                           |
-| `studentId`               | `String`        | FK → `User.id`, `onDelete: Cascade`          |
-| `contentId`               | `String`        | FK → `ModuleContent.id`, `onDelete: Cascade` |
-| `body`                    | `String`        | texto del apunte                             |
-| `createdAt` / `updatedAt` | `DateTime`      |                                              |
-
-Índices: `@@unique([studentId, contentId])`, `@@index([contentId])`.
+> **Nota:** el antiguo modelo `ContentNote` (apuntes privados del estudiante) **fue eliminado**. La pestaña "Apuntes" del aula se reemplazó por **"Chat"** (ver `ChatMessage`).
 
 ### `Submission` → tabla `submissions`
 
@@ -345,6 +335,25 @@ Nota final de un estudiante en un módulo. El conjunto de las `ModuleGrade` de u
 
 Índices: `@@unique([studentId, moduleId])`, `@@index([moduleId])`.
 
+### `ChatMessage` → tabla `chat_messages`
+
+Mensaje de **chat directo (1 a 1)** entre un docente y un estudiante **dentro de un módulo**. La conversación se identifica por la terna `(moduleId, studentId, teacherId)`; `senderId` (igual a `studentId` o a `teacherId`) indica la dirección. Reemplaza al eliminado `ContentNote`.
+
+| Campo       | Tipo            | Notas                                                                                        |
+| ----------- | --------------- | -------------------------------------------------------------------------------------------- |
+| `id`        | `String` (uuid) | PK                                                                                           |
+| `moduleId`  | `String`        | FK → `CourseModule.id`, `onDelete: Cascade`                                                  |
+| `studentId` | `String`        | FK → `User.id` (estudiante de la conversación), `onDelete: Cascade` (`"ChatStudent"`)        |
+| `teacherId` | `String`        | FK → `User.id` (docente de la conversación), `onDelete: Cascade` (`"ChatTeacher"`)           |
+| `senderId`  | `String`        | FK → `User.id` (quién envió, == studentId o teacherId), `onDelete: Cascade` (`"ChatSender"`) |
+| `body`      | `String`        | texto (máx. 4000)                                                                            |
+| `readAt`    | `DateTime?`     | cuándo lo leyó el receptor (`null` = no leído)                                               |
+| `createdAt` | `DateTime`      |                                                                                              |
+
+Índices: `@@index([moduleId, studentId, teacherId, createdAt])`, `@@index([senderId])`.
+
+**Autorización (módulo `backend/src/chat/`):** el `ChatService` autoriza por **docencia** (`ModuleTeacher`, o `ADMIN`) y **inscripción** (`Enrollment`); el estudiante solo conversa con los docentes del módulo (no en módulos `DRAFT`), y el docente con los estudiantes inscritos. REST `GET /me/chat/:moduleId/contacts` (contactos + no leídos por contacto) y `GET /me/chat/:moduleId/contacts/:counterpartId/messages` (historial; marca leídos los entrantes). El **envío** va por **WebSocket** (`ChatGateway`, socket.io namespace `/chat`, auth con el mismo JWT del backend en el handshake): el cliente emite `chat:send` y el gateway persiste vía `ChatService`, crea una `Notification` tipo `MESSAGE` para el receptor (colapsada por `conversationKey` para no inundar la campana) y reemite `chat:new` a las salas `user:<id>` del emisor y del receptor. Al abrir una conversación, el backend marca leídos sus mensajes + notificaciones y emite `notification:read` (ver Notificaciones → push WebSocket).
+
 ---
 
 ## Notificaciones
@@ -353,7 +362,7 @@ Módulo `backend/src/notifications/`. Una `Notification` es una fila **por desti
 
 ### `Notification` → tabla `notifications`
 
-Notificación persistida para un usuario (docente/estudiante). Se crea al inscribir a un estudiante, asignar un docente a un módulo, calificar una actividad, publicar una actividad, o cuando un admin envía un aviso.
+Notificación persistida para un usuario (docente/estudiante). Se crea al inscribir a un estudiante, asignar un docente a un módulo, calificar una actividad, publicar una actividad, **recibir un mensaje de chat** (`MESSAGE`), o cuando un admin envía un aviso.
 
 | Campo       | Tipo               | Notas                                                                           |
 | ----------- | ------------------ | ------------------------------------------------------------------------------- |
@@ -368,6 +377,8 @@ Notificación persistida para un usuario (docente/estudiante). Se crea al inscri
 | `createdAt` | `DateTime`         |                                                                                 |
 
 Índices: `@@index([userId, read])`, `@@index([userId, createdAt])`. Endpoints: `GET /notifications`, `GET /notifications/unread-count`, `GET /notifications/:id` (devuelve y marca leída), `PATCH /notifications/:id/read`, `PATCH /notifications/read-all` (todos guardados por `JwtAuthGuard`; cada usuario opera solo las suyas).
+
+**Push en tiempo real por WebSocket (sin polling).** El `NotificationsGateway` (socket.io namespace `/notifications`, auth con el JWT del backend) une al usuario a su sala `user:<id>`. `NotificationsService.createMany` usa **`createManyAndReturn`** y empuja cada fila como `notification:new`; cuando se crean dentro de una transacción (aviso masivo, inscripción, asignación de docente), el llamador emite **tras el commit** con `emitNotifications(rows)`. Al abrir un chat, `emitConversationRead(userId, conversationKey)` empuja `notification:read` para que la campana marque leídas esas notificaciones al instante. La campana del frontend escucha estos eventos (ya no hace polling cada 5 s).
 
 ### `Announcement` → tabla `announcements`
 
@@ -400,8 +411,8 @@ User (ADMIN | PROFESSOR | STUDENT)
 Course 1───N CourseModule 1───N ModuleContent (temario: TEXT|VIDEO|MATERIAL|ACTIVITY)
                           │             1───N Submission       (solo ACTIVITY)
                           │             1───N ContentProgress  (por estudiante)
-                          │             1───N ContentNote      (por estudiante)
                           1───N ModuleGrade
+                          1───N ChatMessage   (chat docente↔estudiante, 1 a 1)
                           N───N User (PROFESSOR)  vía ModuleTeacher (co-docencia)
 Course 1───N Enrollment
 
@@ -409,12 +420,12 @@ User (PROFESSOR) N───N CourseModule          vía ModuleTeacher
 User (STUDENT)   1───N Enrollment            (inscripción a curso)
                  1───N Submission            (entregas)
                  1───N ContentProgress       (avance por contenido)
-                 1───N ContentNote           (apuntes por contenido)
                  1───N ModuleGrade           (kárdex)
 User (calificador) 1───N Submission / ModuleGrade  (gradedBy)
+User (docente/estudiante) N───N (vía ChatMessage: ChatStudent / ChatTeacher / ChatSender)
 
 ── Notificaciones ───────────────────────────────────────────────────
-User 1───N Notification        (recibe)
+User 1───N Notification        (recibe; push por WebSocket /notifications)
 User (ADMIN) 1───N Announcement (envía — log de avisos, "AnnouncementSender")
 ```
 

@@ -5,11 +5,13 @@ import {
 } from '@nestjs/common';
 import {
   AnnouncementAudience,
+  type Notification,
   NotificationType,
   Prisma,
   Role,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsGateway } from './notifications.gateway';
 import { SendNotificationDto } from './dto/send-notification.dto';
 
 // Una notificación lista para crear. `data` es contexto opcional (ids de
@@ -24,7 +26,10 @@ export interface CreateNotificationInput {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: NotificationsGateway,
+  ) {}
 
   // ---- Lectura (panel del usuario autenticado) ----
 
@@ -94,15 +99,23 @@ export class NotificationsService {
   // ---- Escritura interna (la disparan otros servicios) ----
 
   /**
-   * Crea varias notificaciones de una sola vez. Pensado para fan-out: notificar
-   * a todos los estudiantes recién inscritos o a los docentes recién asignados.
-   * Acepta un `tx` opcional para correr dentro de la misma transacción que el
-   * cambio que las origina.
+   * Crea varias notificaciones de una sola vez y devuelve las filas creadas.
+   * Pensado para fan-out: notificar a todos los estudiantes recién inscritos o a
+   * los docentes recién asignados. Acepta un `tx` opcional para correr dentro de
+   * la misma transacción que el cambio que las origina.
+   *
+   * **Push en tiempo real:** si NO corre en una transacción, empuja cada
+   * notificación por WebSocket inmediatamente. Si SÍ corre en una transacción
+   * (`tx`), no emite aquí (podría revertirse): el llamador debe llamar a
+   * `emitNotifications(rows)` tras confirmar (commit) la transacción.
    */
-  createMany(inputs: CreateNotificationInput[], tx?: Prisma.TransactionClient) {
-    if (inputs.length === 0) return Promise.resolve({ count: 0 });
+  async createMany(
+    inputs: CreateNotificationInput[],
+    tx?: Prisma.TransactionClient,
+  ): Promise<Notification[]> {
+    if (inputs.length === 0) return [];
     const client = tx ?? this.prisma;
-    return client.notification.createMany({
+    const rows = await client.notification.createManyAndReturn({
       data: inputs.map((n) => ({
         userId: n.userId,
         type: n.type,
@@ -111,6 +124,37 @@ export class NotificationsService {
         data: n.data ?? Prisma.JsonNull,
       })),
     });
+    if (!tx) this.emitNotifications(rows);
+    return rows;
+  }
+
+  /**
+   * Empuja por WebSocket cada notificación a la sala personal de su destinatario
+   * (`notification:new`). Lo usan los llamadores que crean en transacción, tras
+   * el commit.
+   */
+  emitNotifications(rows: Notification[]) {
+    for (const n of rows) {
+      this.gateway.emitToUser(n.userId, 'notification:new', {
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        read: n.read,
+        readAt: n.readAt,
+        data: n.data,
+        createdAt: n.createdAt,
+      });
+    }
+  }
+
+  /**
+   * Avisa por WebSocket al usuario que marque como leídas, en su campana, las
+   * notificaciones de una conversación de chat (cuando abre ese chat). El front
+   * empareja por `conversationKey` en `data`.
+   */
+  emitConversationRead(userId: string, conversationKey: string) {
+    this.gateway.emitToUser(userId, 'notification:read', { conversationKey });
   }
 
   // ---- Envío manual del administrador (aviso a uno/varios/masivo) ----
@@ -127,7 +171,7 @@ export class NotificationsService {
       throw new BadRequestException('No hay destinatarios para este envío');
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       await tx.announcement.create({
         data: {
           title: dto.title,
@@ -137,7 +181,7 @@ export class NotificationsService {
           senderId,
         },
       });
-      await this.createMany(
+      return this.createMany(
         recipientIds.map((userId) => ({
           userId,
           type: NotificationType.ANNOUNCEMENT,
@@ -148,6 +192,8 @@ export class NotificationsService {
         tx,
       );
     });
+    // Push tras el commit (no dentro de la transacción, que podría revertirse).
+    this.emitNotifications(created);
     return { count: recipientIds.length };
   }
 

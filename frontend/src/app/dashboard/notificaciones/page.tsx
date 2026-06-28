@@ -11,7 +11,7 @@ export default async function NotificationsInboxPage({
 }: {
   searchParams: Promise<{ open?: string | string[] }>;
 }) {
-  await requireUser();
+  const session = await requireUser();
   const notifications = await listNotifications();
   const { open } = await searchParams;
   const initialOpenId = Array.isArray(open) ? open[0] : open;
@@ -20,6 +20,7 @@ export default async function NotificationsInboxPage({
     <NotificationsInbox
       initialNotifications={notifications}
       initialOpenId={initialOpenId}
+      role={session.user.role}
     />
   );
 }

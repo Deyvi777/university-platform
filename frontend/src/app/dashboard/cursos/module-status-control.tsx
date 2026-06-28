@@ -18,6 +18,14 @@ const LABELS: Record<Status, string> = {
 // Orden de presentación: el estado por defecto (Activo) primero.
 const ORDER: Status[] = ["ACTIVE", "FINISHED", "DRAFT"];
 
+// Color del estado seleccionado (resalta cuál está activo): verde Activo, azul
+// Concluido, ámbar Borrador.
+const SELECTED_CLS: Record<Status, string> = {
+  ACTIVE: "bg-emerald-600 text-white shadow-sm dark:bg-emerald-500",
+  FINISHED: "bg-sky-600 text-white shadow-sm dark:bg-sky-500",
+  DRAFT: "bg-amber-500 text-white shadow-sm dark:bg-amber-500",
+};
+
 /**
  * Control de estado de un módulo (lo fija el admin manualmente). Guarda al
  * instante con un control segmentado: Activo / Concluido / Borrador.
@@ -70,7 +78,7 @@ export function ModuleStatusControl({
             className={cn(
               "rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
               current === s
-                ? "bg-card text-foreground shadow-sm"
+                ? SELECTED_CLS[s]
                 : "text-muted-foreground hover:text-foreground",
             )}
           >

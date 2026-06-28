@@ -25,6 +25,7 @@ const studentSelect = {
   firstName: true,
   lastName: true,
   email: true,
+  phone: true,
 } satisfies Prisma.UserSelect;
 
 @Injectable()

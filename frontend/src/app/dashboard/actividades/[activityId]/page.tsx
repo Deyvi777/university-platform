@@ -95,6 +95,7 @@ export default async function ActivityGradingPage({
             <GradingRow
               key={row.student.id}
               activityId={activity.id}
+              activityTitle={activity.title}
               maxScore={activity.maxScore}
               row={row}
               readOnly={readOnly}

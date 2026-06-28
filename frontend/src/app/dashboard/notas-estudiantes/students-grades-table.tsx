@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { AdminUser } from "@/lib/api/admin";
+import { WhatsAppButton } from "@/app/dashboard/usuarios/whatsapp-button";
 import {
   StudentKardexButton,
   StudentNotesButton,
@@ -179,6 +180,10 @@ export function StudentGradesTable({ students }: { students: AdminUser[] }) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
+                    <WhatsAppButton
+                      phone={student.phone}
+                      name={`${student.firstName} ${student.lastName}`}
+                    />
                     <StudentNotesButton student={student} />
                     <StudentKardexButton student={student} />
                   </div>

@@ -78,6 +78,7 @@ enum NotificationType {
   ANNOUNCEMENT // aviso manual enviado por un administrador
   GRADE // el docente calificó una actividad del estudiante
   ACTIVITY_PUBLISHED // se publicó una nueva actividad en un módulo
+  MESSAGE // mensaje de chat recibido (docente ↔ estudiante en un módulo)
 }
 
 // Configuración global de la landing (fila única / singleton). Guarda los
@@ -120,7 +121,10 @@ model User {
   notifications     Notification[]
   sentAnnouncements Announcement[]    @relation("AnnouncementSender")
   contentProgress   ContentProgress[]
-  contentNotes      ContentNote[]
+  // Chat docente↔estudiante por módulo (mensajería directa).
+  chatAsStudent ChatMessage[] @relation("ChatStudent")
+  chatAsTeacher ChatMessage[] @relation("ChatTeacher")
+  sentMessages  ChatMessage[] @relation("ChatSender")
 
   @@map("users")
 }
@@ -312,6 +316,7 @@ model CourseModule {
   teachers ModuleTeacher[] // co-docencia: varios docentes por módulo
   contents ModuleContent[] // contenidos ordenados (temario): tema/video/material/actividad
   grades   ModuleGrade[]
+  messages ChatMessage[] // chat docente↔estudiante dentro del módulo
 
   @@unique([courseId, order])
   @@map("course_modules")
@@ -389,7 +394,6 @@ model ModuleContent {
 
   submissions Submission[]
   progress    ContentProgress[]
-  notes       ContentNote[]
 
   @@unique([moduleId, order])
   @@index([moduleId])
@@ -414,21 +418,28 @@ model ContentProgress {
   @@map("content_progress")
 }
 
-// Apuntes personales de un estudiante sobre un contenido. Privados: solo los ve
-// su autor ("Tus notas").
-model ContentNote {
-  id        String        @id @default(uuid())
+// Mensaje de chat directo (1 a 1) entre un docente y un estudiante dentro de un
+// módulo. La conversación se identifica por la terna (moduleId, studentId,
+// teacherId); `senderId` (== studentId o teacherId) indica la dirección. El
+// docente debe dictar el módulo (ModuleTeacher) y el estudiante estar inscrito
+// en el curso. `readAt` marca cuándo el receptor lo leyó (para los no leídos).
+model ChatMessage {
+  id        String       @id @default(uuid())
+  moduleId  String
+  module    CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   studentId String
-  student   User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  contentId String
-  content   ModuleContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  body      String // texto del apunte
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  student   User         @relation("ChatStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   User         @relation("ChatTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  senderId  String // quién envió (igual a studentId o a teacherId)
+  sender    User         @relation("ChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+  body      String
+  readAt    DateTime? // cuándo lo leyó el receptor (null = no leído)
+  createdAt DateTime     @default(now())
 
-  @@unique([studentId, contentId])
-  @@index([contentId])
-  @@map("content_notes")
+  @@index([moduleId, studentId, teacherId, createdAt])
+  @@index([senderId])
+  @@map("chat_messages")
 }
 
 // Entrega de un estudiante para un contenido de tipo ACTIVITY. Calificada por el

@@ -24,18 +24,3 @@ export async function setProgressAction(
     return { ok: false, error: errorMessage(error) };
   }
 }
-
-/** Guarda los apuntes personales del estudiante sobre un contenido. */
-export async function setNoteAction(
-  moduleId: string,
-  contentId: string,
-  body: string,
-): Promise<ActionResult> {
-  try {
-    await mutateMe("PUT", `/me/contents/${contentId}/note`, { body });
-    revalidatePath(`/dashboard/aula/${moduleId}`);
-    return { ok: true, data: undefined };
-  } catch (error) {
-    return { ok: false, error: errorMessage(error) };
-  }
-}

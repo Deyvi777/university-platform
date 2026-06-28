@@ -61,6 +61,7 @@ export interface GradingStudentRow {
     firstName: string;
     lastName: string;
     email: string;
+    phone: string;
   };
   submission: {
     content: string | null;
@@ -197,7 +198,13 @@ export interface GradebookCell {
 }
 
 export interface GradebookRow {
-  student: { id: string; firstName: string; lastName: string; email: string };
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
   grades: GradebookCell[];
   moduleGrade: { finalScore: number | null; status: ModuleGradeStatus } | null;
   observation: string;

@@ -73,13 +73,8 @@ export const reorderSchema = z.object({
 });
 export class ReorderContentsDto extends createZodDto(reorderSchema) {}
 
-// ── Progreso / Notas del estudiante ──────────────────────────────────────────
+// ── Progreso del estudiante ──────────────────────────────────────────────────
 export const contentProgressSchema = z.object({
   completed: z.boolean(),
 });
 export class ContentProgressDto extends createZodDto(contentProgressSchema) {}
-
-export const contentNoteSchema = z.object({
-  body: z.string().max(20000),
-});
-export class ContentNoteDto extends createZodDto(contentNoteSchema) {}

@@ -1,4 +1,4 @@
-import { Mail, type LucideIcon } from "lucide-react";
+import { Mail, MessageSquare, type LucideIcon } from "lucide-react";
 import type { NotificationType } from "@/lib/api/notifications";
 
 /**
@@ -35,6 +35,11 @@ export const NOTIFICATION_META: Record<
     icon: Mail,
     label: "Nueva actividad",
     tint: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  },
+  MESSAGE: {
+    icon: MessageSquare,
+    label: "Mensaje",
+    tint: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
   },
 };
 

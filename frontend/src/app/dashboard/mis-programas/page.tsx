@@ -6,6 +6,7 @@ import {
   Layers,
   PlayCircle,
   Presentation,
+  UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth-guard";
@@ -199,30 +200,50 @@ function ProgramAccordion({
 
 function ModuleRow({ module: m }: { module: ProgramModule }) {
   const status = MODULE_STATUS[m.status];
+  const teacherNames = m.teachers.map((t) => `${t.firstName} ${t.lastName}`);
   return (
     <li>
       <Link
         href={`/dashboard/aula/${m.id}`}
-        className="group/row flex items-center gap-3 rounded-xl border bg-background px-4 py-3 transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="group/row flex items-center gap-4 rounded-xl border px-4 py-5 transition-colors hover:border-blue-400 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-heading text-sm font-semibold tabular-nums text-primary"
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-heading text-base font-semibold tabular-nums text-primary"
           aria-hidden="true"
         >
           {m.order}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{m.name}</p>
+          <p className="truncate text-sm font-medium transition-colors group-hover/row:text-blue-400">
+            {m.name}
+          </p>
           <span
             className={cn(
-              "mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[0.65rem] font-medium",
-              status.badge,
+              "mt-1.5 flex items-center gap-1.5 text-xs",
+              teacherNames.length > 0
+                ? "text-muted-foreground"
+                : "italic text-muted-foreground/70",
             )}
           >
-            {status.label}
+            <UsersRound className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">
+              {teacherNames.length > 0
+                ? teacherNames.join(", ")
+                : "Sin docente asignado"}
+            </span>
           </span>
+          <div className="mt-2">
+            <span
+              className={cn(
+                "inline-flex rounded-full px-2 py-0.5 text-[0.65rem] font-medium",
+                status.badge,
+              )}
+            >
+              {status.label}
+            </span>
+          </div>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary opacity-0 transition-opacity group-hover/row:opacity-100">
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-primary opacity-0 transition-opacity group-hover/row:opacity-100">
           Entrar al aula
           <PlayCircle className="size-4" aria-hidden="true" />
         </span>

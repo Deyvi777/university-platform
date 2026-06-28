@@ -226,7 +226,7 @@ export class ModuleContentService {
   /**
    * Módulo en modo "aula" para el estudiante inscrito: sus contenidos publicados
    * en orden, con —para actividades— su entrega, y para cada uno si lo marcó
-   * como completado y sus apuntes. Autoriza por inscripción; si no, 404.
+   * como completado. Autoriza por inscripción; si no, 404.
    */
   async getModuleForStudent(studentId: string, moduleId: string) {
     const module = await this.prisma.courseModule.findUnique({
@@ -239,6 +239,10 @@ export class ModuleContentService {
         status: true,
         courseId: true,
         course: { select: { id: true, name: true, code: true, status: true } },
+        teachers: {
+          orderBy: { assignedAt: 'asc' },
+          select: { teacher: { select: { firstName: true, lastName: true } } },
+        },
         grades: {
           where: { studentId },
           select: { finalScore: true, status: true, observations: true },
@@ -273,7 +277,6 @@ export class ModuleContentService {
               },
             },
             progress: { where: { studentId }, select: { completed: true } },
-            notes: { where: { studentId }, select: { body: true } },
           },
         },
       },
@@ -306,6 +309,7 @@ export class ModuleContentService {
         name: module.course.name,
         code: module.course.code,
       },
+      teachers: module.teachers.map((t) => t.teacher),
       grade: grade
         ? {
             finalScore:
@@ -332,7 +336,6 @@ export class ModuleContentService {
           weight: c.weight !== null ? Number(c.weight) : null,
           isOffline: c.isOffline,
           completed: c.progress[0]?.completed ?? false,
-          note: c.notes[0]?.body ?? '',
           submission: sub
             ? {
                 content: sub.text,
@@ -363,19 +366,6 @@ export class ModuleContentService {
       update: { completed, completedAt },
     });
     return { completed };
-  }
-
-  /** Guarda los apuntes personales del estudiante sobre un contenido. */
-  async setContentNote(studentId: string, contentId: string, body: string) {
-    await this.ensureEnrolledInContent(studentId, contentId);
-    await this.ensureContentModuleNotFinished(contentId);
-    const trimmed = body.trim();
-    await this.prisma.contentNote.upsert({
-      where: { studentId_contentId: { studentId, contentId } },
-      create: { studentId, contentId, body: trimmed },
-      update: { body: trimmed },
-    });
-    return { body: trimmed };
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────────

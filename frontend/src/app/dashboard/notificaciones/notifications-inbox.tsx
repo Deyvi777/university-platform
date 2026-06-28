@@ -3,6 +3,7 @@
 import { CheckCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ApiNotification } from "@/lib/api/notifications";
+import { notificationActionFor } from "@/lib/notification-action";
 import { formatRelative, metaFor } from "@/lib/notifications-meta";
 import { NotificationBody } from "@/components/dashboard/notification-body";
 import { NotificationDetailDialog } from "@/components/dashboard/notification-detail-dialog";
@@ -17,10 +18,13 @@ import { cn } from "@/lib/utils";
 export function NotificationsInbox({
   initialNotifications,
   initialOpenId,
+  role,
 }: {
   initialNotifications: ApiNotification[];
   /** Notificación a abrir directamente (al venir del campanario: `?open=`). */
   initialOpenId?: string;
+  /** Rol del usuario (define a dónde lleva el botón "Ir al chat"). */
+  role?: string;
 }) {
   // Si llega `initialOpenId` válido, marcamos esa notificación como leída ya en
   // el estado inicial (su PATCH al backend se dispara una vez, abajo).
@@ -163,6 +167,12 @@ export function NotificationsInbox({
       {/* Detalle en modal */}
       <NotificationDetailDialog
         notification={selected}
+        action={
+          selected
+            ? notificationActionFor(selected.type, selected.data, role)
+            : null
+        }
+        onNavigate={() => setOpenId(null)}
         open={openId !== null}
         onOpenChange={(o) => {
           if (!o) setOpenId(null);

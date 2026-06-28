@@ -9,7 +9,7 @@ import {
   ExternalLink,
   FileText,
   Loader2,
-  NotebookPen,
+  MessageSquare,
   Paperclip,
   PlayCircle,
   ListVideo,
@@ -17,9 +17,14 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { LessonVideo } from "@/components/dashboard/lesson-video";
+import {
+  ChatTabBadge,
+  ModuleChat,
+  useModuleChat,
+} from "@/components/dashboard/module-chat";
 import { RichTextContent } from "@/components/dashboard/rich-text-content";
+import type { ChatContact } from "@/lib/api/chat";
 import type {
   ContentKind,
   CourseActivity,
@@ -30,9 +35,16 @@ import type {
 } from "@/lib/api/me";
 import { cn } from "@/lib/utils";
 import { StudentActivity } from "../../mis-cursos/[id]/student-activity";
-import { setNoteAction, setProgressAction } from "./actions";
+import { setProgressAction } from "./actions";
 
-type PanelTab = "temario" | "calificaciones" | "apuntes";
+type PanelTab = "temario" | "calificaciones" | "chat";
+
+/** Datos para el chat del estudiante (docentes del módulo + sesión). */
+export interface ClassroomChat {
+  contacts: ChatContact[];
+  currentUserId: string;
+  token: string;
+}
 
 const KIND_ICON: Record<ContentKind, typeof FileText> = {
   TEXT: FileText,
@@ -69,8 +81,24 @@ function toActivity(c: LearnContent): CourseActivity {
   };
 }
 
-export function ClassroomView({ module: learn }: { module: LearnModule }) {
+export function ClassroomView({
+  module: learn,
+  chat,
+  initialChatContactId,
+  openChat = false,
+  initialContentId,
+}: {
+  module: LearnModule;
+  chat: ClassroomChat;
+  /** Abrir directamente la pestaña Chat con este contacto (deep-link). */
+  initialChatContactId?: string;
+  /** Abrir la pestaña Chat aunque no haya contacto preseleccionado. */
+  openChat?: boolean;
+  /** Seleccionar este contenido al entrar (deep-link de una actividad). */
+  initialContentId?: string;
+}) {
   const { contents } = learn;
+  const wantChat = openChat || Boolean(initialChatContactId);
   // Módulo concluido → aula en solo lectura (sin progreso, apuntes ni entregas).
   const readOnly = learn.status === "FINISHED";
   // Las actividades presenciales no son lecciones del temario; solo aparecen en
@@ -78,11 +106,50 @@ export function ClassroomView({ module: learn }: { module: LearnModule }) {
   const temarioContents = contents.filter((c) => !c.isOffline);
   const hasGrades = contents.some((c) => c.kind === "ACTIVITY");
   const [selectedId, setSelectedId] = useState<string | null>(() =>
-    defaultContentId(temarioContents),
+    initialContentId && temarioContents.some((c) => c.id === initialContentId)
+      ? initialContentId
+      : defaultContentId(temarioContents),
   );
   const [tab, setTab] = useState<PanelTab>(
-    temarioContents.length === 0 && hasGrades ? "calificaciones" : "temario",
+    wantChat
+      ? "chat"
+      : temarioContents.length === 0 && hasGrades
+        ? "calificaciones"
+        : "temario",
   );
+
+  // Deep-link "en caliente": si la URL pide el chat (`?chat=`) o una actividad
+  // (`?content=`) estando ya en esta vista (mismo módulo, otra pestaña), el
+  // server re-renderiza con nuevos props pero el estado del cliente persiste.
+  // Sincronizamos comparando con el valor previo durante el render (patrón
+  // recomendado por React; no `useEffect`).
+  const [prevWantChat, setPrevWantChat] = useState(wantChat);
+  if (wantChat !== prevWantChat) {
+    setPrevWantChat(wantChat);
+    if (wantChat) setTab("chat");
+  }
+  const [prevContentId, setPrevContentId] = useState(initialContentId);
+  if (initialContentId !== prevContentId) {
+    setPrevContentId(initialContentId);
+    if (
+      initialContentId &&
+      temarioContents.some((c) => c.id === initialContentId)
+    ) {
+      setSelectedId(initialContentId);
+      setTab("temario");
+    }
+  }
+
+  // El chat vive en el padre (no en la pestaña) para que el contador de no
+  // leídos se actualice en vivo aunque el estudiante esté en otra pestaña.
+  const chatState = useModuleChat({
+    moduleId: learn.id,
+    currentUserId: chat.currentUserId,
+    token: chat.token,
+    contacts: chat.contacts,
+    initialContactId: initialChatContactId,
+    active: tab === "chat",
+  });
 
   const selected =
     temarioContents.find((c) => c.id === selectedId) ??
@@ -90,7 +157,9 @@ export function ClassroomView({ module: learn }: { module: LearnModule }) {
     null;
 
   // Nada en absoluto (ni lecciones ni actividades) → estado vacío completo.
-  if (!selected && !hasGrades) {
+  // Salvo que se entre directo al chat (deep-link), donde igual mostramos el
+  // panel para poder conversar.
+  if (!selected && !hasGrades && !wantChat) {
     return (
       <div className="rounded-2xl border border-dashed bg-muted/20 px-6 py-16 text-center">
         <span
@@ -174,11 +243,12 @@ export function ClassroomView({ module: learn }: { module: LearnModule }) {
               Notas
             </PanelTabButton>
             <PanelTabButton
-              active={tab === "apuntes"}
-              onClick={() => setTab("apuntes")}
-              icon={<NotebookPen className="size-4" />}
+              active={tab === "chat"}
+              onClick={() => setTab("chat")}
+              icon={<MessageSquare className="size-4" />}
             >
-              Apuntes
+              Chat
+              <ChatTabBadge count={chatState.unreadCount} />
             </PanelTabButton>
           </div>
 
@@ -279,11 +349,11 @@ export function ClassroomView({ module: learn }: { module: LearnModule }) {
           ) : tab === "calificaciones" ? (
             <GradesPanel module={learn} />
           ) : (
-            <NotesPanel
-              key={selected.id}
-              moduleId={learn.id}
-              content={selected}
-              readOnly={readOnly}
+            <ModuleChat
+              chat={chatState}
+              contactNoun="docente"
+              emptyText="Este módulo aún no tiene docentes asignados para chatear."
+              compact
             />
           )}
         </div>
@@ -629,67 +699,6 @@ function ProgressButton({
         ) : null}
         {content.completed ? "Completado" : "Marcar como completado"}
       </Button>
-    </div>
-  );
-}
-
-function NotesPanel({
-  moduleId,
-  content,
-  readOnly,
-}: {
-  moduleId: string;
-  content: LearnContent;
-  readOnly: boolean;
-}) {
-  const router = useRouter();
-  const [value, setValue] = useState(content.note);
-  const [pending, startTransition] = useTransition();
-  const dirty = value.trim() !== content.note.trim();
-
-  function save() {
-    startTransition(async () => {
-      const result = await setNoteAction(moduleId, content.id, value.trim());
-      if (result.ok) {
-        toast.success("Notas guardadas");
-        router.refresh();
-      } else {
-        toast.error(result.error);
-      }
-    });
-  }
-
-  return (
-    <div className="p-4">
-      <p className="text-xs text-muted-foreground">
-        Apuntes privados sobre{" "}
-        <span className="font-medium text-foreground">«{content.title}»</span>.
-        Solo tú los ves.
-        {readOnly && " El módulo está concluido: no puedes editarlos."}
-      </p>
-      <Textarea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder={
-          readOnly
-            ? "Sin apuntes."
-            : "Escribe tus apuntes de este contenido…"
-        }
-        readOnly={readOnly}
-        className="mt-3 min-h-56 resize-y read-only:opacity-70"
-      />
-      <div className="mt-3 flex justify-end">
-        <Button
-          type="button"
-          size="sm"
-          onClick={save}
-          disabled={pending || !dirty || readOnly}
-          hidden={readOnly}
-        >
-          {pending && <Loader2 className="size-4 animate-spin" />}
-          Guardar
-        </Button>
-      </div>
     </div>
   );
 }
