@@ -1,0 +1,114 @@
+# Despliegue de producción vía Coolify (recurso "Docker Compose" apuntando a
+# este repo). Todas las ${VARIABLES} se definen en el panel de Coolify —
+# los valores reales viven en .deploy/secrets-produccion.env (gitignoreado).
+#
+# Dominios (se asignan en Coolify, no aquí):
+#   frontend → https://<DOMAIN>       (puerto 3000)
+#   backend  → https://<API_DOMAIN>   (puerto 4000; el navegador se conecta
+#              directo para REST + WebSockets /chat y /notifications)
+# postgres/redis/garage son solo internos (sin puertos publicados).
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-university_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-university_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-university_user} -d ${POSTGRES_DB:-university_db}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8.8-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  garage:
+    image: dxflrs/garage:v2.3.0
+    restart: unless-stopped
+    command: /garage server --single-node --default-bucket
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
+      GARAGE_DEFAULT_ACCESS_KEY: ${S3_ACCESS_KEY}
+      GARAGE_DEFAULT_SECRET_KEY: ${S3_SECRET_KEY}
+      GARAGE_DEFAULT_BUCKET: university-files
+    volumes:
+      - garage_data:/var/lib/garage/data
+      - garage_meta:/var/lib/garage/meta
+      - ./garage.prod.toml:/etc/garage.toml:ro
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-university_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-university_db}?schema=public
+      REDIS_URL: redis://redis:6379
+      # CORS + orígenes de los gateways WebSocket
+      FRONTEND_URL: https://${DOMAIN}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 1d
+      JWT_REMEMBER_EXPIRES_IN: 30d
+      S3_ENDPOINT: http://garage:3900
+      S3_REGION: garage
+      S3_BUCKET: university-files
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      MAIL_LOGIN_URL: https://${DOMAIN}/login
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      garage:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        # Dominio público del API: se inlinea en el bundle del navegador
+        NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+        # Red interna: fetchers server-side y el rewrite de /files/*
+        API_URL: http://backend:4000
+    restart: unless-stopped
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
+      NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+      API_URL: http://backend:4000
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  redis_data:
+  garage_data:
+  garage_meta:

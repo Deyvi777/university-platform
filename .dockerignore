@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+frontend/.next
+frontend/out
+backend/dist
+.git
+.deploy
+.claude
+**/.env
+**/.env.local
+**/.env.production
+garage.toml
+.DS_Store

@@ -7,6 +7,9 @@ const backendUrl = new URL(
 );
 
 const nextConfig: NextConfig = {
+  // Build autocontenido para Docker/Coolify: `next build` emite
+  // .next/standalone con server.js + solo las deps necesarias.
+  output: "standalone",
   // Habilita la integración de React `<ViewTransition>` con la navegación:
   // permite el morph del flyer y el título de cada tarjeta de programa hacia su
   // página de detalle (ver `programs-grid.tsx` y `programas/[slug]/page.tsx`).
