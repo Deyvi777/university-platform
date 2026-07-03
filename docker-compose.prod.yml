@@ -87,7 +87,10 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
-      MAIL_LOGIN_URL: ${FRONTEND_URL}/login
+      # Vacío → el backend usa el primer origen de FRONTEND_URL + /login.
+      # No derivarla de ${FRONTEND_URL} aquí: esa variable puede llevar varios
+      # orígenes separados por coma (raíz + www) y el link saldría roto.
+      MAIL_LOGIN_URL: ${MAIL_LOGIN_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
