@@ -3,9 +3,12 @@
 # los valores reales viven en .deploy/secrets-produccion.env (gitignoreado).
 #
 # Dominios (se asignan en Coolify, no aquí):
-#   frontend → https://<DOMAIN>       (puerto 3000)
-#   backend  → https://<API_DOMAIN>   (puerto 4000; el navegador se conecta
+#   frontend → FRONTEND_URL           (puerto 3000)
+#   backend  → NEXT_PUBLIC_API_URL    (puerto 4000; el navegador se conecta
 #              directo para REST + WebSockets /chat y /notifications)
+# FRONTEND_URL y NEXT_PUBLIC_API_URL son URLs completas CON esquema
+# (http:// en los dominios temporales sslip.io, https:// con el dominio
+# definitivo) y deben coincidir con los Domains asignados en Coolify.
 # postgres/redis/garage son solo internos (sin puertos publicados).
 
 services:
@@ -52,7 +55,12 @@ services:
     volumes:
       - garage_data:/var/lib/garage/data
       - garage_meta:/var/lib/garage/meta
-      - ./garage.prod.toml:/etc/garage.toml:ro
+    # La config va como `configs` inline (no bind mount de un archivo del
+    # repo: Coolify crea un directorio vacío en su lugar y Garage falla con
+    # "Is a directory"). Sin secretos: rpc_secret/admin_token llegan por env.
+    configs:
+      - source: garage_config
+        target: /etc/garage.toml
 
   backend:
     build:
@@ -64,8 +72,8 @@ services:
       PORT: 4000
       DATABASE_URL: postgresql://${POSTGRES_USER:-university_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-university_db}?schema=public
       REDIS_URL: redis://redis:6379
-      # CORS + orígenes de los gateways WebSocket
-      FRONTEND_URL: https://${DOMAIN}
+      # CORS + orígenes de los gateways WebSocket (URL completa con esquema)
+      FRONTEND_URL: ${FRONTEND_URL}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: 1d
       JWT_REMEMBER_EXPIRES_IN: 30d
@@ -79,7 +87,7 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
-      MAIL_LOGIN_URL: https://${DOMAIN}/login
+      MAIL_LOGIN_URL: ${FRONTEND_URL}/login
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,15 +101,15 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        # Dominio público del API: se inlinea en el bundle del navegador
-        NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+        # URL pública del API (con esquema): se inlinea en el bundle del navegador
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         # Red interna: fetchers server-side y el rewrite de /files/*
         API_URL: http://backend:4000
     restart: unless-stopped
     environment:
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_TRUST_HOST: "true"
-      NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       API_URL: http://backend:4000
     depends_on:
       backend:
@@ -112,3 +120,19 @@ volumes:
   redis_data:
   garage_data:
   garage_meta:
+
+configs:
+  garage_config:
+    content: |
+      metadata_dir = "/var/lib/garage/meta"
+      data_dir = "/var/lib/garage/data"
+      db_engine = "sqlite"
+      replication_factor = 1
+      rpc_bind_addr = "[::]:3901"
+
+      [s3_api]
+      s3_region = "garage"
+      api_bind_addr = "[::]:3900"
+
+      [admin]
+      api_bind_addr = "[::]:3903"

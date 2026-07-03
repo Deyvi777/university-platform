@@ -29,4 +29,4 @@ WORKDIR /app/backend
 # driftado respecto al esquema real (ver CLAUDE.md → Prisma 7). En una DB
 # nueva crea el esquema completo; en despliegues siguientes aplica los
 # cambios incrementales, igual que el flujo de desarrollo.
-CMD ["sh", "-c", "pnpm exec prisma db push --skip-generate && node dist/main"]
+CMD ["sh", "-c", "pnpm exec prisma db push && node dist/main"]
