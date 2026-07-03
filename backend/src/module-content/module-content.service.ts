@@ -1,20 +1,27 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import {
   ContentKind,
+  ModuleGradeStatus,
   ModuleStatus,
   NotificationType,
   Prisma,
+  RecoveryStage,
   Role,
+  SubmissionStatus,
 } from '@prisma/client';
 
 const MODULE_FINISHED_MSG =
   'El módulo está concluido; no se pueden realizar cambios.';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { GradingService } from '../grading/grading.service';
+import { StorageService } from '../storage/storage.service';
 import {
   CreateContentDto,
   ReorderContentsDto,
@@ -37,6 +44,8 @@ export class ModuleContentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly grading: GradingService,
+    private readonly storage: StorageService,
   ) {}
 
   // ── Lectura: el módulo con todos sus contenidos (gestión del docente) ───────
@@ -71,13 +80,29 @@ export class ModuleContentService {
             maxScore: true,
             weight: true,
             isOffline: true,
+            recoveryStage: true,
+            timeLimitMin: true,
+            availableFrom: true,
+            availableUntil: true,
+            singleAttempt: true,
+            shuffle: true,
+            revealAnswers: true,
+            folderFiles: {
+              orderBy: { order: 'asc' },
+              select: { id: true, name: true, url: true, size: true },
+            },
+            _count: { select: { submissions: true } },
           },
         },
       },
     });
     return {
       ...module,
-      contents: module.contents.map(serializeContent),
+      contents: module.contents.map(({ _count, ...c }) => ({
+        ...serializeContent(c),
+        // Entregas del estudiante (para avisar antes de borrar la actividad).
+        submissionCount: _count.submissions,
+      })),
     };
   }
 
@@ -85,7 +110,13 @@ export class ModuleContentService {
 
   async createContent(userId: string, moduleId: string, dto: CreateContentDto) {
     await this.ensureTeaches(userId, moduleId);
-    await this.ensureModuleNotFinished(moduleId);
+    if (dto.recoveryStage) {
+      // Los exámenes de recuperación son la excepción al bloqueo del módulo
+      // concluido: justamente se habilitan sobre un módulo FINISHED.
+      await this.validateRecoveryCreate(userId, moduleId, dto);
+    } else {
+      await this.ensureModuleNotFinished(moduleId);
+    }
     const last = await this.prisma.moduleContent.findFirst({
       where: { moduleId },
       orderBy: { order: 'desc' },
@@ -98,13 +129,92 @@ export class ModuleContentService {
         kind: dto.kind,
         title: dto.title,
         isPublished: dto.isPublished ?? true,
+        recoveryStage: dto.recoveryStage ?? null,
         ...this.kindData(dto),
+        ...(dto.kind === 'FOLDER' && dto.files?.length
+          ? {
+              folderFiles: {
+                create: dto.files.map((f, i) => ({
+                  order: i,
+                  name: f.name,
+                  url: f.url,
+                  size: f.size ?? null,
+                })),
+              },
+            }
+          : {}),
       },
+      include: { folderFiles: { orderBy: { order: 'asc' } } },
     });
     if (content.kind === ContentKind.ACTIVITY && content.isPublished) {
-      await this.notifyActivityPublished(moduleId, content.id, content.title);
+      if (content.recoveryStage) {
+        // Solo a los estudiantes elegibles (reprobados), no a todo el curso.
+        await this.notifyRecoveryPublished(
+          moduleId,
+          content.id,
+          content.title,
+          content.recoveryStage,
+        );
+      } else {
+        await this.notifyActivityPublished(moduleId, content.id, content.title);
+      }
     }
     return serializeContent(content);
+  }
+
+  /**
+   * Valida la creación de un examen de recuperación: módulo CONCLUIDO, tipo
+   * QUIZ/EXAM, único por etapa, SEGUNDA_INSTANCIA solo por el ADMIN y solo si
+   * ya existe el RECUPERATORIO (es para quien lo reprobó).
+   */
+  private async validateRecoveryCreate(
+    userId: string,
+    moduleId: string,
+    dto: CreateContentDto,
+  ) {
+    if (
+      dto.kind !== 'ACTIVITY' ||
+      (dto.activityType !== 'QUIZ' && dto.activityType !== 'EXAM')
+    ) {
+      throw new BadRequestException(
+        'Un examen de recuperación debe ser una actividad de tipo cuestionario o examen',
+      );
+    }
+    const module = await this.prisma.courseModule.findUnique({
+      where: { id: moduleId },
+      select: { status: true },
+    });
+    if (module?.status !== ModuleStatus.FINISHED) {
+      throw new BadRequestException(
+        'El examen de recuperación se habilita cuando el módulo está concluido',
+      );
+    }
+    if (dto.recoveryStage === 'SEGUNDA_INSTANCIA') {
+      await this.ensureAdmin(
+        userId,
+        'Solo un administrador puede habilitar la segunda instancia',
+      );
+      const rec = await this.prisma.moduleContent.findFirst({
+        where: { moduleId, recoveryStage: RecoveryStage.RECUPERATORIO },
+        select: { id: true },
+      });
+      if (!rec) {
+        throw new BadRequestException(
+          'La segunda instancia requiere que exista un recuperatorio en el módulo',
+        );
+      }
+    }
+    const existing = await this.prisma.moduleContent.findFirst({
+      where: { moduleId, recoveryStage: dto.recoveryStage },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException(
+        dto.recoveryStage === 'SEGUNDA_INSTANCIA'
+          ? 'El módulo ya tiene una segunda instancia'
+          : 'El módulo ya tiene un recuperatorio',
+      );
+    }
   }
 
   async updateContent(
@@ -114,11 +224,29 @@ export class ModuleContentService {
   ) {
     const existing = await this.prisma.moduleContent.findUnique({
       where: { id: contentId },
-      select: { moduleId: true, kind: true, isPublished: true },
+      select: {
+        moduleId: true,
+        kind: true,
+        isPublished: true,
+        weight: true,
+        maxScore: true,
+        recoveryStage: true,
+      },
     });
     if (!existing) throw new NotFoundException('Contenido no encontrado');
     await this.ensureTeaches(userId, existing.moduleId);
-    await this.ensureModuleNotFinished(existing.moduleId);
+    if (existing.recoveryStage) {
+      // Un examen de recuperación vive en un módulo concluido: se puede editar
+      // igual. La segunda instancia solo la gestiona el admin.
+      if (existing.recoveryStage === RecoveryStage.SEGUNDA_INSTANCIA) {
+        await this.ensureAdmin(
+          userId,
+          'Solo un administrador puede editar la segunda instancia',
+        );
+      }
+    } else {
+      await this.ensureModuleNotFinished(existing.moduleId);
+    }
 
     const data: Prisma.ModuleContentUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
@@ -145,10 +273,44 @@ export class ModuleContentService {
     if (dto.weight !== undefined) {
       data.weight = dto.weight !== null ? new Prisma.Decimal(dto.weight) : null;
     }
+    // Ajustes del motor de preguntas (QUIZ/EXAM).
+    if (dto.timeLimitMin !== undefined) {
+      data.timeLimitMin = dto.timeLimitMin ?? null;
+    }
+    if (dto.availableFrom !== undefined) {
+      data.availableFrom = dto.availableFrom
+        ? new Date(dto.availableFrom)
+        : null;
+    }
+    if (dto.availableUntil !== undefined) {
+      data.availableUntil = dto.availableUntil
+        ? new Date(dto.availableUntil)
+        : null;
+    }
+    if (dto.singleAttempt !== undefined)
+      data.singleAttempt = dto.singleAttempt ?? null;
+    if (dto.shuffle !== undefined) data.shuffle = dto.shuffle ?? null;
+    if (dto.revealAnswers !== undefined) {
+      data.revealAnswers = dto.revealAnswers ?? null;
+    }
+    // FOLDER: reemplaza la lista completa de archivos (borra los actuales y
+    // recrea desde la lista enviada).
+    if (dto.files !== undefined) {
+      data.folderFiles = {
+        deleteMany: {},
+        create: (dto.files ?? []).map((f, i) => ({
+          order: i,
+          name: f.name,
+          url: f.url,
+          size: f.size ?? null,
+        })),
+      };
+    }
 
     const updated = await this.prisma.moduleContent.update({
       where: { id: contentId },
       data,
+      include: { folderFiles: { orderBy: { order: 'asc' } } },
     });
     // Notificar solo en la transición borrador → publicado de una actividad.
     if (
@@ -156,24 +318,124 @@ export class ModuleContentService {
       !existing.isPublished &&
       updated.isPublished
     ) {
-      await this.notifyActivityPublished(
-        updated.moduleId,
-        updated.id,
-        updated.title,
-      );
+      if (updated.recoveryStage) {
+        // Recuperación: solo a los estudiantes elegibles, no a todo el curso.
+        await this.notifyRecoveryPublished(
+          updated.moduleId,
+          updated.id,
+          updated.title,
+          updated.recoveryStage,
+        );
+      } else {
+        await this.notifyActivityPublished(
+          updated.moduleId,
+          updated.id,
+          updated.title,
+        );
+      }
+    }
+    // Si cambió algo que altera la ponderación de la nota del módulo
+    // (publicación, peso o puntaje máximo de una actividad), recalcular la
+    // nota de los estudiantes ya calificados — igual que removeContent, que
+    // recalcula al desaparecer una actividad ponderada.
+    if (updated.kind === ContentKind.ACTIVITY) {
+      const gradingChanged =
+        (dto.isPublished !== undefined &&
+          dto.isPublished !== existing.isPublished) ||
+        (dto.weight !== undefined &&
+          Number(dto.weight ?? 0) !== Number(existing.weight ?? 0)) ||
+        (dto.maxScore !== undefined &&
+          Number(dto.maxScore ?? 0) !== Number(existing.maxScore ?? 0));
+      if (gradingChanged) {
+        const affected = await this.prisma.moduleGrade.findMany({
+          where: { moduleId: existing.moduleId },
+          select: { studentId: true },
+        });
+        for (const { studentId } of affected) {
+          await this.grading.recomputeModuleGrade(
+            studentId,
+            existing.moduleId,
+            null,
+          );
+        }
+      }
     }
     return serializeContent(updated);
   }
 
   async removeContent(userId: string, contentId: string) {
+    // Traemos, antes de borrar, todo lo que el borrado en cascada eliminará:
+    // los archivos físicos referenciados (material/carpeta/entregas) para
+    // limpiarlos del bucket, y los estudiantes con nota de módulo para
+    // recalcularla (una actividad evaluable borrada cambia la ponderación).
     const content = await this.prisma.moduleContent.findUnique({
       where: { id: contentId },
-      select: { moduleId: true },
+      select: {
+        moduleId: true,
+        kind: true,
+        recoveryStage: true,
+        url: true, // MATERIAL (FILE) → ruta /files/...
+        folderFiles: { select: { url: true } }, // FOLDER
+        submissions: {
+          select: {
+            fileUrl: true, // Tarea
+            deliveries: { select: { files: { select: { url: true } } } }, // Proyecto
+          },
+        },
+      },
     });
     if (!content) throw new NotFoundException('Contenido no encontrado');
     await this.ensureTeaches(userId, content.moduleId);
-    await this.ensureModuleNotFinished(content.moduleId);
+    if (content.recoveryStage) {
+      // Borrable aunque el módulo esté concluido; al borrarlo la nota vuelve a
+      // la ponderada original (recompute más abajo). Segunda instancia: admin.
+      if (content.recoveryStage === RecoveryStage.SEGUNDA_INSTANCIA) {
+        await this.ensureAdmin(
+          userId,
+          'Solo un administrador puede eliminar la segunda instancia',
+        );
+      }
+    } else {
+      await this.ensureModuleNotFinished(content.moduleId);
+    }
+
+    // Reúne todas las URLs de blobs propios que quedarán sin referencia.
+    const blobUrls = [
+      content.url,
+      ...content.folderFiles.map((f) => f.url),
+      ...content.submissions.flatMap((s) => [
+        s.fileUrl,
+        ...s.deliveries.flatMap((d) => d.files.map((f) => f.url)),
+      ]),
+    ];
+
+    const isActivity = content.kind === ContentKind.ACTIVITY;
+    // Estudiantes con nota en el módulo (los únicos con finalScore que puede
+    // quedar obsoleto al desaparecer una actividad ponderada).
+    const affectedStudents = isActivity
+      ? await this.prisma.moduleGrade.findMany({
+          where: { moduleId: content.moduleId },
+          select: { studentId: true },
+        })
+      : [];
+
     await this.prisma.moduleContent.delete({ where: { id: contentId } });
+
+    // Recalcula la nota de módulo de cada estudiante afectado sobre las
+    // actividades restantes (recompute del sistema → gradedById null).
+    if (isActivity) {
+      for (const { studentId } of affectedStudents) {
+        await this.grading.recomputeModuleGrade(
+          studentId,
+          content.moduleId,
+          null,
+        );
+      }
+    }
+
+    // Limpieza best-effort de los blobs huérfanos (después del commit de BD).
+    await this.storage.deleteByUrls(blobUrls);
+
     return { success: true };
   }
 
@@ -238,7 +500,15 @@ export class ModuleContentService {
         description: true,
         status: true,
         courseId: true,
-        course: { select: { id: true, name: true, code: true, status: true } },
+        course: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            status: true,
+            passingScore: true,
+          },
+        },
         teachers: {
           orderBy: { assignedAt: 'asc' },
           select: { teacher: { select: { firstName: true, lastName: true } } },
@@ -265,6 +535,11 @@ export class ModuleContentService {
             maxScore: true,
             weight: true,
             isOffline: true,
+            recoveryStage: true,
+            folderFiles: {
+              orderBy: { order: 'asc' },
+              select: { id: true, name: true, url: true, size: true },
+            },
             submissions: {
               where: { studentId },
               select: {
@@ -274,6 +549,18 @@ export class ModuleContentService {
                 score: true,
                 feedback: true,
                 submittedAt: true,
+                deliveries: {
+                  orderBy: { order: 'desc' },
+                  select: {
+                    order: true,
+                    text: true,
+                    createdAt: true,
+                    files: {
+                      select: { name: true, url: true, size: true },
+                      orderBy: { order: 'asc' },
+                    },
+                  },
+                },
               },
             },
             progress: { where: { studentId }, select: { completed: true } },
@@ -298,6 +585,30 @@ export class ModuleContentService {
 
     const grade = module.grades[0];
 
+    // Exámenes de recuperación: visibles solo para el estudiante elegible
+    // (reprobado) o el que ya lo rindió. La segunda instancia exige además
+    // haber rendido (GRADED) el recuperatorio. Los demás no los ven.
+    // "Reprobado" = FAILED o nota bajo el mínimo aunque siga IN_PROGRESS
+    // (módulos concluidos antes de finalizar las notas) — mismo criterio que
+    // `GradingService.recoveryEligibleStudents`.
+    const failed =
+      grade != null &&
+      (grade.status === ModuleGradeStatus.FAILED ||
+        (grade.finalScore != null &&
+          Number(grade.finalScore) < Number(module.course.passingScore)));
+    const recContent = module.contents.find(
+      (c) => c.recoveryStage === RecoveryStage.RECUPERATORIO,
+    );
+    const tookRecuperatorio =
+      recContent?.submissions[0]?.status === SubmissionStatus.GRADED;
+    const visibleContents = module.contents.filter((c) => {
+      if (!c.recoveryStage) return true;
+      if (c.submissions.length > 0) return true; // ya lo rindió → siempre visible
+      if (!failed) return false;
+      if (c.recoveryStage === RecoveryStage.RECUPERATORIO) return true;
+      return tookRecuperatorio; // SEGUNDA_INSTANCIA
+    });
+
     return {
       id: module.id,
       order: module.order,
@@ -318,7 +629,7 @@ export class ModuleContentService {
             observations: grade.observations,
           }
         : null,
-      contents: module.contents.map((c) => {
+      contents: visibleContents.map((c) => {
         const sub = c.submissions[0];
         return {
           id: c.id,
@@ -335,11 +646,23 @@ export class ModuleContentService {
           maxScore: c.maxScore !== null ? Number(c.maxScore) : null,
           weight: c.weight !== null ? Number(c.weight) : null,
           isOffline: c.isOffline,
+          recoveryStage: c.recoveryStage,
+          folderFiles: c.folderFiles,
           completed: c.progress[0]?.completed ?? false,
           submission: sub
             ? {
                 content: sub.text,
                 fileUrl: sub.fileUrl,
+                deliveries: sub.deliveries.map((d) => ({
+                  order: d.order,
+                  text: d.text,
+                  submittedAt: d.createdAt,
+                  files: d.files.map((f) => ({
+                    name: f.name,
+                    url: f.url,
+                    size: f.size,
+                  })),
+                })),
                 status: sub.status,
                 score: sub.score !== null ? Number(sub.score) : null,
                 feedback: sub.feedback,
@@ -393,6 +716,17 @@ export class ModuleContentService {
         data.maxScore = new Prisma.Decimal(dto.maxScore ?? 100);
         data.weight = new Prisma.Decimal(dto.weight ?? 0);
         data.isOffline = dto.isOffline ?? false;
+        // Ajustes del motor de preguntas (QUIZ/EXAM); null en los demás tipos.
+        data.timeLimitMin = dto.timeLimitMin ?? null;
+        data.availableFrom = dto.availableFrom
+          ? new Date(dto.availableFrom)
+          : null;
+        data.availableUntil = dto.availableUntil
+          ? new Date(dto.availableUntil)
+          : null;
+        data.singleAttempt = dto.singleAttempt ?? null;
+        data.shuffle = dto.shuffle ?? null;
+        data.revealAnswers = dto.revealAnswers ?? null;
         break;
     }
     return data;
@@ -428,6 +762,48 @@ export class ModuleContentService {
         data: { courseId: module.courseId, moduleId, activityId: contentId },
       })),
     );
+  }
+
+  // Notifica el examen de recuperación SOLO a los estudiantes elegibles
+  // (reprobados; en segunda instancia, los que reprobaron el recuperatorio).
+  private async notifyRecoveryPublished(
+    moduleId: string,
+    contentId: string,
+    activityTitle: string,
+    stage: RecoveryStage,
+  ) {
+    const [module, eligible] = await Promise.all([
+      this.prisma.courseModule.findUnique({
+        where: { id: moduleId },
+        select: { name: true, courseId: true },
+      }),
+      this.grading.recoveryEligibleStudents(moduleId, stage),
+    ]);
+    if (!module || eligible.length === 0) return;
+    const label =
+      stage === RecoveryStage.SEGUNDA_INSTANCIA
+        ? 'segunda instancia'
+        : 'recuperatorio';
+    await this.notifications.createMany(
+      eligible.map((studentId) => ({
+        userId: studentId,
+        type: NotificationType.ACTIVITY_PUBLISHED,
+        title: `Examen de ${label} habilitado`,
+        body: `Se habilitó el examen de ${label} «${activityTitle}» del módulo «${module.name}». Su nota reemplazará tu nota del módulo.`,
+        data: { courseId: module.courseId, moduleId, activityId: contentId },
+      })),
+    );
+  }
+
+  // Acciones reservadas al ADMIN (p. ej. la segunda instancia).
+  private async ensureAdmin(userId: string, message: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (user?.role !== Role.ADMIN) {
+      throw new ForbiddenException(message);
+    }
   }
 
   // El docente solo gestiona módulos que dicta. Si no lo dicta (o no existe),

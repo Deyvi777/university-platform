@@ -1,7 +1,5 @@
-import { LogOut, Mail, ShieldCheck } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { NAV_ICONS, type NavItem } from "./nav-items";
+import { Mail, ShieldCheck } from "lucide-react";
+import { ProfileCalendar } from "@/components/dashboard/profile-calendar";
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Administrador",
@@ -26,26 +24,23 @@ function initials(name?: string | null, email?: string | null): string {
  * inventamos datos — usamos el espacio para identidad del usuario, su rol y
  * atajos a sus secciones de navegación.
  *
- * Server component: solo recibe datos de sesión y un `logout` server action.
+ * Server component: solo recibe datos de sesión. El cierre de sesión vive al pie
+ * del sidebar (`SidebarLogout`), no en este panel.
  */
 export function ProfilePanel({
   name,
   email,
   role,
-  quickLinks,
-  logout,
 }: {
   name?: string | null;
   email?: string | null;
   role?: string;
-  quickLinks: NavItem[];
-  logout: () => Promise<void>;
 }) {
   const displayName = name?.trim() || "Usuario";
   const roleLabel = role ? (ROLE_LABEL[role] ?? role) : "—";
 
   return (
-    <aside className="hidden xl:block" aria-label="Perfil y accesos rápidos">
+    <aside aria-label="Perfil y calendario">
       <div className="sticky top-6 space-y-5">
         {/* Tarjeta de perfil */}
         <div className="overflow-hidden rounded-3xl border bg-card shadow-sm">
@@ -73,41 +68,9 @@ export function ProfilePanel({
           </div>
         </div>
 
-        {/* Accesos rápidos (los mismos items de nav del rol, excepto "Inicio") */}
-        {quickLinks.length > 0 && (
-          <div className="rounded-3xl border bg-card p-5 shadow-sm">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Accesos rápidos
-            </h3>
-            <ul className="mt-3 space-y-1">
-              {quickLinks.map((item) => {
-                const Icon = NAV_ICONS[item.icon];
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
-                    >
-                      <Icon
-                        className="size-4 shrink-0 text-muted-foreground/80"
-                        aria-hidden="true"
-                      />
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-
-        {/* Cerrar sesión */}
-        <form action={logout}>
-          <Button type="submit" variant="destructive" size="sm" className="w-full">
-            <LogOut className="size-4" />
-            Cerrar sesión
-          </Button>
-        </form>
+        {/* Calendario: fecha actual, feriados de Bolivia, fechas plazo de
+            actividades y recordatorios del usuario. */}
+        <ProfileCalendar role={role} />
       </div>
     </aside>
   );

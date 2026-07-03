@@ -93,7 +93,7 @@ export function NotificationComposeForm({
     const q = query.trim().toLowerCase();
     if (!q) return allUsers;
     return allUsers.filter((u) =>
-      `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(q),
+      `${u.lastName} ${u.firstName} ${u.email}`.toLowerCase().includes(q),
     );
   }, [allUsers, query]);
 
@@ -319,7 +319,7 @@ export function NotificationComposeForm({
 
 /** Fila de usuario: avatar de iniciales + nombre/correo + badge de rol. */
 function UserRow({ user }: { user: AdminUser }) {
-  const initials = `${user.firstName} ${user.lastName}`
+  const initials = `${user.lastName} ${user.firstName}`
     .trim()
     .split(/\s+/)
     .slice(0, 2)
@@ -338,7 +338,7 @@ function UserRow({ user }: { user: AdminUser }) {
       <span className="min-w-0">
         <span className="flex items-center gap-1.5">
           <span className="truncate text-sm font-medium">
-            {user.firstName} {user.lastName}
+            {user.lastName} {user.firstName}
           </span>
           <span
             className={cn(

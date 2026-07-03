@@ -7,9 +7,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { AuthModule } from './auth/auth.module';
+import { CalendarModule } from './calendar/calendar.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ChatModule } from './chat/chat.module';
 import { CoursesModule } from './courses/courses.module';
+import { ForumModule } from './forum/forum.module';
 import { GradingModule } from './grading/grading.module';
 import { ModuleContentModule } from './module-content/module-content.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -17,6 +19,7 @@ import { PartnersModule } from './partners/partners.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProgramsModule } from './programs/programs.module';
 import { QueueModule } from './queue/queue.module';
+import { QuizModule } from './quiz/quiz.module';
 import { SettingsModule } from './settings/settings.module';
 import { StorageModule } from './storage/storage.module';
 import { TeamModule } from './team/team.module';
@@ -41,6 +44,9 @@ import { UsersModule } from './users/users.module';
     GradingModule,
     NotificationsModule,
     ChatModule,
+    CalendarModule,
+    ForumModule,
+    QuizModule,
   ],
   controllers: [AppController],
   providers: [

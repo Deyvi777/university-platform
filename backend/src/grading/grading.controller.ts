@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -37,6 +38,15 @@ export class GradingController {
     @Body() dto: SubmitActivityDto,
   ) {
     return this.grading.submitActivity(user.id, activityId, dto);
+  }
+
+  // Estudiante borra el archivo de su entrega.
+  @Delete('activities/:activityId/submission-file')
+  removeSubmissionFile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('activityId') activityId: string,
+  ) {
+    return this.grading.removeSubmissionFile(user.id, activityId);
   }
 
   // Docente: lista de estudiantes con sus entregas para calificar.

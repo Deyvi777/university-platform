@@ -15,11 +15,11 @@ function counterpartOf(msg: ChatMessage, currentUserId: string): string {
 }
 
 function fullName(c: { firstName: string; lastName: string }): string {
-  return `${c.firstName} ${c.lastName}`.trim();
+  return `${c.lastName} ${c.firstName}`.trim();
 }
 
 function initials(c: { firstName: string; lastName: string }): string {
-  return `${c.firstName.charAt(0)}${c.lastName.charAt(0)}`.toUpperCase();
+  return `${c.lastName.charAt(0)}${c.firstName.charAt(0)}`.toUpperCase();
 }
 
 function formatTime(iso: string): string {

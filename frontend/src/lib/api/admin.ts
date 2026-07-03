@@ -89,6 +89,8 @@ export interface AdminTeamMember {
 
 export type AdminUserRole = "ADMIN" | "PROFESSOR" | "STUDENT";
 
+export type Gender = "MALE" | "FEMALE";
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -96,6 +98,14 @@ export interface AdminUser {
   lastName: string;
   phone: string;
   idDocument: string | null;
+  /** "Expedido en": lugar de emisión del documento (opcional). */
+  issuedIn: string | null;
+  /** Género (obligatorio). */
+  gender: Gender;
+  /** Universidad de origen (opcional). */
+  originUniversity: string | null;
+  /** Profesión (opcional). */
+  profession: string | null;
   role: AdminUserRole;
   isActive: boolean;
   createdAt: string;
@@ -151,6 +161,7 @@ export interface AdminCourse {
   code: string;
   name: string;
   description: string | null;
+  icon: string | null;
   modality: string | null;
   startDate: string | null;
   endDate: string | null;

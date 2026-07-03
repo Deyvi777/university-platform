@@ -63,7 +63,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           id: data.user.id,
           email: data.user.email,
-          name: `${data.user.firstName} ${data.user.lastName}`,
+          // `name` combinado en el orden institucional: "Apellido Nombre".
+          name: `${data.user.lastName} ${data.user.firstName}`,
+          firstName: data.user.firstName,
           role: data.user.role,
           accessToken: data.accessToken,
         };

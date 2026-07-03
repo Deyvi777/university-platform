@@ -1,11 +1,20 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ContentKind, NotificationType, Prisma, Role } from '@prisma/client';
+import {
+  ContentKind,
+  ModuleGradeStatus,
+  ModuleStatus,
+  NotificationType,
+  Prisma,
+  Role,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 import { slugify } from '../common/utils/slugify';
 import {
   AddEnrollmentsDto,
@@ -38,6 +47,7 @@ export class CoursesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly storage: StorageService,
   ) {}
 
   findAllAdmin() {
@@ -92,6 +102,7 @@ export class CoursesService {
           id: true,
           code: true,
           name: true,
+          icon: true,
           modality: true,
           status: true,
           startDate: true,
@@ -107,6 +118,7 @@ export class CoursesService {
         id: c.id,
         code: c.code,
         name: c.name,
+        icon: c.icon,
         modality: c.modality,
         status: c.status,
         startDate: c.startDate,
@@ -126,6 +138,7 @@ export class CoursesService {
           id: true,
           code: true,
           name: true,
+          icon: true,
           modality: true,
           status: true,
           startDate: true,
@@ -155,6 +168,7 @@ export class CoursesService {
         id: c.id,
         code: c.code,
         name: c.name,
+        icon: c.icon,
         modality: c.modality,
         status: c.status,
         startDate: c.startDate,
@@ -514,21 +528,47 @@ export class CoursesService {
       data.passingScore = new Prisma.Decimal(passingScore);
     }
 
+    // Módulos que el admin quitó de la lista → se borran en cascada. Antes de
+    // eso: (a) si tienen notas o entregas de estudiantes, se rechaza (409) para
+    // no destruir trabajo académico en silencio; (b) se recolectan los blobs
+    // que la cascada dejaría huérfanos, para limpiarlos del bucket al final.
+    let removedIds: string[] = [];
+    let orphanBlobUrls: (string | null)[] = [];
+    if (modules !== undefined) {
+      const keepSet = new Set(
+        modules.map((m) => m.id).filter((x): x is string => Boolean(x)),
+      );
+      removedIds = existing.modules
+        .map((m) => m.id)
+        .filter((mid) => !keepSet.has(mid));
+      if (removedIds.length > 0) {
+        const [gradeCount, submissionCount] = await Promise.all([
+          this.prisma.moduleGrade.count({
+            where: { moduleId: { in: removedIds } },
+          }),
+          this.prisma.submission.count({
+            where: { content: { moduleId: { in: removedIds } } },
+          }),
+        ]);
+        if (gradeCount > 0 || submissionCount > 0) {
+          throw new ConflictException(
+            'No se puede quitar un módulo que ya tiene notas o entregas de estudiantes. Márcalo como Concluido, o elimina el programa completo si corresponde.',
+          );
+        }
+        orphanBlobUrls = await this.collectModuleBlobUrls(removedIds);
+      }
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await tx.course.update({ where: { id }, data });
 
       if (modules !== undefined) {
-        const keepIds = modules
-          .map((m) => m.id)
-          .filter((x): x is string => Boolean(x));
-
-        // Borra los módulos que el admin quitó (cascada: sus docentes/notas).
-        await tx.courseModule.deleteMany({
-          where: {
-            courseId: id,
-            id: { notIn: keepIds.length ? keepIds : [''] },
-          },
-        });
+        // Borra los módulos que el admin quitó (cascada: docentes/contenidos).
+        if (removedIds.length > 0) {
+          await tx.courseModule.deleteMany({
+            where: { courseId: id, id: { in: removedIds } },
+          });
+        }
 
         // Reasignar `order` por posición sin chocar con @@unique([courseId,order]):
         // primero a un rango temporal alto, luego al definitivo.
@@ -563,13 +603,57 @@ export class CoursesService {
       }
     });
 
+    // Limpieza best-effort de los blobs de los módulos quitados (tras commit).
+    if (orphanBlobUrls.length > 0) {
+      await this.storage.deleteByUrls(orphanBlobUrls);
+    }
+
     return this.findOneAdmin(id);
   }
 
   async remove(id: string) {
-    await this.findOneAdmin(id);
+    const course = await this.findOneAdmin(id);
+    // La cascada borra módulos → contenidos → entregas; recolectar antes los
+    // archivos referenciados para limpiarlos del bucket (mismo contrato que
+    // ModuleContentService.removeContent).
+    const blobUrls = await this.collectModuleBlobUrls(
+      course.modules.map((m) => m.id),
+    );
     await this.prisma.course.delete({ where: { id } });
+    await this.storage.deleteByUrls(blobUrls);
     return { success: true };
+  }
+
+  /**
+   * URLs de blobs propios que el borrado en cascada de estos módulos dejaría
+   * huérfanas: materiales (MATERIAL `url`), archivos de carpetas y las entregas
+   * de estudiantes (Tarea `fileUrl` + archivos de cada `ProjectDelivery`).
+   */
+  private async collectModuleBlobUrls(
+    moduleIds: string[],
+  ): Promise<(string | null)[]> {
+    if (moduleIds.length === 0) return [];
+    const contents = await this.prisma.moduleContent.findMany({
+      where: { moduleId: { in: moduleIds } },
+      select: {
+        url: true,
+        folderFiles: { select: { url: true } },
+        submissions: {
+          select: {
+            fileUrl: true,
+            deliveries: { select: { files: { select: { url: true } } } },
+          },
+        },
+      },
+    });
+    return contents.flatMap((c) => [
+      c.url,
+      ...c.folderFiles.map((f) => f.url),
+      ...c.submissions.flatMap((s) => [
+        s.fileUrl,
+        ...s.deliveries.flatMap((d) => d.files.map((f) => f.url)),
+      ]),
+    ]);
   }
 
   // ---- Co-docencia: docentes de un módulo ----
@@ -647,7 +731,51 @@ export class CoursesService {
       where: { id: moduleId },
       data: { status: dto.status },
     });
+    // Al CONCLUIR el módulo, las notas dejan de estar "en curso": se finalizan
+    // a Aprobado/Reprobado según el mínimo del curso. Esto habilita el examen
+    // de recuperación para los reprobados (que si no quedarían IN_PROGRESS).
+    if (dto.status === ModuleStatus.FINISHED) {
+      await this.finalizeModuleGrades(moduleId);
+    }
     return this.findOneAdmin(courseId);
+  }
+
+  /**
+   * Finaliza las notas de un módulo concluido: cada `ModuleGrade` con nota
+   * calculada que seguía `IN_PROGRESS` pasa a `PASSED`/`FAILED` según el
+   * `passingScore` del curso (las actividades sin calificar ya cuentan como 0
+   * en `finalScore`). No toca filas sin `finalScore` (nunca se calificó nada).
+   */
+  private async finalizeModuleGrades(moduleId: string) {
+    const module = await this.prisma.courseModule.findUnique({
+      where: { id: moduleId },
+      select: { course: { select: { passingScore: true } } },
+    });
+    if (!module) return;
+    const passing = Number(module.course.passingScore);
+    const grades = await this.prisma.moduleGrade.findMany({
+      where: {
+        moduleId,
+        status: ModuleGradeStatus.IN_PROGRESS,
+        finalScore: { not: null },
+      },
+      select: { id: true, finalScore: true },
+    });
+    if (grades.length === 0) return;
+    await this.prisma.$transaction(
+      grades.map((g) =>
+        this.prisma.moduleGrade.update({
+          where: { id: g.id },
+          data: {
+            status:
+              Number(g.finalScore) >= passing
+                ? ModuleGradeStatus.PASSED
+                : ModuleGradeStatus.FAILED,
+            gradedAt: new Date(),
+          },
+        }),
+      ),
+    );
   }
 
   // ---- Inscripción de estudiantes (a nivel de programa/curso) ----

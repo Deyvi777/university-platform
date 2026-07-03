@@ -30,7 +30,10 @@ type ParsedStudent = {
   email: string;
   phone: string;
   idDocument: string;
-  password: string;
+  issuedIn: string;
+  gender: string;
+  originUniversity: string;
+  profession: string;
 };
 
 /**
@@ -43,7 +46,6 @@ const COLUMNS: {
   example: string;
   aliases: string[];
 }[] = [
-  { key: "firstName", header: "Nombre", example: "Juan", aliases: ["nombre", "nombres"] },
   {
     key: "lastName",
     header: "Apellido",
@@ -51,16 +53,10 @@ const COLUMNS: {
     aliases: ["apellido", "apellidos"],
   },
   {
-    key: "email",
-    header: "Correo electrónico",
-    example: "juan.perez@ejemplo.com",
-    aliases: ["correo electronico", "correo", "email", "e-mail"],
-  },
-  {
-    key: "phone",
-    header: "Teléfono",
-    example: "71234567",
-    aliases: ["telefono", "celular", "telefono/celular"],
+    key: "firstName",
+    header: "Nombre",
+    example: "Juan",
+    aliases: ["nombre", "nombres"],
   },
   {
     key: "idDocument",
@@ -69,10 +65,40 @@ const COLUMNS: {
     aliases: ["documento de identidad", "documento", "carnet", "ci", "cedula"],
   },
   {
-    key: "password",
-    header: "Contraseña",
-    example: "Estudiante2026!",
-    aliases: ["contrasena", "password", "clave"],
+    key: "issuedIn",
+    header: "Expedido en",
+    example: "La Paz",
+    aliases: ["expedido en", "expedido", "lugar de expedicion", "expedicion"],
+  },
+  {
+    key: "gender",
+    header: "Género (Masculino/Femenino)",
+    example: "Masculino",
+    aliases: ["genero", "genero (masculino/femenino)", "sexo"],
+  },
+  {
+    key: "phone",
+    header: "Teléfono",
+    example: "71234567",
+    aliases: ["telefono", "celular", "telefono/celular"],
+  },
+  {
+    key: "email",
+    header: "Correo electrónico",
+    example: "juan.perez@ejemplo.com",
+    aliases: ["correo electronico", "correo", "email", "e-mail"],
+  },
+  {
+    key: "originUniversity",
+    header: "Universidad de origen",
+    example: "Universidad Mayor de San Andrés",
+    aliases: ["universidad de origen", "universidad", "universidad origen"],
+  },
+  {
+    key: "profession",
+    header: "Profesión",
+    example: "Ingeniería de Sistemas",
+    aliases: ["profesion", "profesión", "carrera"],
   },
 ];
 
@@ -112,13 +138,21 @@ function mapRow(row: Record<string, unknown>): ParsedStudent | null {
     return "";
   };
 
+  // Búsqueda de alias por clave (no por índice) para no depender del orden de
+  // las columnas en la plantilla.
+  const aliasesFor = (key: keyof ParsedStudent): string[] =>
+    COLUMNS.find((c) => c.key === key)?.aliases ?? [];
+
   const student: ParsedStudent = {
-    firstName: get(COLUMNS[0].aliases),
-    lastName: get(COLUMNS[1].aliases),
-    email: get(COLUMNS[2].aliases),
-    phone: get(COLUMNS[3].aliases),
-    idDocument: get(COLUMNS[4].aliases),
-    password: get(COLUMNS[5].aliases),
+    firstName: get(aliasesFor("firstName")),
+    lastName: get(aliasesFor("lastName")),
+    email: get(aliasesFor("email")),
+    phone: get(aliasesFor("phone")),
+    idDocument: get(aliasesFor("idDocument")),
+    issuedIn: get(aliasesFor("issuedIn")),
+    gender: get(aliasesFor("gender")),
+    originUniversity: get(aliasesFor("originUniversity")),
+    profession: get(aliasesFor("profession")),
   };
 
   // Ignora filas totalmente vacías (p. ej. la fila de ejemplo borrada a medias).
@@ -224,10 +258,14 @@ export function BulkUploadStudents() {
               <div className="min-w-0">
                 <p className="text-sm font-medium">1. Descarga la plantilla</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Incluye una fila de ejemplo. La columna{" "}
-                  <span className="font-medium">Contraseña</span> es obligatoria
-                  (mínimo 6 caracteres); <span className="font-medium">Documento de identidad</span>{" "}
-                  es opcional.
+                  Incluye una fila de ejemplo. El{" "}
+                  <span className="font-medium">Documento de identidad</span> es
+                  obligatorio: con él se genera la contraseña automáticamente
+                  (inicial del nombre + inicial del apellido + documento). En{" "}
+                  <span className="font-medium">Género</span> escribe
+                  «Masculino» o «Femenino» (si se deja vacío se asume
+                  Masculino). Expedido en, Universidad de origen y Profesión son
+                  opcionales.
                 </p>
                 <Button
                   type="button"

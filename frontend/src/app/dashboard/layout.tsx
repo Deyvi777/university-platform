@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
-import { DashboardShell, HeaderLogout, ProfileToggle } from "./dashboard-shell";
+import { DashboardShell, ProfileToggle } from "./dashboard-shell";
 import {
   DashboardSidebar,
   SidebarProvider,
@@ -10,11 +10,7 @@ import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { listNotifications } from "@/lib/api/notifications";
 import { listMyCourses } from "@/lib/api/me";
-import {
-  navSectionsForRole,
-  quickLinksFromSections,
-  type SidebarProgram,
-} from "./nav-items";
+import { navSectionsForRole, type SidebarProgram } from "./nav-items";
 import { ProfilePanel } from "./profile-panel";
 
 export default async function DashboardLayout({
@@ -49,8 +45,6 @@ export default async function DashboardLayout({
     role === "STUDENT" ? "/dashboard/aula" : "/dashboard/modulos";
 
   const navSections = navSectionsForRole(role);
-  // Accesos rápidos = items de nav (aplanados) sin "Inicio" (href base del panel).
-  const quickLinks = quickLinksFromSections(navSections);
 
   async function logout() {
     "use server";
@@ -112,9 +106,6 @@ export default async function DashboardLayout({
           <ThemeToggle />
           {/* Ocultar/mostrar el panel de perfil derecho (escritorio xl+) */}
           <ProfileToggle />
-          {/* Salir compacto: bajo xl siempre; en xl+ solo si el panel de
-              perfil (que también tiene "Cerrar sesión") está oculto. */}
-          <HeaderLogout logout={logout} />
         </div>
       </div>
     </header>
@@ -142,8 +133,6 @@ export default async function DashboardLayout({
               name={session?.user?.name}
               email={session?.user?.email}
               role={session?.user?.role}
-              quickLinks={quickLinks}
-              logout={logout}
             />
           }
         >

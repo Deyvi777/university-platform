@@ -8,21 +8,20 @@ import type { MyCourse } from "@/lib/api/me";
  * cuando todavía no tiene ninguno.
  */
 export function MyCoursesHome({
-  name,
+  firstName,
   greeting,
   intro,
   courses,
   emptyTitle,
   emptyDescription,
 }: {
-  name?: string | null;
+  firstName?: string | null;
   greeting: string;
   intro: string;
   courses: MyCourse[];
   emptyTitle: string;
   emptyDescription: string;
 }) {
-  const firstName = name?.trim().split(/\s+/)[0];
 
   return (
     <div>
@@ -34,13 +33,13 @@ export function MyCoursesHome({
       </header>
 
       <section aria-labelledby="mis-cursos" className="mt-8">
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex items-baseline gap-2">
           <h2 id="mis-cursos" className="font-heading text-lg font-semibold">
             Mis cursos
           </h2>
           {courses.length > 0 && (
-            <span className="text-sm text-muted-foreground">
-              {courses.length} {courses.length === 1 ? "curso" : "cursos"}
+            <span className="text-lg font-semibold text-muted-foreground">
+              ({courses.length})
             </span>
           )}
         </div>

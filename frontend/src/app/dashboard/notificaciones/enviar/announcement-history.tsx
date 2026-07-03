@@ -158,7 +158,7 @@ export function AnnouncementHistory({
                   </span>
                   <span aria-hidden="true">·</span>
                   <span>
-                    {a.sender.firstName} {a.sender.lastName}
+                    {a.sender.lastName} {a.sender.firstName}
                   </span>
                 </div>
               </li>

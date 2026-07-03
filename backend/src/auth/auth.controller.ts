@@ -9,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../common/decorators/current-user.decorator';
@@ -18,10 +17,8 @@ import type { AuthenticatedUser } from '../common/decorators/current-user.decora
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
-  }
+  // No hay registro público: las cuentas las crea el ADMIN desde el panel
+  // (/admin/users). El endpoint POST /auth/register se eliminó a propósito.
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

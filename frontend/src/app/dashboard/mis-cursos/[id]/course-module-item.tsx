@@ -143,7 +143,7 @@ export function CourseModuleItem({
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {module.teachers.map((t) => {
-                const initials = `${t.firstName} ${t.lastName}`
+                const initials = `${t.lastName} ${t.firstName}`
                   .split(/\s+/)
                   .slice(0, 2)
                   .map((p) => p[0]?.toUpperCase() ?? "")
@@ -160,7 +160,7 @@ export function CourseModuleItem({
                       {initials}
                     </span>
                     <span className="text-xs font-medium">
-                      {t.firstName} {t.lastName}
+                      {t.lastName} {t.firstName}
                     </span>
                   </span>
                 );

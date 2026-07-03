@@ -5,11 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ActivityType,
   ContentKind,
   ModuleGradeStatus,
   ModuleStatus,
   NotificationType,
   Prisma,
+  RecoveryStage,
   Role,
   SubmissionStatus,
 } from '@prisma/client';
@@ -46,6 +48,7 @@ export class GradingService {
       where: { id: contentId },
       select: {
         kind: true,
+        activityType: true,
         isPublished: true,
         dueDate: true,
         module: {
@@ -91,6 +94,44 @@ export class GradingService {
       content.dueDate && now > content.dueDate
         ? SubmissionStatus.LATE
         : SubmissionStatus.SUBMITTED;
+    const isProject = content.activityType === ActivityType.PROJECT;
+
+    // Proyecto → cada envío crea una NUEVA entrega en el historial (nunca
+    // reemplaza las anteriores). La `Submission` conserva la nota única.
+    if (isProject) {
+      return this.prisma.$transaction(async (tx) => {
+        const submission = await tx.submission.upsert({
+          where: { contentId_studentId: { contentId, studentId } },
+          create: { contentId, studentId, status, submittedAt: now },
+          update: { status, submittedAt: now },
+        });
+        const last = await tx.projectDelivery.findFirst({
+          where: { submissionId: submission.id },
+          orderBy: { order: 'desc' },
+          select: { order: true },
+        });
+        await tx.projectDelivery.create({
+          data: {
+            submissionId: submission.id,
+            order: (last?.order ?? 0) + 1,
+            text: dto.content?.trim() || null,
+            files: dto.files?.length
+              ? {
+                  create: dto.files.map((f, i) => ({
+                    order: i,
+                    name: f.name,
+                    url: f.url,
+                    size: f.size ?? null,
+                  })),
+                }
+              : undefined,
+          },
+        });
+        return submission;
+      });
+    }
+
+    // Tarea (ASSIGNMENT) → un texto + un archivo único; el envío reemplaza.
     const data = {
       text: dto.content?.trim() || null,
       fileUrl: dto.fileUrl?.trim() || null,
@@ -102,6 +143,69 @@ export class GradingService {
       create: { contentId, studentId, ...data },
       update: data,
     });
+  }
+
+  /**
+   * Estudiante borra el archivo de su entrega. Si la entrega también tiene texto,
+   * se conserva (solo se limpia el archivo); si quedaría vacía, se elimina la
+   * entrega completa (vuelve a "Sin entregar"). No se permite si ya fue
+   * calificada o el módulo está concluido.
+   */
+  async removeSubmissionFile(studentId: string, contentId: string) {
+    const content = await this.prisma.moduleContent.findUnique({
+      where: { id: contentId },
+      select: {
+        kind: true,
+        isPublished: true,
+        module: {
+          select: {
+            courseId: true,
+            status: true,
+            course: { select: { status: true } },
+          },
+        },
+      },
+    });
+    if (
+      !content ||
+      content.kind !== ContentKind.ACTIVITY ||
+      !content.isPublished
+    ) {
+      throw new NotFoundException('Actividad no encontrada');
+    }
+    const enrolled = await this.prisma.enrollment.findUnique({
+      where: {
+        studentId_courseId: { studentId, courseId: content.module.courseId },
+      },
+      select: { id: true },
+    });
+    if (!enrolled || content.module.course.status === 'DRAFT') {
+      throw new NotFoundException('Actividad no encontrada');
+    }
+    if (content.module.status === ModuleStatus.FINISHED) {
+      throw new ForbiddenException(MODULE_FINISHED_MSG);
+    }
+
+    const submission = await this.prisma.submission.findUnique({
+      where: { contentId_studentId: { contentId, studentId } },
+      select: { id: true, text: true, fileUrl: true, status: true },
+    });
+    if (!submission || !submission.fileUrl) {
+      throw new BadRequestException('No hay archivo que borrar');
+    }
+    if (submission.status === SubmissionStatus.GRADED) {
+      throw new BadRequestException('Tu entrega ya fue calificada');
+    }
+
+    // Si la entrega tiene texto, se conserva sin el archivo; si no, se elimina.
+    if (submission.text?.trim()) {
+      return this.prisma.submission.update({
+        where: { id: submission.id },
+        data: { fileUrl: null },
+      });
+    }
+    await this.prisma.submission.delete({ where: { id: submission.id } });
+    return { ok: true };
   }
 
   // ── Docente: vista de calificación de una actividad ─────────────────────────
@@ -118,6 +222,7 @@ export class GradingService {
         maxScore: true,
         weight: true,
         dueDate: true,
+        recoveryStage: true,
         moduleId: true,
         module: {
           select: {
@@ -152,6 +257,18 @@ export class GradingService {
           score: true,
           feedback: true,
           submittedAt: true,
+          deliveries: {
+            orderBy: { order: 'desc' },
+            select: {
+              order: true,
+              text: true,
+              createdAt: true,
+              files: {
+                select: { name: true, url: true, size: true },
+                orderBy: { order: 'asc' },
+              },
+            },
+          },
         },
       }),
     ]);
@@ -166,6 +283,7 @@ export class GradingService {
         maxScore: content.maxScore !== null ? Number(content.maxScore) : 0,
         weight: content.weight !== null ? Number(content.weight) : 0,
         dueDate: content.dueDate,
+        recoveryStage: content.recoveryStage,
         module: {
           id: content.module.id,
           name: content.module.name,
@@ -182,6 +300,16 @@ export class GradingService {
             ? {
                 content: s.text,
                 fileUrl: s.fileUrl,
+                deliveries: s.deliveries.map((d) => ({
+                  order: d.order,
+                  text: d.text,
+                  submittedAt: d.createdAt,
+                  files: d.files.map((f) => ({
+                    name: f.name,
+                    url: f.url,
+                    size: f.size,
+                  })),
+                })),
                 status: s.status,
                 score: s.score !== null ? Number(s.score) : null,
                 feedback: s.feedback,
@@ -263,12 +391,61 @@ export class GradingService {
     return { success: true };
   }
 
-  // ── Recalcular la nota del módulo (ponderada por peso de actividades) ────────
-
-  private async recomputeModuleGrade(
+  /**
+   * Puente del motor de quiz con la libreta: escribe en la `Submission` de la
+   * actividad el resultado de un intento y recalcula la nota del módulo cuando
+   * ya está calificado del todo. `graded=false` (hay ensayos pendientes) deja la
+   * entrega en SUBMITTED sin nota; al corregir los ensayos se llama de nuevo con
+   * `graded=true`. La autocalificación pasa `graderId=null`.
+   */
+  async applyQuizResult(
+    contentId: string,
     studentId: string,
     moduleId: string,
-    gradedById: string,
+    opts: {
+      score: number;
+      graded: boolean;
+      feedback?: string | null;
+      graderId?: string | null;
+    },
+  ) {
+    const now = new Date();
+    const data = opts.graded
+      ? {
+          status: SubmissionStatus.GRADED,
+          score: new Prisma.Decimal(opts.score),
+          feedback: opts.feedback ?? null,
+          submittedAt: now,
+          gradedById: opts.graderId ?? null,
+          gradedAt: now,
+        }
+      : {
+          status: SubmissionStatus.SUBMITTED,
+          score: null,
+          feedback: opts.feedback ?? null,
+          submittedAt: now,
+        };
+    await this.prisma.submission.upsert({
+      where: { contentId_studentId: { contentId, studentId } },
+      create: { contentId, studentId, ...data },
+      update: data,
+    });
+    // Recalcular siempre: también cuando la entrega vuelve a SUBMITTED (ensayos
+    // pendientes), para que la nota del módulo no conserve el puntaje de un
+    // intento anterior ya reemplazado.
+    await this.recomputeModuleGrade(
+      studentId,
+      moduleId,
+      opts.graded ? (opts.graderId ?? null) : null,
+    );
+  }
+
+  // ── Recalcular la nota del módulo (ponderada por peso de actividades) ────────
+
+  async recomputeModuleGrade(
+    studentId: string,
+    moduleId: string,
+    gradedById: string | null,
   ) {
     const module = await this.prisma.courseModule.findUnique({
       where: { id: moduleId },
@@ -276,15 +453,28 @@ export class GradingService {
         course: { select: { passingScore: true } },
         contents: {
           where: { kind: ContentKind.ACTIVITY, isPublished: true },
-          select: { id: true, maxScore: true, weight: true },
+          select: {
+            id: true,
+            maxScore: true,
+            weight: true,
+            recoveryStage: true,
+          },
         },
       },
     });
     if (!module) return;
 
-    const weighted = module.contents.filter((a) => Number(a.weight ?? 0) > 0);
+    // Los exámenes de recuperación NO ponderan con las demás actividades: si el
+    // estudiante rindió uno (calificado), su nota reemplaza la nota del módulo.
+    const regular = module.contents.filter((a) => a.recoveryStage === null);
+    const recovery = module.contents.filter((a) => a.recoveryStage !== null);
+    const recoveryScore = await this.recoveryOverride(studentId, recovery);
+
+    const weighted = regular.filter((a) => Number(a.weight ?? 0) > 0);
     const totalWeight = weighted.reduce((s, a) => s + Number(a.weight ?? 0), 0);
-    if (totalWeight === 0) return; // sin pesos no se puede ponderar
+    // Sin pesos no se puede ponderar (salvo que haya nota de recuperación,
+    // que no depende de la ponderación).
+    if (totalWeight === 0 && recoveryScore === null) return;
 
     const subs = await this.prisma.submission.findMany({
       where: {
@@ -305,18 +495,33 @@ export class GradingService {
     for (const a of weighted) {
       const sc = scoreOf.get(a.id);
       if (sc !== undefined) {
-        acc += (sc / Number(a.maxScore ?? 100)) * 100 * Number(a.weight ?? 0);
+        // maxScore null/0 → la actividad aporta 0 en vez de dividir entre cero
+        // (el NaN se propagaría a finalScore y de ahí al kárdex).
+        const max = Number(a.maxScore ?? 0);
+        if (max > 0) acc += (sc / max) * 100 * Number(a.weight ?? 0);
         gradedCount += 1;
       }
     }
-    const finalScore = Math.round((acc / totalWeight) * 100) / 100;
-    const allGraded = gradedCount === weighted.length;
     const passing = Number(module.course.passingScore);
-    const status: ModuleGradeStatus = !allGraded
-      ? ModuleGradeStatus.IN_PROGRESS
-      : finalScore >= passing
-        ? ModuleGradeStatus.PASSED
-        : ModuleGradeStatus.FAILED;
+    let finalScore: number;
+    let status: ModuleGradeStatus;
+    if (recoveryScore !== null) {
+      // La recuperación pisa la nota ponderada: es directamente la nota final
+      // (el módulo ya está concluido, así que aprueba/reprueba de inmediato).
+      finalScore = recoveryScore;
+      status =
+        finalScore >= passing
+          ? ModuleGradeStatus.PASSED
+          : ModuleGradeStatus.FAILED;
+    } else {
+      finalScore = Math.round((acc / totalWeight) * 100) / 100;
+      const allGraded = gradedCount === weighted.length;
+      status = !allGraded
+        ? ModuleGradeStatus.IN_PROGRESS
+        : finalScore >= passing
+          ? ModuleGradeStatus.PASSED
+          : ModuleGradeStatus.FAILED;
+    }
 
     await this.prisma.moduleGrade.upsert({
       where: { studentId_moduleId: { studentId, moduleId } },
@@ -335,6 +540,101 @@ export class GradingService {
         gradedAt: new Date(),
       },
     });
+  }
+
+  /**
+   * Nota de recuperación del estudiante en base 100, o null si no rindió
+   * ninguna. La SEGUNDA_INSTANCIA (si está calificada) pisa al RECUPERATORIO;
+   * cualquiera de las dos pisa a la nota ponderada. Solo cuentan entregas
+   * GRADED ("pisa solo si lo rinde": sin rendir conserva su nota original).
+   */
+  private async recoveryOverride(
+    studentId: string,
+    recovery: {
+      id: string;
+      maxScore: Prisma.Decimal | null;
+      recoveryStage: RecoveryStage | null;
+    }[],
+  ): Promise<number | null> {
+    if (recovery.length === 0) return null;
+    const subs = await this.prisma.submission.findMany({
+      where: {
+        studentId,
+        status: SubmissionStatus.GRADED,
+        contentId: { in: recovery.map((a) => a.id) },
+      },
+      select: { contentId: true, score: true },
+    });
+    const byContent = new Map(subs.map((s) => [s.contentId, s.score]));
+    const pick = (stage: RecoveryStage): number | null => {
+      const content = recovery.find((a) => a.recoveryStage === stage);
+      if (!content) return null;
+      const score = byContent.get(content.id);
+      if (score === undefined || score === null) return null;
+      const max = Number(content.maxScore ?? 0);
+      if (max <= 0) return null;
+      return Math.round((Number(score) / max) * 100 * 100) / 100;
+    };
+    return (
+      pick(RecoveryStage.SEGUNDA_INSTANCIA) ?? pick(RecoveryStage.RECUPERATORIO)
+    );
+  }
+
+  /**
+   * Estudiantes elegibles para rendir un examen de recuperación del módulo:
+   * los que tienen nota REPROBADA. Para la SEGUNDA_INSTANCIA además deben
+   * haber rendido (GRADED) el recuperatorio — es para quien lo reprobó.
+   *
+   * "Reprobado" = `status FAILED` o `finalScore` por debajo del mínimo aunque
+   * la fila siga `IN_PROGRESS` (módulos concluidos antes de que se finalizaran
+   * las notas: el examen de recuperación vive en módulos ya concluidos, así que
+   * una nota bajo el mínimo es definitiva).
+   */
+  async recoveryEligibleStudents(
+    moduleId: string,
+    stage: RecoveryStage,
+  ): Promise<string[]> {
+    const module = await this.prisma.courseModule.findUnique({
+      where: { id: moduleId },
+      select: { course: { select: { passingScore: true } } },
+    });
+    if (!module) return [];
+    const failed = await this.prisma.moduleGrade.findMany({
+      where: {
+        moduleId,
+        OR: [
+          { status: ModuleGradeStatus.FAILED },
+          { finalScore: { lt: module.course.passingScore } },
+        ],
+      },
+      select: { studentId: true },
+    });
+    const ids = failed.map((f) => f.studentId);
+    if (stage === RecoveryStage.RECUPERATORIO || ids.length === 0) return ids;
+    const rec = await this.prisma.moduleContent.findFirst({
+      where: { moduleId, recoveryStage: RecoveryStage.RECUPERATORIO },
+      select: { id: true },
+    });
+    if (!rec) return [];
+    const subs = await this.prisma.submission.findMany({
+      where: {
+        contentId: rec.id,
+        studentId: { in: ids },
+        status: SubmissionStatus.GRADED,
+      },
+      select: { studentId: true },
+    });
+    return subs.map((s) => s.studentId);
+  }
+
+  /** ¿Este estudiante puede rendir el examen de recuperación de esta etapa? */
+  async isRecoveryEligible(
+    studentId: string,
+    moduleId: string,
+    stage: RecoveryStage,
+  ): Promise<boolean> {
+    const eligible = await this.recoveryEligibleStudents(moduleId, stage);
+    return eligible.includes(studentId);
   }
 
   // ── Docente: libreta de calificaciones del módulo ──────────────────────────
@@ -373,6 +673,7 @@ export class GradingService {
             weight: true,
             isPublished: true,
             isOffline: true,
+            recoveryStage: true,
           },
         },
         grades: {
@@ -421,6 +722,7 @@ export class GradingService {
         weight: c.weight !== null ? Number(c.weight) : 0,
         isPublished: c.isPublished,
         isOffline: c.isOffline,
+        recoveryStage: c.recoveryStage,
       })),
       students: module.course.enrollments.map((e) => {
         const st = e.student;

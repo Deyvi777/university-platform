@@ -31,7 +31,7 @@ type SortDir = "asc" | "desc";
 function sortValue(user: AdminUser, key: SortKey): string {
   switch (key) {
     case "name":
-      return `${user.firstName} ${user.lastName}`.toLowerCase();
+      return `${user.lastName} ${user.firstName}`.toLowerCase();
     case "email":
       return user.email.toLowerCase();
     case "idDocument":
@@ -66,7 +66,7 @@ export function StudentGradesTable({ students }: { students: AdminUser[] }) {
     const filtered = q
       ? students.filter(
           (u) =>
-            normalize(`${u.firstName} ${u.lastName}`).includes(q) ||
+            normalize(`${u.lastName} ${u.firstName}`).includes(q) ||
             normalize(u.email).includes(q) ||
             normalize(u.idDocument ?? "").includes(q),
         )
@@ -104,7 +104,7 @@ export function StudentGradesTable({ students }: { students: AdminUser[] }) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por nombre, correo o documento…"
+            placeholder="Buscar por apellido, nombre, correo o documento…"
             aria-label="Buscar estudiante"
             className="pl-9"
           />
@@ -116,7 +116,7 @@ export function StudentGradesTable({ students }: { students: AdminUser[] }) {
           <TableHeader>
             <TableRow>
               <SortableHead
-                label="Nombre"
+                label="Apellidos y nombre"
                 column="name"
                 sortKey={sortKey}
                 sortDir={sortDir}
@@ -170,7 +170,7 @@ export function StudentGradesTable({ students }: { students: AdminUser[] }) {
             {visible.map((student) => (
               <TableRow key={student.id}>
                 <TableCell className="font-medium">
-                  {student.firstName} {student.lastName}
+                  {student.lastName} {student.firstName}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {student.email}
@@ -182,7 +182,7 @@ export function StudentGradesTable({ students }: { students: AdminUser[] }) {
                   <div className="flex items-center justify-end gap-2">
                     <WhatsAppButton
                       phone={student.phone}
-                      name={`${student.firstName} ${student.lastName}`}
+                      name={`${student.lastName} ${student.firstName}`}
                     />
                     <StudentNotesButton student={student} />
                     <StudentKardexButton student={student} />

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { NotificationType, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -117,7 +121,7 @@ export class ChatService {
     await this.ensureTeaches(userId, role, moduleId);
     const enrollments = await this.prisma.enrollment.findMany({
       where: { courseId: module.courseId },
-      orderBy: { student: { firstName: 'asc' } },
+      orderBy: { student: { lastName: 'asc' } },
       select: {
         student: { select: { id: true, firstName: true, lastName: true } },
       },
@@ -175,7 +179,7 @@ export class ChatService {
       counterpartId,
     );
     const body = rawBody.trim();
-    if (!body) throw new NotFoundException('Mensaje vacío');
+    if (!body) throw new BadRequestException('Mensaje vacío');
 
     const created = await this.prisma.chatMessage.create({
       data: {
@@ -228,7 +232,7 @@ export class ChatService {
     });
 
     const senderName = sender
-      ? `${sender.firstName} ${sender.lastName}`
+      ? `${sender.lastName} ${sender.firstName}`
       : 'Alguien';
     const preview = body.length > 280 ? `${body.slice(0, 280)}…` : body;
     // Cuerpo estructurado: encabezado «Mensaje» + el texto, una separación, y
@@ -333,10 +337,17 @@ export class ChatService {
       return { moduleId, studentId, teacherId };
     }
 
-    // Docente / admin.
+    // Docente. A diferencia de otras vistas, aquí el ADMIN NO pasa: una
+    // conversación exige que el lado docente sea un ModuleTeacher real — el
+    // estudiante solo ve como contactos a los docentes del módulo, así que un
+    // admin escribiendo crearía una conversación que el estudiante nunca vería.
     const teacherId = userId;
     const studentId = counterpartId;
-    await this.ensureTeaches(userId, role, moduleId);
+    const teaches = await this.prisma.moduleTeacher.findUnique({
+      where: { moduleId_teacherId: { moduleId, teacherId } },
+      select: { id: true },
+    });
+    if (!teaches) throw new NotFoundException('Conversación no encontrada');
     const enrolled = await this.prisma.enrollment.findUnique({
       where: {
         studentId_courseId: { studentId, courseId: module.courseId },

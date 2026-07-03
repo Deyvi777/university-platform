@@ -3,14 +3,19 @@ import { Readable } from 'node:stream';
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+
+/** Prefijo de las rutas relativas que sirve `GET /files/:folder/:filename`. */
+const FILES_PREFIX = '/files/';
 
 export interface UploadedFileLike {
   buffer: Buffer;
@@ -53,6 +58,7 @@ export const ALLOWED_DOCUMENT_MIME = Object.keys(DOCUMENT_MIME_TO_EXT);
 
 @Injectable()
 export class StorageService {
+  private readonly logger = new Logger(StorageService.name);
   private readonly client: S3Client;
   private readonly bucket: string;
 
@@ -106,6 +112,49 @@ export class StorageService {
     // Ruta relativa (no acoplada al host): el frontend la sirve vía proxy a
     // /files/* y next/image puede optimizarla como imagen local.
     return { key, url: `/files/${key}` };
+  }
+
+  /**
+   * Convierte una URL relativa `/files/<key>` en su key de S3, o `null` si no es
+   * un blob nuestro (enlaces externos, videos de YouTube/Vimeo, `null`, etc.).
+   */
+  keyFromUrl(url: string | null | undefined): string | null {
+    if (!url) return null;
+    const trimmed = url.trim();
+    if (!trimmed.startsWith(FILES_PREFIX)) return null;
+    const key = trimmed.slice(FILES_PREFIX.length);
+    return key || null;
+  }
+
+  /**
+   * Borra varios blobs a partir de sus URLs relativas. **Best-effort**: ignora
+   * las URLs que no son nuestras, deduplica y no lanza si un objeto ya no existe
+   * (solo lo registra), para que la limpieza nunca bloquee la operación de BD.
+   */
+  async deleteByUrls(urls: (string | null | undefined)[]): Promise<void> {
+    const keys = [
+      ...new Set(
+        urls
+          .map((u) => this.keyFromUrl(u))
+          .filter((k): k is string => k !== null),
+      ),
+    ];
+    await Promise.all(keys.map((key) => this.deleteKey(key)));
+  }
+
+  /** Borra un objeto por su key (best-effort). */
+  private async deleteKey(key: string): Promise<void> {
+    try {
+      await this.client.send(
+        new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo borrar el blob "${key}": ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   async getObject(

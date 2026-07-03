@@ -51,7 +51,7 @@ const ROLE_RANK: Record<AdminUser["role"], number> = {
 function sortValue(user: AdminUser, key: SortKey): string | number {
   switch (key) {
     case "name":
-      return `${user.firstName} ${user.lastName}`.toLowerCase();
+      return `${user.lastName} ${user.firstName}`.toLowerCase();
     case "email":
       return user.email.toLowerCase();
     case "role":
@@ -110,7 +110,7 @@ export function UsersTable({
     const q = normalize(query.trim());
     const filtered = q
       ? users.filter((u) =>
-          normalize(`${u.firstName} ${u.lastName}`).includes(q),
+          normalize(`${u.lastName} ${u.firstName}`).includes(q),
         )
       : users;
     const sorted = [...filtered].sort((a, b) => {
@@ -147,8 +147,8 @@ export function UsersTable({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por nombre o apellido…"
-              aria-label="Buscar por nombre o apellido"
+              placeholder="Buscar por apellido o nombre…"
+              aria-label="Buscar por apellido o nombre"
               className="pl-9"
             />
           </div>
@@ -172,7 +172,7 @@ export function UsersTable({
           <TableHeader>
             <TableRow>
               <SortableHead
-                label="Nombre"
+                label="Apellidos y nombre"
                 column="name"
                 sortKey={sortKey}
                 sortDir={sortDir}
@@ -254,7 +254,7 @@ export function UsersTable({
             {visible.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">
-                  {user.firstName} {user.lastName}
+                  {user.lastName} {user.firstName}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {user.email}
@@ -272,12 +272,12 @@ export function UsersTable({
                   <div className="flex items-center justify-end gap-1">
                     <WhatsAppButton
                       phone={user.phone}
-                      name={`${user.firstName} ${user.lastName}`}
+                      name={`${user.lastName} ${user.firstName}`}
                     />
                     <EditUserButton user={user} />
                     <DeleteButton
                       action={deleteUserAction.bind(null, user.id)}
-                      confirmMessage={`¿Eliminar a "${user.firstName} ${user.lastName}"? Esta acción no se puede deshacer.`}
+                      confirmMessage={`¿Eliminar a "${user.lastName} ${user.firstName}"? Esta acción no se puede deshacer.`}
                     />
                   </div>
                 </TableCell>

@@ -1,21 +1,51 @@
+import { Gender } from '@prisma/client';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
+// Campo de texto opcional (recorta; cadena vacía → null).
+const optionalText = z
+  .string()
+  .trim()
+  .transform((v) => (v.length === 0 ? null : v))
+  .nullable()
+  .optional();
+
+// Normaliza el género escrito en español en la plantilla ("Femenino"/"F"/…) al
+// enum. En blanco o no reconocido → MALE (dato por defecto, como el resto del
+// sistema); la carga masiva es tolerante para no rechazar filas por esto.
+const bulkGender = z
+  .string()
+  .optional()
+  .transform((v) => {
+    const s = (v ?? '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '');
+    return s.startsWith('f') ? Gender.FEMALE : Gender.MALE;
+  });
+
 // Una fila de estudiante de la carga masiva. El rol es siempre STUDENT (no se
-// envía), la contraseña viene en la plantilla (mínimo 6). El documento de
-// identidad es opcional (cadena vacía → null).
+// envía). La contraseña NO viene en la plantilla: se genera automáticamente
+// (inicial nombre + inicial apellido + documento), por eso el documento de
+// identidad es **obligatorio** aquí. "Expedido en", universidad de origen y
+// profesión son opcionales (cadena vacía → null); el género se normaliza
+// (por defecto MALE).
 export const bulkStudentRowSchema = z.object({
   firstName: z.string().trim().min(1, 'El nombre es obligatorio'),
   lastName: z.string().trim().min(1, 'El apellido es obligatorio'),
-  email: z.email('Correo electrónico no válido'),
+  email: z
+    .email('Correo electrónico no válido')
+    .transform((v) => v.toLowerCase()),
   phone: z.string().trim().min(1, 'El teléfono es obligatorio'),
   idDocument: z
     .string()
     .trim()
-    .transform((v) => (v.length === 0 ? null : v))
-    .nullable()
-    .optional(),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+    .min(1, 'El documento de identidad es obligatorio (genera la contraseña)'),
+  issuedIn: optionalText,
+  gender: bulkGender,
+  originUniversity: optionalText,
+  profession: optionalText,
 });
 
 export type BulkStudentRow = z.infer<typeof bulkStudentRowSchema>;

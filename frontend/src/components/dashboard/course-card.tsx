@@ -1,5 +1,6 @@
-import { BookOpen, CalendarDays, Layers, Presentation } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Layers, Presentation } from "lucide-react";
 import Link from "next/link";
+import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
 import type { CourseStatus, MyCourse } from "@/lib/api/me";
 import { cn } from "@/lib/utils";
 
@@ -37,10 +38,10 @@ function formatStart(iso: string | null): string | null {
 }
 
 /**
- * Tarjeta de un curso asignado, para el home de docente/estudiante. Banda navy
- * con el código + estado, cuerpo con el nombre, modalidad y métricas. Para
- * docentes muestra además chips de los módulos a su cargo. Sin enlace por ahora
- * (el detalle del curso para estos roles aún no existe).
+ * Tarjeta de un curso asignado, para el home de docente/estudiante. Hero navy
+ * con un icono grande (elegido por el admin) que identifica el programa, el
+ * código y el estado; cuerpo con el nombre, modalidad y métricas. Para docentes
+ * muestra además chips de los módulos a su cargo.
  */
 export function CourseCard({ course }: { course: MyCourse }) {
   const status = STATUS_META[course.status];
@@ -49,6 +50,9 @@ export function CourseCard({ course }: { course: MyCourse }) {
   const myModules = course.myModules ?? [];
   const shownModules = myModules.slice(0, 3);
   const extraModules = myModules.length - shownModules.length;
+  const Icon =
+    (course.icon && COURSE_ICONS[course.icon]?.Icon) ||
+    COURSE_ICONS[DEFAULT_COURSE_ICON].Icon;
   // El docente entra al detalle del curso; el estudiante va a "Mis programas"
   // (acordeón de programas → módulos → aula).
   const href = isTeacher
@@ -58,38 +62,52 @@ export function CourseCard({ course }: { course: MyCourse }) {
   return (
     <Link
       href={href}
-      className="group flex flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
+      className="group flex min-h-[19rem] flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-950/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 dark:hover:shadow-black/40"
     >
-      {/* Banda navy */}
-      <div className="relative flex items-start justify-between gap-3 bg-gradient-to-br from-blue-900 to-blue-950 px-5 py-4 dark:from-slate-900 dark:to-slate-950">
+      {/* Hero navy con icono grande */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-800 via-blue-900 to-blue-950 px-6 pb-6 pt-5 dark:from-slate-800 dark:via-slate-900 dark:to-slate-950">
+        {/* Adornos de fondo */}
         <div
-          className="pointer-events-none absolute -right-8 -top-10 size-32 rounded-full bg-white/[0.06] blur-2xl"
+          className="pointer-events-none absolute -right-10 -top-12 size-40 rounded-full bg-white/[0.07] blur-2xl"
           aria-hidden="true"
         />
-        <span className="flex items-center gap-2 text-white/90">
-          <span
-            className="flex size-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/15"
-            aria-hidden="true"
-          >
-            <BookOpen className="size-4.5" />
-          </span>
-          <span className="font-mono text-xs font-medium tracking-wide text-white/70">
+        <div
+          className="pointer-events-none absolute -bottom-16 -left-10 size-40 rounded-full bg-sky-400/10 blur-3xl"
+          aria-hidden="true"
+        />
+
+        <div className="relative flex items-start justify-between gap-3">
+          <span className="inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 font-mono text-[11px] font-medium tracking-wide text-white/70 ring-1 ring-white/10">
             {course.code}
           </span>
-        </span>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-            status.badge,
-          )}
-        >
-          {status.label}
-        </span>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+              status.badge,
+            )}
+          >
+            {status.label}
+          </span>
+        </div>
+
+        {/* Icono grande del programa */}
+        <div className="relative mt-5 flex items-center justify-between">
+          <span
+            className="flex size-20 items-center justify-center rounded-2xl bg-white/10 text-white shadow-lg shadow-blue-950/30 ring-1 ring-white/15 backdrop-blur-sm transition-transform duration-300 group-hover:scale-105"
+            aria-hidden="true"
+          >
+            <Icon className="size-10" strokeWidth={1.75} />
+          </span>
+          <ArrowUpRight
+            className="size-5 text-white/40 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-white/80"
+            aria-hidden="true"
+          />
+        </div>
       </div>
 
       {/* Cuerpo */}
-      <div className="flex flex-1 flex-col p-5">
-        <h3 className="font-heading text-lg font-bold leading-tight tracking-tight">
+      <div className="flex flex-1 flex-col p-6">
+        <h3 className="font-heading text-lg font-bold leading-snug tracking-tight transition-colors group-hover:text-blue-700 dark:group-hover:text-sky-300">
           {course.name}
         </h3>
 
@@ -115,7 +133,7 @@ export function CourseCard({ course }: { course: MyCourse }) {
 
         {/* Módulos a cargo (docente) */}
         {isTeacher && myModules.length > 0 && (
-          <div className="mt-4 border-t pt-4">
+          <div className="mt-auto border-t pt-4">
             <p className="text-xs font-medium text-muted-foreground">
               {myModules.length === 1
                 ? "Módulo a tu cargo"

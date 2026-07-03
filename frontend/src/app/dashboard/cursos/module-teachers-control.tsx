@@ -31,7 +31,7 @@ function normalize(s: string): string {
 }
 
 function initials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  return `${lastName.charAt(0)}${firstName.charAt(0)}`.toUpperCase();
 }
 
 // Paleta de tintes para los avatares de iniciales, asignada de forma estable
@@ -89,11 +89,11 @@ export function ModuleTeachersControl({
 
   const assigned = professors.filter((p) => assignedIds.includes(p.id));
   const dirty = !sameSet(selected, assignedIds);
-  // Filtro por nombre o apellido (sin acentos/mayúsculas).
+  // Filtro por apellido o nombre (sin acentos/mayúsculas).
   const q = normalize(query.trim());
   const filtered = q
     ? professors.filter((p) =>
-        normalize(`${p.firstName} ${p.lastName}`).includes(q),
+        normalize(`${p.lastName} ${p.firstName}`).includes(q),
       )
     : professors;
 
@@ -142,7 +142,7 @@ export function ModuleTeachersControl({
               >
                 <Avatar teacher={t} />
                 <span className="truncate">
-                  {t.firstName} {t.lastName}
+                  {t.lastName} {t.firstName}
                 </span>
               </li>
             ))}
@@ -202,8 +202,8 @@ export function ModuleTeachersControl({
                   type="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar por nombre o apellido…"
-                  aria-label="Buscar docente por nombre o apellido"
+                  placeholder="Buscar por apellido o nombre…"
+                  aria-label="Buscar docente por apellido o nombre"
                   className="pl-9"
                   autoFocus
                 />
@@ -237,7 +237,7 @@ export function ModuleTeachersControl({
                             className="size-7 text-[0.7rem]"
                           />
                           <span className="truncate font-medium">
-                            {p.firstName} {p.lastName}
+                            {p.lastName} {p.firstName}
                           </span>
                           {checked && (
                             <Check className="ml-auto size-4 shrink-0 text-sky-600 dark:text-sky-400" />

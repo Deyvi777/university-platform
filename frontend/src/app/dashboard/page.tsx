@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   const role = session.user.role;
 
   if (role === "ADMIN") {
-    return <AdminHome name={session.user.name} />;
+    return <AdminHome firstName={session.user.firstName} />;
   }
 
   const courses = await listMyCourses();
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   if (role === "PROFESSOR") {
     return (
       <MyCoursesHome
-        name={session.user.name}
+        firstName={session.user.firstName}
         greeting="Bienvenido"
         intro="Este es tu panel docente. Aquí están los cursos en los que dictas módulos."
         courses={courses}
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
 
   return (
     <MyCoursesHome
-      name={session.user.name}
+      firstName={session.user.firstName}
       greeting="Bienvenido"
       intro="Este es tu panel de estudiante. Aquí están los cursos en los que estás inscrito."
       courses={courses}
@@ -116,7 +116,7 @@ type HomeCard = {
   tint: keyof typeof TINTS;
 };
 
-async function AdminHome({ name }: { name?: string | null }) {
+async function AdminHome({ firstName }: { firstName?: string | null }) {
   const [programs, categories, partners, team, users, courses] =
     await Promise.all([
       listAdminPrograms(),
@@ -126,8 +126,6 @@ async function AdminHome({ name }: { name?: string | null }) {
       listAdminUsers(),
       listAdminCourses(),
     ]);
-
-  const firstName = name?.trim().split(/\s+/)[0];
 
   const academicCards: HomeCard[] = [
     {

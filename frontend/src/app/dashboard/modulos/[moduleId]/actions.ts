@@ -19,6 +19,17 @@ export interface ContentPayload {
   maxScore?: number | null;
   weight?: number | null;
   isOffline?: boolean;
+  // QUIZ/EXAM — ajustes del motor de preguntas.
+  timeLimitMin?: number | null;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
+  singleAttempt?: boolean | null;
+  shuffle?: boolean | null;
+  revealAnswers?: boolean | null;
+  // Examen de recuperación (solo al crear, sobre un módulo concluido).
+  recoveryStage?: "RECUPERATORIO" | "SEGUNDA_INSTANCIA" | null;
+  // FOLDER: lista completa de archivos (reemplaza en update).
+  files?: { name: string; url: string; size?: number | null }[];
 }
 
 function errorMessage(error: unknown): string {

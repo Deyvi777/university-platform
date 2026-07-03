@@ -26,6 +26,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { COURSE_ICON_OPTIONS } from "@/lib/course-icons";
+import { cn } from "@/lib/utils";
 import type { AdminCourse } from "@/lib/api/admin";
 import {
   createCourseAction,
@@ -183,6 +185,43 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
             rows={3}
             placeholder="Breve descripción del programa, su enfoque y a quién está dirigido."
             {...register("description")}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Icono del programa</Label>
+          <p className="text-xs text-muted-foreground">
+            Se muestra en las tarjetas del panel para identificar el programa de
+            un vistazo.
+          </p>
+          <Controller
+            control={control}
+            name="icon"
+            render={({ field }) => (
+              <div className="mt-1 grid grid-cols-6 gap-2 sm:grid-cols-9">
+                {COURSE_ICON_OPTIONS.map(({ key, label, Icon }) => {
+                  const selected = field.value === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      title={label}
+                      aria-label={label}
+                      aria-pressed={selected}
+                      onClick={() => field.onChange(selected ? "" : key)}
+                      className={cn(
+                        "flex aspect-square items-center justify-center rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50",
+                        selected
+                          ? "border-blue-600 bg-blue-600 text-white shadow-sm dark:border-sky-400 dark:bg-sky-500"
+                          : "border-border bg-background text-muted-foreground hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-sky-500/10 dark:hover:text-sky-300",
+                      )}
+                    >
+                      <Icon className="size-5" aria-hidden="true" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           />
         </div>
       </FormSection>

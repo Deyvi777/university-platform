@@ -44,7 +44,7 @@ export default async function EditarUsuarioPage({
       <BackLink href={backHref}>{BACK_LABEL[user.role]}</BackLink>
       <h1 className="mt-3 text-2xl font-bold tracking-tight">Editar usuario</h1>
       <p className="mt-1 text-muted-foreground">
-        {user.firstName} {user.lastName} · {user.email}
+        {user.lastName} {user.firstName} · {user.email}
       </p>
       <div className="mt-6">
         <UserForm user={user} backHref={backHref} />

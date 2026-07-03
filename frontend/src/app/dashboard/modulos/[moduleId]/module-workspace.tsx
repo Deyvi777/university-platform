@@ -32,6 +32,7 @@ export function ModuleWorkspace({
   contents,
   gradebook,
   readOnly = false,
+  isAdmin = false,
   chat,
   initialChatContactId,
   openChat = false,
@@ -42,6 +43,8 @@ export function ModuleWorkspace({
   gradebook: ModuleGradebook | null;
   /** Módulo concluido (FINISHED): todo en solo lectura. */
   readOnly?: boolean;
+  /** El ADMIN además puede habilitar la segunda instancia del recuperatorio. */
+  isAdmin?: boolean;
   chat: WorkspaceChat;
   /** Abrir directamente la pestaña Chat con este contacto (deep-link). */
   initialChatContactId?: string;
@@ -114,6 +117,23 @@ export function ModuleWorkspace({
             moduleId={moduleId}
             contents={contents}
             readOnly={readOnly}
+            isAdmin={isAdmin}
+            // Reprobados del módulo: habilita el recuperatorio/segunda instancia.
+            // "Reprobado" = FAILED o nota por debajo del mínimo aunque siga
+            // IN_PROGRESS (módulos concluidos con notas sin finalizar).
+            failedCount={
+              gradebook
+                ? gradebook.students.filter((s) => {
+                    const g = s.moduleGrade;
+                    if (!g) return false;
+                    return (
+                      g.status === "FAILED" ||
+                      (g.finalScore != null &&
+                        g.finalScore < gradebook.course.passingScore)
+                    );
+                  }).length
+                : 0
+            }
           />
         ) : tab === "calificaciones" || !showChat ? (
           <Gradebook

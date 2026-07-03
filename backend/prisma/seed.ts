@@ -439,6 +439,8 @@ async function main() {
       firstName: 'Administrador',
       lastName: 'Certificate',
       phone: '70000000',
+      // idDocument es obligatorio y único; placeholder para el admin sembrado.
+      idDocument: '90000002',
       role: Role.ADMIN,
     },
   });

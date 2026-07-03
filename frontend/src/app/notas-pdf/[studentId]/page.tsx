@@ -18,7 +18,7 @@ export async function generateMetadata({
   try {
     const { studentId } = await params;
     const student = await getAdminUser(studentId);
-    return { title: `${student.firstName} ${student.lastName}`.trim() + " - Notas" };
+    return { title: `${student.lastName} ${student.firstName}`.trim() + " - Notas" };
   } catch {
     return { title: "Notas del estudiante" };
   }
@@ -41,7 +41,7 @@ export default async function NotasPdfPage({
     throw error;
   }
   const courses = await getStudentGrades(studentId);
-  const fullName = `${student.firstName} ${student.lastName}`.trim();
+  const fullName = `${student.lastName} ${student.firstName}`.trim();
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900 print:bg-white print:p-0">

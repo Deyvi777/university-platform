@@ -38,7 +38,7 @@ type Student = {
 };
 
 function initials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  return `${lastName.charAt(0)}${firstName.charAt(0)}`.toUpperCase();
 }
 
 const AVATAR_TINTS = [
@@ -86,11 +86,11 @@ export function EnrollmentControl({
 
   const enrolledIds = new Set(enrolled.map((s) => s.id));
   const available = students.filter((s) => !enrolledIds.has(s.id));
-  // Filtro por nombre o apellido (sin acentos/mayúsculas).
+  // Filtro por apellido o nombre (sin acentos/mayúsculas).
   const q = normalize(query.trim());
   const filtered = q
     ? available.filter((s) =>
-        normalize(`${s.firstName} ${s.lastName}`).includes(q),
+        normalize(`${s.lastName} ${s.firstName}`).includes(q),
       )
     : available;
 
@@ -186,8 +186,8 @@ export function EnrollmentControl({
                   type="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar por nombre o apellido…"
-                  aria-label="Buscar estudiante por nombre o apellido"
+                  placeholder="Buscar por apellido o nombre…"
+                  aria-label="Buscar estudiante por apellido o nombre"
                   className="pl-9"
                   autoFocus
                 />
@@ -219,7 +219,7 @@ export function EnrollmentControl({
                           <Avatar student={s} />
                           <span className="min-w-0">
                             <span className="block truncate font-medium">
-                              {s.firstName} {s.lastName}
+                              {s.lastName} {s.firstName}
                             </span>
                             <span className="block truncate text-xs text-muted-foreground">
                               {s.email}
@@ -274,7 +274,7 @@ export function EnrollmentControl({
               <Avatar student={s} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">
-                  {s.firstName} {s.lastName}
+                  {s.lastName} {s.firstName}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {s.email}
@@ -282,12 +282,12 @@ export function EnrollmentControl({
               </div>
               <WhatsAppButton
                 phone={s.phone}
-                name={`${s.firstName} ${s.lastName}`}
+                name={`${s.lastName} ${s.firstName}`}
               />
               <DeleteButton
                 action={() => removeEnrollmentAction(courseId, s.id)}
                 title="¿Quitar este estudiante?"
-                confirmMessage={`Se retirará la inscripción de "${s.firstName} ${s.lastName}" del programa. Podrás volver a inscribirlo cuando quieras.`}
+                confirmMessage={`Se retirará la inscripción de "${s.lastName} ${s.firstName}" del programa. Podrás volver a inscribirlo cuando quieras.`}
               />
             </li>
           ))}

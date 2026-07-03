@@ -236,14 +236,3 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
   // se inserta entre ambos.
   return [{ items: [HOME_ITEM] }, { items: [NOTIFICATIONS_ITEM] }];
 }
-
-/**
- * Aplana las secciones a items individuales, excluyendo el "Inicio" (href base
- * del panel). Consumido por los "Accesos rápidos" del panel de perfil, que no
- * agrupa por sección.
- */
-export function quickLinksFromSections(sections: NavSection[]): NavItem[] {
-  return sections
-    .flatMap((section) => section.items)
-    .filter((item) => item.href !== "/dashboard");
-}

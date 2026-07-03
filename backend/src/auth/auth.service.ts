@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
@@ -10,7 +9,6 @@ import { Role, User } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 
 export interface JwtPayload {
   sub: string;
@@ -25,26 +23,6 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
   ) {}
-
-  async register(dto: RegisterDto) {
-    const exists = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-    if (exists) {
-      throw new ConflictException('Email already registered');
-    }
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        password: await argon2.hash(dto.password),
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        phone: dto.phone,
-        idDocument: dto.idDocument ?? null,
-      },
-    });
-    return this.buildAuthResponse(user);
-  }
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({

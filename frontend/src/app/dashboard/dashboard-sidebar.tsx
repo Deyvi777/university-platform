@@ -18,6 +18,7 @@ import {
   Suspense,
   useCallback,
   useContext,
+  useEffect,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -301,6 +302,28 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const toggleProfile = useCallback(() => {
     profileStore.set(!profileStore.getSnapshot());
   }, []);
+
+  // Trampa de historial: con el sidebar abierto como overlay móvil, el botón
+  // "atrás" del navegador debe CERRARLO, no salir de la página. Al abrir
+  // empujamos una entrada de historial; el `popstate` (atrás) la consume y
+  // cierra el overlay. `mobileOpen` solo es true bajo `lg` (el trigger únicamente
+  // existe ahí), así que no hace falta condicionar por breakpoint.
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    window.history.pushState({ sidebarDrawer: true }, "");
+    const onPopState = () => setMobileOpen(false);
+    window.addEventListener("popstate", onPopState);
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      // Si se cerró por navegación/backdrop (no por "atrás"), nuestra entrada
+      // sigue siendo la actual: la retiramos para no dejarla colgada.
+      if (window.history.state?.sidebarDrawer) {
+        window.history.back();
+      }
+    };
+  }, [mobileOpen]);
 
   return (
     <SidebarContext.Provider
@@ -1123,10 +1146,11 @@ function SidebarLogo({ collapsed }: { collapsed: boolean }) {
 }
 
 /**
- * Botón "Salir" anclado al pie del sidebar navy (lenguaje del mockup). Sigue el
- * mismo patrón de revelado que los items de nav: en riel se reduce a un icono
- * centrado (con `title`/`aria-label`), y con flyout la etiqueta se revela por
- * hover/foco. `logout` es un Server Action (referencia serializable).
+ * Botón "Cerrar sesión" anclado al pie del sidebar navy. Adopta el diseño rojo
+ * (destructive) que antes vivía en el topbar. Sigue el mismo patrón de revelado
+ * que los items de nav: en riel se reduce a un icono centrado (con
+ * `title`/`aria-label`), y con flyout la etiqueta se revela por hover/foco.
+ * `logout` es un Server Action (referencia serializable).
  */
 function SidebarLogout({
   collapsed,
@@ -1139,26 +1163,23 @@ function SidebarLogout({
     <form action={logout} className="mt-1 border-t border-white/10 pt-3">
       <button
         type="submit"
-        title={collapsed ? "Salir" : undefined}
-        aria-label={collapsed ? "Salir" : undefined}
+        title={collapsed ? "Cerrar sesión" : undefined}
+        aria-label={collapsed ? "Cerrar sesión" : undefined}
         className={cn(
-          "group flex w-full items-center rounded-full text-sm font-medium text-sidebar-foreground/90 transition-colors",
-          "hover:bg-white/[0.07] hover:text-sidebar-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+          "group flex w-full items-center rounded-full text-sm font-medium text-red-100 ring-1 ring-red-400/25 transition-colors",
+          "bg-red-500/15 hover:bg-red-500/25 hover:text-white",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60",
           collapsed
             ? "justify-center py-1 pl-1 pr-1 group-hover/flyout:justify-start group-hover/flyout:gap-3 group-hover/flyout:pl-1 group-hover/flyout:pr-4 group-focus-within/flyout:justify-start group-focus-within/flyout:gap-3 group-focus-within/flyout:pl-1 group-focus-within/flyout:pr-4"
             : "gap-3 py-1 pl-1 pr-4",
         )}
       >
-        {/* Icono en caja del tamaño del badge de nav, para alinear "Salir" con
-            la columna de iconos de los items de arriba (sin fondo). */}
+        {/* Icono en caja del tamaño del badge de nav, para alinear el texto con
+            la columna de iconos de los items de arriba. */}
         <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden="true">
-          <LogOut
-            className="size-[1.15rem] shrink-0 text-sidebar-foreground/90 transition-colors group-hover:text-sidebar-foreground"
-            aria-hidden="true"
-          />
+          <LogOut className="size-[1.15rem] shrink-0" aria-hidden="true" />
         </span>
-        {!collapsed && <span className="truncate">Salir</span>}
+        {!collapsed && <span className="truncate">Cerrar sesión</span>}
         {/* Flyout: etiqueta oculta (ancho 0) hasta expandir por hover/foco. */}
         {collapsed && (
           <span
@@ -1168,7 +1189,7 @@ function SidebarLogout({
               "group-focus-within/flyout:w-auto group-focus-within/flyout:opacity-100",
             )}
           >
-            Salir
+            Cerrar sesión
           </span>
         )}
       </button>

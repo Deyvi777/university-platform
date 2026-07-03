@@ -30,6 +30,18 @@ function toWaNumber(phone: string): string {
   return digits.startsWith("591") ? digits : `591${digits}`;
 }
 
+function formatWhen(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString("es-BO", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 const STATUS_META: Record<SubmissionStatus, { label: string; badge: string }> = {
   PENDING: { label: "Sin entregar", badge: "bg-muted text-muted-foreground" },
   SUBMITTED: {
@@ -73,7 +85,7 @@ export function GradingRow({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const fullName = `${row.student.firstName} ${row.student.lastName}`;
+  const fullName = `${row.student.lastName} ${row.student.firstName}`;
   const waNumber = toWaNumber(row.student.phone);
   // Mensaje de WhatsApp con la nota y la retroalimentación.
   const trimmedFeedback = feedback.trim();
@@ -124,7 +136,7 @@ export function GradingRow({
             className="flex size-9 items-center justify-center rounded-full bg-blue-950 text-[0.7rem] font-bold text-amber-300"
             aria-hidden="true"
           >
-            {`${row.student.firstName} ${row.student.lastName}`
+            {`${row.student.lastName} ${row.student.firstName}`
               .split(/\s+/)
               .slice(0, 2)
               .map((p) => p[0]?.toUpperCase() ?? "")
@@ -132,7 +144,7 @@ export function GradingRow({
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">
-              {row.student.firstName} {row.student.lastName}
+              {row.student.lastName} {row.student.firstName}
             </p>
             <p className="truncate text-xs text-muted-foreground">
               {row.student.email}
@@ -150,7 +162,7 @@ export function GradingRow({
       </div>
 
       {/* Entrega del estudiante */}
-      {sub && (sub.content || sub.fileUrl) ? (
+      {sub && (sub.content || sub.fileUrl || sub.deliveries.length > 0) ? (
         <div className="mt-3 space-y-1.5 rounded-xl bg-muted/30 p-3 text-xs">
           {sub.content && <p className="text-foreground/80">{sub.content}</p>}
           {sub.fileUrl && (
@@ -163,6 +175,54 @@ export function GradingRow({
               <Download className="size-3.5" />
               Ver archivo entregado
             </a>
+          )}
+          {/* Proyecto: historial de entregas (más reciente primero) */}
+          {sub.deliveries.length > 0 && (
+            <ul className="space-y-2">
+              {sub.deliveries.map((d, i) => {
+                const when = formatWhen(d.submittedAt);
+                return (
+                  <li
+                    key={d.order}
+                    className="rounded-lg border bg-background/60 px-2.5 py-2"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-foreground/90">
+                        Entrega #{d.order}
+                      </span>
+                      {i === 0 && (
+                        <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[0.6rem] font-semibold text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
+                          Última
+                        </span>
+                      )}
+                      {when && (
+                        <span className="text-muted-foreground">{when}</span>
+                      )}
+                    </div>
+                    {d.text && (
+                      <p className="mt-1 text-foreground/80">{d.text}</p>
+                    )}
+                    {d.files.length > 0 && (
+                      <ul className="mt-1.5 space-y-1">
+                        {d.files.map((f) => (
+                          <li key={f.url}>
+                            <a
+                              href={f.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 font-medium text-sky-600 hover:underline dark:text-sky-400"
+                            >
+                              <Download className="size-3.5 shrink-0" />
+                              <span className="truncate">{f.name}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       ) : (

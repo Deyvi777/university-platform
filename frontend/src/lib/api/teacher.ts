@@ -13,9 +13,23 @@ const API_URL =
   "http://localhost:4000";
 
 export type { ActivityType, MaterialType };
+export type { RecoveryStage } from "@/lib/api/me";
 
 /** Tipo de un contenido del temario. */
-export type ContentKind = "TEXT" | "VIDEO" | "MATERIAL" | "ACTIVITY";
+export type ContentKind =
+  | "TEXT"
+  | "VIDEO"
+  | "MATERIAL"
+  | "ACTIVITY"
+  | "FOLDER";
+
+/** Archivo dentro de una carpeta (kind = FOLDER). */
+export interface FolderFile {
+  id: string;
+  name: string;
+  url: string;
+  size: number | null;
+}
 
 /**
  * Un contenido del módulo (entrada del temario). Los campos específicos del
@@ -42,6 +56,19 @@ export interface TeacherContent {
   weight: number | null;
   /** Actividad presencial: se califica a mano en la libreta, sin entrega. */
   isOffline: boolean;
+  // QUIZ/EXAM — ajustes del motor de preguntas.
+  timeLimitMin: number | null;
+  availableFrom: string | null;
+  availableUntil: string | null;
+  singleAttempt: boolean | null;
+  shuffle: boolean | null;
+  revealAnswers: boolean | null;
+  /** Examen de recuperación: su nota reemplaza la nota final del módulo. */
+  recoveryStage: "RECUPERATORIO" | "SEGUNDA_INSTANCIA" | null;
+  /** Archivos contenidos (solo kind = FOLDER). */
+  folderFiles?: FolderFile[];
+  /** Nº de entregas de estudiantes (solo kind = ACTIVITY; para avisar al borrar). */
+  submissionCount: number;
 }
 
 export interface TeacherModule {
@@ -66,6 +93,13 @@ export interface GradingStudentRow {
   submission: {
     content: string | null;
     fileUrl: string | null;
+    /** Historial de entregas de un Proyecto (vacío en Tarea). */
+    deliveries: {
+      order: number;
+      text: string | null;
+      submittedAt: string | null;
+      files: { name: string; url: string; size: number | null }[];
+    }[];
     status: SubmissionStatus;
     score: number | null;
     feedback: string | null;
@@ -82,6 +116,8 @@ export interface ActivityGrading {
     maxScore: number;
     weight: number;
     dueDate: string | null;
+    /** Examen de recuperación: su nota reemplaza la nota del módulo. */
+    recoveryStage: "RECUPERATORIO" | "SEGUNDA_INSTANCIA" | null;
     module: { id: string; name: string; order: number; status: ModuleStatus };
     course: { id: string; name: string };
   };
@@ -189,6 +225,8 @@ export interface GradebookActivity {
   isPublished: boolean;
   /** Presencial: el docente edita el puntaje directo en la libreta. */
   isOffline: boolean;
+  /** Examen de recuperación: no pondera, su nota reemplaza la del módulo. */
+  recoveryStage: "RECUPERATORIO" | "SEGUNDA_INSTANCIA" | null;
 }
 
 export interface GradebookCell {

@@ -7,12 +7,15 @@ declare module "next-auth" {
     user: {
       id: string;
       role?: string;
+      /** Nombre de pila (para saludos); el `name` combinado va "Apellido Nombre". */
+      firstName?: string;
     } & DefaultSession["user"];
   }
 
   interface User {
     role?: string;
     accessToken?: string;
+    firstName?: string;
   }
 }
 
@@ -21,5 +24,6 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: string;
     accessToken?: string;
+    firstName?: string;
   }
 }

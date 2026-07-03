@@ -19,7 +19,7 @@ export async function generateMetadata({
     const { studentId } = await params;
     const student = await getAdminUser(studentId);
     return {
-      title: `${student.firstName} ${student.lastName}`.trim() + " - Kárdex",
+      title: `${student.lastName} ${student.firstName}`.trim() + " - Kárdex",
     };
   } catch {
     return { title: "Kárdex del estudiante" };
@@ -46,7 +46,7 @@ export default async function AdminKardexPdfPage({
     throw error;
   }
   const courses = await getStudentKardex(studentId);
-  const fullName = `${student.firstName} ${student.lastName}`.trim();
+  const fullName = `${student.lastName} ${student.firstName}`.trim();
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900 print:bg-white print:p-0">

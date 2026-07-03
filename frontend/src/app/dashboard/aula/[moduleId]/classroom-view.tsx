@@ -1,13 +1,23 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
+import {
+  ArrowLeft,
   Award,
   Check,
+  ChevronDown,
   ClipboardList,
   Download,
   ExternalLink,
+  FileArchive,
   FileText,
+  Folder,
   Loader2,
   MessageSquare,
   Paperclip,
@@ -28,12 +38,15 @@ import type { ChatContact } from "@/lib/api/chat";
 import type {
   ContentKind,
   CourseActivity,
+  FolderFile,
   LearnContent,
   LearnModule,
   ModuleGradeStatus,
   SubmissionStatus,
 } from "@/lib/api/me";
 import { cn } from "@/lib/utils";
+import { ForumThread } from "@/components/dashboard/forum-thread";
+import { QuizRunner } from "@/components/dashboard/quiz-runner";
 import { StudentActivity } from "../../mis-cursos/[id]/student-activity";
 import { setProgressAction } from "./actions";
 
@@ -51,6 +64,7 @@ const KIND_ICON: Record<ContentKind, typeof FileText> = {
   VIDEO: PlayCircle,
   MATERIAL: Paperclip,
   ACTIVITY: ClipboardList,
+  FOLDER: Folder,
 };
 
 const KIND_LABEL: Record<ContentKind, string> = {
@@ -58,6 +72,7 @@ const KIND_LABEL: Record<ContentKind, string> = {
   VIDEO: "Video",
   MATERIAL: "Material",
   ACTIVITY: "Actividad",
+  FOLDER: "Carpeta",
 };
 
 /** Primer contenido sin completar, o el primero si todos están completos. */
@@ -110,6 +125,38 @@ export function ClassroomView({
       ? initialContentId
       : defaultContentId(temarioContents),
   );
+  // Carpetas contraídas en el temario (por defecto expandidas) + cuál se está
+  // comprimiendo en ZIP.
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [zippingId, setZippingId] = useState<string | null>(null);
+  // Archivo de carpeta abierto en el panel central (se previsualiza como un
+  // material). `null` = se muestra el contenido seleccionado normal.
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+
+  function toggleFolder(id: string) {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function downloadFolder(content: LearnContent) {
+    const files = content.folderFiles ?? [];
+    if (!files.length) return;
+    setZippingId(content.id);
+    try {
+      await zipAndDownloadFolder(content.title, files);
+    } catch {
+      toast.error("No se pudo generar el ZIP");
+    } finally {
+      setZippingId(null);
+    }
+  }
+
   const [tab, setTab] = useState<PanelTab>(
     wantChat
       ? "chat"
@@ -156,6 +203,18 @@ export function ClassroomView({
     temarioContents[0] ??
     null;
 
+  // Archivo de carpeta abierto (y su carpeta) para previsualizarlo en el centro.
+  const selectedFile = selectedFileId
+    ? (contents
+        .flatMap((c) => c.folderFiles ?? [])
+        .find((f) => f.id === selectedFileId) ?? null)
+    : null;
+  const selectedFileFolder = selectedFileId
+    ? (contents.find((c) =>
+        (c.folderFiles ?? []).some((f) => f.id === selectedFileId),
+      ) ?? null)
+    : null;
+
   // Nada en absoluto (ni lecciones ni actividades) → estado vacío completo.
   // Salvo que se entre directo al chat (deep-link), donde igual mostramos el
   // panel para poder conversar.
@@ -187,7 +246,14 @@ export function ClassroomView({
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
       {/* Columna principal */}
       <div className="min-w-0">
-        {selected ? (
+        {selectedFile ? (
+          <FolderFilePanel
+            file={selectedFile}
+            folderTitle={selectedFileFolder?.title ?? "Carpeta"}
+            courseName={learn.course.name}
+            onBack={() => setSelectedFileId(null)}
+          />
+        ) : selected ? (
           <>
             <ContentMain
               content={selected}
@@ -290,57 +356,151 @@ export function ClassroomView({
                 {temarioContents.map((c, i) => {
                   const active = c.id === selected?.id;
                   const Icon = KIND_ICON[c.kind];
+                  const isFolder = c.kind === "FOLDER";
+                  const folderFiles = c.folderFiles ?? [];
+                  const expanded = isFolder && !collapsedFolders.has(c.id);
                   return (
                     <li key={c.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedId(c.id)}
-                        aria-current={active ? "true" : undefined}
-                        className={cn(
-                          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
-                          active
-                            ? "bg-primary/10 text-foreground ring-1 ring-primary/20"
-                            : "hover:bg-muted/60",
-                        )}
-                      >
-                        <span
+                      <div className="flex items-stretch gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedId(c.id);
+                            setSelectedFileId(null);
+                          }}
+                          aria-current={
+                            active && !selectedFileId ? "true" : undefined
+                          }
                           className={cn(
-                            "flex size-7 shrink-0 items-center justify-center rounded-full",
-                            c.completed
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                              : active
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted text-muted-foreground",
+                            "flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                            active
+                              ? "bg-primary/10 text-foreground ring-1 ring-primary/20"
+                              : "hover:bg-muted/60",
                           )}
-                          aria-hidden="true"
                         >
-                          {c.completed ? (
-                            <Check className="size-3.5" />
-                          ) : (
-                            <Icon className="size-4" />
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-1.5">
-                            <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-                              {i + 1}.
+                          <span
+                            className={cn(
+                              "flex size-7 shrink-0 items-center justify-center rounded-full",
+                              c.completed
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                : active
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground",
+                            )}
+                            aria-hidden="true"
+                          >
+                            {c.completed ? (
+                              <Check className="size-3.5" />
+                            ) : (
+                              <Icon className="size-4" />
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                                {i + 1}.
+                              </span>
+                              <span
+                                className={cn(
+                                  "truncate text-sm",
+                                  active
+                                    ? "font-semibold text-primary"
+                                    : "font-medium",
+                                )}
+                              >
+                                {c.title}
+                              </span>
                             </span>
-                            <span
-                              className={cn(
-                                "truncate text-sm",
-                                active
-                                  ? "font-semibold text-primary"
-                                  : "font-medium",
+                            <span className="ml-5 mt-0.5 flex items-center gap-1.5 text-[0.7rem] text-muted-foreground">
+                              {isFolder
+                                ? `${folderFiles.length} ${
+                                    folderFiles.length === 1
+                                      ? "archivo"
+                                      : "archivos"
+                                  }`
+                                : KIND_LABEL[c.kind]}
+                              {/* Examen de recuperación: reemplaza la nota. */}
+                              {c.recoveryStage && (
+                                <span
+                                  className={cn(
+                                    "inline-flex shrink-0 items-center rounded-full px-1.5 py-px text-[0.6rem] font-semibold",
+                                    c.recoveryStage === "SEGUNDA_INSTANCIA"
+                                      ? "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300"
+                                      : "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+                                  )}
+                                >
+                                  {c.recoveryStage === "SEGUNDA_INSTANCIA"
+                                    ? "2.ª instancia"
+                                    : "Recuperatorio"}
+                                </span>
                               )}
-                            >
-                              {c.title}
                             </span>
                           </span>
-                          <span className="ml-5 mt-0.5 block text-[0.7rem] text-muted-foreground">
-                            {KIND_LABEL[c.kind]}
-                          </span>
-                        </span>
-                      </button>
+                        </button>
+                        {isFolder && folderFiles.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => toggleFolder(c.id)}
+                            aria-expanded={expanded}
+                            aria-label={
+                              expanded ? "Contraer carpeta" : "Expandir carpeta"
+                            }
+                            className="flex w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                          >
+                            <ChevronDown
+                              className={cn(
+                                "size-4 transition-transform",
+                                expanded ? "" : "-rotate-90",
+                              )}
+                            />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Archivos de la carpeta, indentados a la derecha. */}
+                      {isFolder && expanded && folderFiles.length > 0 && (
+                        <div className="ml-7 mt-1 space-y-0.5 border-l border-border pl-3">
+                          {folderFiles.map((f) => {
+                            const fileActive = f.id === selectedFileId;
+                            return (
+                              <button
+                                key={f.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedId(c.id);
+                                  setSelectedFileId(f.id);
+                                }}
+                                aria-current={fileActive ? "true" : undefined}
+                                title="Ver en el panel central"
+                                className={cn(
+                                  "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors",
+                                  fileActive
+                                    ? "bg-primary/10 font-medium text-primary ring-1 ring-primary/20"
+                                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                                )}
+                              >
+                                <FileText className="size-3.5 shrink-0" />
+                                <span className="min-w-0 flex-1 truncate">
+                                  {f.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          <button
+                            type="button"
+                            onClick={() => downloadFolder(c)}
+                            disabled={zippingId === c.id}
+                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
+                          >
+                            {zippingId === c.id ? (
+                              <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                            ) : (
+                              <FileArchive className="size-3.5 shrink-0" />
+                            )}
+                            Descargar carpeta (ZIP)
+                          </button>
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -436,6 +596,21 @@ function GradesPanel({ module: learn }: { module: LearnModule }) {
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    {/* Recuperación: no pondera, su nota reemplaza la del módulo. */}
+                    {a.recoveryStage ? (
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-1.5 py-px text-[0.65rem] font-semibold",
+                          a.recoveryStage === "SEGUNDA_INSTANCIA"
+                            ? "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300"
+                            : "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+                        )}
+                      >
+                        {a.recoveryStage === "SEGUNDA_INSTANCIA"
+                          ? "Segunda instancia — reemplaza la nota"
+                          : "Recuperatorio — reemplaza la nota"}
+                      </span>
+                    ) : null}
                     {a.weight ? <span>Peso {a.weight}%</span> : null}
                     {sub?.status && <SubmissionStatusText status={sub.status} />}
                   </div>
@@ -546,7 +721,7 @@ function ContentMain({
         <>
           {header}
           <div className="mt-5">
-            <MaterialViewer content={content} />
+            <MaterialViewer url={content.url ?? ""} title={content.title} />
           </div>
         </>
       );
@@ -555,24 +730,191 @@ function ContentMain({
         <>
           {header}
           <div className="mt-5">
-            <StudentActivity
-              courseId={courseId}
-              activity={toActivity(content)}
-              readOnly={readOnly}
-            />
+            {content.activityType === "FORUM" ? (
+              <ForumThread activityId={content.id} />
+            ) : content.activityType === "QUIZ" ||
+              content.activityType === "EXAM" ? (
+              <QuizRunner activityId={content.id} />
+            ) : (
+              <StudentActivity
+                courseId={courseId}
+                activity={toActivity(content)}
+                readOnly={readOnly}
+              />
+            )}
+          </div>
+        </>
+      );
+    case "FOLDER":
+      return (
+        <>
+          {header}
+          <div className="mt-5">
+            <FolderViewer content={content} />
           </div>
         </>
       );
   }
 }
 
-/** Visor de un material: previsualiza imágenes y PDFs; si no, tarjeta de descarga. */
-function MaterialViewer({ content }: { content: LearnContent }) {
-  const url = content.url ?? "";
+/** Descarga todos los archivos de una carpeta como un único ZIP (en el cliente). */
+async function zipAndDownloadFolder(title: string, files: FolderFile[]) {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  await Promise.all(
+    files.map(async (f) => {
+      const res = await fetch(f.url);
+      if (!res.ok) throw new Error(`No se pudo descargar ${f.name}`);
+      zip.file(f.name, await res.blob());
+    }),
+  );
+  const blob = await zip.generateAsync({ type: "blob" });
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = `${title.trim() || "carpeta"}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+/** Panel principal de una carpeta: lista de archivos + descargar todo en ZIP. */
+function FolderViewer({ content }: { content: LearnContent }) {
+  const files = content.folderFiles ?? [];
+  const [zipping, setZipping] = useState(false);
+
+  async function downloadZip() {
+    if (!files.length) return;
+    setZipping(true);
+    try {
+      await zipAndDownloadFolder(content.title, files);
+    } catch {
+      toast.error("No se pudo generar el ZIP");
+    } finally {
+      setZipping(false);
+    }
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
+        <span className="flex items-center gap-2.5 text-sm font-medium">
+          <span
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+            aria-hidden="true"
+          >
+            <Folder className="size-4.5" />
+          </span>
+          {files.length} {files.length === 1 ? "archivo" : "archivos"}
+        </span>
+        {files.length > 0 && (
+          <Button type="button" size="sm" disabled={zipping} onClick={downloadZip}>
+            {zipping ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <FileArchive className="size-4" />
+            )}
+            Descargar carpeta (ZIP)
+          </Button>
+        )}
+      </div>
+      {files.length === 0 ? (
+        <p className="p-6 text-center text-sm text-muted-foreground">
+          Esta carpeta aún no tiene archivos.
+        </p>
+      ) : (
+        <ul className="divide-y">
+          {files.map((f) => (
+            <li
+              key={f.id}
+              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+            >
+              <FileText
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1 truncate text-sm">{f.name}</span>
+              <a
+                href={f.url}
+                target={f.url.startsWith("/files") ? undefined : "_blank"}
+                rel="noopener noreferrer"
+                download={f.url.startsWith("/files") ? "" : undefined}
+                className="inline-flex shrink-0 items-center gap-1.5 text-xs text-sky-600 hover:underline dark:text-sky-400"
+              >
+                <Download className="size-3.5" />
+                Descargar
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Panel central de un archivo dentro de una carpeta: cabecera con contexto +
+ * botón para volver a la carpeta, y el mismo visor que un material (PDF/Word/
+ * Excel/imagen inline).
+ */
+function FolderFilePanel({
+  file,
+  folderTitle,
+  courseName,
+  onBack,
+}: {
+  file: FolderFile;
+  folderTitle: string;
+  courseName: string;
+  onBack: () => void;
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="group inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
+        Volver a la carpeta
+      </button>
+      <div className="mt-3">
+        <p className="flex items-center gap-2 text-sm font-medium text-primary">
+          {courseName}
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+            <Folder className="size-3" aria-hidden="true" />
+            {folderTitle}
+          </span>
+        </p>
+        <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight">
+          {file.name}
+        </h1>
+      </div>
+      <div className="mt-5">
+        <MaterialViewer url={file.url} title={file.name} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Visor de un archivo: previsualiza imágenes, PDFs, Word, Excel y PowerPoint en
+ * el panel central; si no, tarjeta de descarga. Reutilizado por los materiales
+ * (kind MATERIAL) y por los archivos dentro de una carpeta.
+ */
+function MaterialViewer({ url, title }: { url: string; title: string }) {
   const isInternal = url.startsWith("/files");
   const lower = url.split("?")[0].toLowerCase();
   const isImage = /\.(png|jpe?g|gif|webp|avif|svg)$/.test(lower);
   const isPdf = lower.endsWith(".pdf");
+  // Word moderno (.docx): se renderiza en el navegador con docx-preview.
+  const isDocx = lower.endsWith(".docx");
+  // Excel (.xlsx/.xls): se renderiza en el navegador con SheetJS.
+  const isExcel = /\.(xlsx|xls)$/.test(lower);
+  // Word legacy (.doc) y PowerPoint (.pptx/.ppt): visor online de Office
+  // (requiere URL pública; en localhost se ofrece descargar).
+  const isOffice = /\.(doc|pptx|ppt)$/.test(lower);
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
@@ -580,15 +922,21 @@ function MaterialViewer({ content }: { content: LearnContent }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={url}
-          alt={content.title}
+          alt={title}
           className="max-h-[34rem] w-full bg-muted/30 object-contain"
         />
       ) : isPdf ? (
         <iframe
           src={url}
-          title={content.title}
+          title={title}
           className="h-[36rem] w-full bg-muted/30"
         />
+      ) : isDocx ? (
+        <DocxViewer url={url} title={title} />
+      ) : isExcel ? (
+        <ExcelViewer url={url} title={title} />
+      ) : isOffice ? (
+        <OfficeViewer url={url} title={title} />
       ) : null}
       <div className="flex items-center justify-between gap-3 p-4">
         <span className="flex min-w-0 items-center gap-2.5">
@@ -598,7 +946,7 @@ function MaterialViewer({ content }: { content: LearnContent }) {
           >
             <Paperclip className="size-4.5" />
           </span>
-          <span className="truncate text-sm font-medium">{content.title}</span>
+          <span className="truncate text-sm font-medium">{title}</span>
         </span>
         <Button
           type="button"
@@ -622,6 +970,215 @@ function MaterialViewer({ content }: { content: LearnContent }) {
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Visor de documentos Word (.docx) en el navegador. Descarga el archivo del
+ * mismo origen (proxy `/files/*`) y lo renderiza con `docx-preview` (importado
+ * dinámicamente, solo cliente). A diferencia de los visores online de Office /
+ * Google, funciona en localhost y no envía el archivo a terceros.
+ */
+function DocxViewer({ url, title }: { url: string; title: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setState("loading");
+      try {
+        const [{ renderAsync }, res] = await Promise.all([
+          import("docx-preview"),
+          fetch(url),
+        ]);
+        if (!res.ok) throw new Error("No se pudo cargar el documento");
+        const blob = await res.blob();
+        if (cancelled || !containerRef.current) return;
+        containerRef.current.innerHTML = "";
+        await renderAsync(blob, containerRef.current, undefined, {
+          className: "docx",
+          inWrapper: true,
+          ignoreWidth: false,
+          ignoreHeight: false,
+        });
+        if (!cancelled) setState("ready");
+      } catch {
+        if (!cancelled) setState("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  return (
+    <div className="relative h-[36rem] w-full overflow-auto bg-muted/30">
+      {state === "loading" && (
+        <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          Cargando documento…
+        </div>
+      )}
+      {state === "error" && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-6 text-center text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">
+            No se pudo previsualizar el documento
+          </p>
+          <p>Usa el botón “Descargar” para abrirlo en Word.</p>
+        </div>
+      )}
+      {/* docx-preview inyecta el documento renderizado dentro de este contenedor. */}
+      <div
+        ref={containerRef}
+        aria-label={title}
+        className={cn(
+          "docx-host flex justify-center py-4",
+          state !== "ready" && "invisible",
+        )}
+      />
+    </div>
+  );
+}
+
+/**
+ * Visor de hojas de cálculo (.xlsx/.xls) en el navegador con SheetJS. Descarga
+ * el archivo del mismo origen y renderiza cada hoja como tabla HTML. Funciona en
+ * localhost y no envía el archivo a terceros.
+ */
+function ExcelViewer({ url, title }: { url: string; title: string }) {
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [sheets, setSheets] = useState<{ name: string; html: string }[]>([]);
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setState("loading");
+      try {
+        const [XLSX, res] = await Promise.all([import("xlsx"), fetch(url)]);
+        if (!res.ok) throw new Error("No se pudo cargar la hoja de cálculo");
+        const buf = await res.arrayBuffer();
+        const wb = XLSX.read(buf, { type: "array" });
+        const out = wb.SheetNames.map((name) => ({
+          name,
+          html: XLSX.utils.sheet_to_html(wb.Sheets[name]),
+        }));
+        if (cancelled) return;
+        setSheets(out);
+        setActive(0);
+        setState("ready");
+      } catch {
+        if (!cancelled) setState("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  return (
+    <div className="relative h-[36rem] w-full overflow-hidden bg-muted/30">
+      {state === "loading" && (
+        <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          Cargando hoja de cálculo…
+        </div>
+      )}
+      {state === "error" && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-6 text-center text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">
+            No se pudo previsualizar la hoja de cálculo
+          </p>
+          <p>Usa el botón “Descargar” para abrirla en Excel.</p>
+        </div>
+      )}
+      {state === "ready" && (
+        <div className="flex h-full flex-col">
+          {sheets.length > 1 && (
+            <div className="flex flex-wrap gap-1 border-b bg-card px-3 py-2">
+              {sheets.map((s, i) => (
+                <button
+                  key={s.name}
+                  type="button"
+                  onClick={() => setActive(i)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                    i === active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <div
+            aria-label={title}
+            className="min-w-0 flex-1 overflow-auto bg-white p-3 text-sm text-slate-900 [&_table]:border-collapse [&_td]:whitespace-nowrap [&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-1"
+            // SheetJS produce HTML estático de solo lectura.
+            dangerouslySetInnerHTML={{ __html: sheets[active]?.html ?? "" }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const subscribeNoop = () => () => {};
+/** `true` solo tras montar en cliente (sin `useEffect`, evita la regla
+ * `react-hooks/set-state-in-effect`). Igual patrón que el theme-toggle. */
+function useMounted() {
+  return useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
+}
+
+/**
+ * Visor de Word legacy (.doc) y PowerPoint (.ppt/.pptx) mediante el visor online
+ * de Microsoft Office. Requiere que el archivo sea accesible públicamente, así
+ * que en `localhost` no funciona: ahí se ofrece descargarlo.
+ */
+function OfficeViewer({ url, title }: { url: string; title: string }) {
+  const mounted = useMounted();
+
+  if (!mounted) {
+    return (
+      <div className="flex h-[36rem] w-full items-center justify-center gap-2 bg-muted/30 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+        Cargando vista previa…
+      </div>
+    );
+  }
+
+  const host = window.location.hostname;
+  const isLocal =
+    host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+
+  if (isLocal) {
+    return (
+      <div className="flex h-[36rem] w-full flex-col items-center justify-center gap-1 bg-muted/30 px-6 text-center text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">
+          Vista previa no disponible en entorno local
+        </p>
+        <p>
+          La previsualización de este formato requiere un sitio público. Usa el
+          botón “Descargar” para abrirlo.
+        </p>
+      </div>
+    );
+  }
+
+  const abs = url.startsWith("http")
+    ? url
+    : `${window.location.origin}${url}`;
+  const src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(abs)}`;
+
+  return (
+    <iframe src={src} title={title} className="h-[36rem] w-full bg-muted/30" />
   );
 }
 

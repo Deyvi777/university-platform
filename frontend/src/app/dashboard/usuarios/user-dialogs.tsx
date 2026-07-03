@@ -80,7 +80,7 @@ export function EditUserButton({ user }: { user: AdminUser }) {
         variant="ghost"
         size="icon-sm"
         onClick={() => setOpen(true)}
-        aria-label={`Editar ${user.firstName} ${user.lastName}`}
+        aria-label={`Editar ${user.lastName} ${user.firstName}`}
       >
         <Pencil className="size-4" />
       </Button>
@@ -89,7 +89,7 @@ export function EditUserButton({ user }: { user: AdminUser }) {
           <DialogHeader>
             <DialogTitle>Editar {noun}</DialogTitle>
             <DialogDescription>
-              {user.firstName} {user.lastName} · {user.email}
+              {user.lastName} {user.firstName} · {user.email}
             </DialogDescription>
           </DialogHeader>
           <UserForm

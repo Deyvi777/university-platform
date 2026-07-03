@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -6,8 +7,43 @@ import {
 import { Prisma, Role } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { MailService } from '../mail/mail.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { bulkStudentRowSchema } from './dto/bulk-user.dto';
+
+/**
+ * Contraseña automática de un estudiante NUEVO: inicial del nombre + inicial
+ * del apellido (en mayúsculas) + el documento de identidad completo. Ej.:
+ * Juan Pérez, CI 1234567 → "JP1234567". Solo se usa en el ALTA de estudiantes
+ * (el alta de docentes y la edición conservan la contraseña manual).
+ */
+export function generateStudentPassword(
+  firstName: string,
+  lastName: string,
+  idDocument: string,
+): string {
+  const f = firstName.trim().charAt(0).toUpperCase();
+  const l = lastName.trim().charAt(0).toUpperCase();
+  return `${f}${l}${idDocument.trim()}`;
+}
+
+/**
+ * Traduce una violación de unicidad (P2002) de `users` a un mensaje claro según
+ * la columna en conflicto (correo o documento de identidad, ambos `@unique`).
+ * Prisma clásico expone `meta.target`, pero con el driver adapter (PrismaPg) la
+ * info del constraint viene anidada (`meta.driverAdapterError…`, con el nombre
+ * `users_idDocument_key`/`users_email_key`); serializamos `meta` y buscamos la
+ * columna para cubrir ambos casos.
+ */
+function uniqueConflictMessage(
+  e: Prisma.PrismaClientKnownRequestError,
+): string {
+  const haystack = JSON.stringify(e.meta ?? {});
+  return haystack.includes('idDocument')
+    ? 'Ya existe un usuario con ese documento de identidad'
+    : 'Ya existe un usuario con ese correo';
+}
 
 /** Error de una fila en la carga masiva (índice 0-based dentro del arreglo). */
 export interface BulkRowError {
@@ -30,6 +66,10 @@ const safeSelect = {
   lastName: true,
   phone: true,
   idDocument: true,
+  issuedIn: true,
+  gender: true,
+  originUniversity: true,
+  profession: true,
   role: true,
   isActive: true,
   createdAt: true,
@@ -38,7 +78,11 @@ const safeSelect = {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+    private readonly mail: MailService,
+  ) {}
 
   findAllAdmin(role?: string) {
     const isFilterable =
@@ -62,60 +106,121 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
-    const exists = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-    if (exists) {
-      throw new ConflictException('Ya existe un usuario con ese correo');
+    // Estudiante nuevo → contraseña automática (el documento es obligatorio por
+    // DTO). Docente → contraseña manual obligatoria.
+    let password: string;
+    if (dto.role === Role.STUDENT) {
+      password = generateStudentPassword(
+        dto.firstName,
+        dto.lastName,
+        dto.idDocument,
+      );
+    } else {
+      if (!dto.password) {
+        throw new BadRequestException('La contraseña es obligatoria');
+      }
+      password = dto.password;
     }
-    return this.prisma.user.create({
-      data: {
-        email: dto.email,
-        password: await argon2.hash(dto.password),
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        phone: dto.phone,
-        idDocument: dto.idDocument ?? null,
-        role: dto.role,
-        isActive: dto.isActive,
-      },
-      select: safeSelect,
-    });
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          password: await argon2.hash(password),
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          phone: dto.phone,
+          idDocument: dto.idDocument,
+          issuedIn: dto.issuedIn ?? null,
+          gender: dto.gender,
+          originUniversity: dto.originUniversity ?? null,
+          profession: dto.profession ?? null,
+          role: dto.role,
+          isActive: dto.isActive,
+        },
+        select: safeSelect,
+      });
+      // Correo de bienvenida con las credenciales (contraseña en claro, solo
+      // disponible aquí). Se encola; no bloquea ni falla el alta.
+      await this.mail.enqueueCredentials({
+        to: user.email,
+        firstName: user.firstName,
+        email: user.email,
+        password,
+      });
+      return user;
+    } catch (e) {
+      // Correo o documento duplicado (ambos @unique).
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException(uniqueConflictMessage(e));
+      }
+      throw e;
+    }
   }
 
   async update(id: string, dto: UpdateUserDto) {
     await this.findOneAdmin(id);
 
-    if (dto.email) {
-      const clash = await this.prisma.user.findUnique({
-        where: { email: dto.email },
+    try {
+      return await this.prisma.user.update({
+        where: { id },
+        data: {
+          email: dto.email,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          // `undefined` deja el valor intacto; `null` (opcionales) lo limpia.
+          phone: dto.phone,
+          idDocument: dto.idDocument,
+          issuedIn: dto.issuedIn,
+          gender: dto.gender,
+          originUniversity: dto.originUniversity,
+          profession: dto.profession,
+          role: dto.role,
+          isActive: dto.isActive,
+          // Solo re-hashea si se envía una contraseña nueva.
+          ...(dto.password
+            ? { password: await argon2.hash(dto.password) }
+            : {}),
+        },
+        select: safeSelect,
       });
-      if (clash && clash.id !== id) {
-        throw new ConflictException('Ya existe un usuario con ese correo');
+    } catch (e) {
+      // Correo o documento duplicado (ambos @unique).
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException(uniqueConflictMessage(e));
       }
+      throw e;
     }
-
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        email: dto.email,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        // `undefined` deja el valor intacto; `null` (idDocument) lo limpia.
-        phone: dto.phone,
-        idDocument: dto.idDocument,
-        role: dto.role,
-        isActive: dto.isActive,
-        // Solo re-hashea si se envía una contraseña nueva.
-        ...(dto.password ? { password: await argon2.hash(dto.password) } : {}),
-      },
-      select: safeSelect,
-    });
   }
 
   async remove(id: string) {
-    await this.findOneAdmin(id);
+    const user = await this.findOneAdmin(id);
+    // Borrar un ESTUDIANTE cascadea sus entregas; recolectar antes los archivos
+    // (Tarea `fileUrl` + archivos de cada `ProjectDelivery`) para limpiar el
+    // bucket tras el commit (mismo contrato que removeContent).
+    const blobUrls: (string | null)[] = [];
+    if (user.role === Role.STUDENT) {
+      const subs = await this.prisma.submission.findMany({
+        where: { studentId: id },
+        select: {
+          fileUrl: true,
+          deliveries: { select: { files: { select: { url: true } } } },
+        },
+      });
+      blobUrls.push(
+        ...subs.flatMap((s) => [
+          s.fileUrl,
+          ...s.deliveries.flatMap((d) => d.files.map((f) => f.url)),
+        ]),
+      );
+    }
     await this.prisma.user.delete({ where: { id } });
+    await this.storage.deleteByUrls(blobUrls);
     return { success: true };
   }
 
@@ -130,6 +235,7 @@ export class UsersService {
     const errors: BulkRowError[] = [];
     let created = 0;
     const seenEmails = new Set<string>();
+    const seenDocuments = new Set<string>();
 
     for (let i = 0; i < rows.length; i++) {
       const parsed = bulkStudentRowSchema.safeParse(rows[i]);
@@ -145,6 +251,7 @@ export class UsersService {
 
       const data = parsed.data;
       const email = data.email.toLowerCase();
+      const document = data.idDocument.trim();
 
       if (seenEmails.has(email)) {
         errors.push({
@@ -154,32 +261,54 @@ export class UsersService {
         });
         continue;
       }
+      if (seenDocuments.has(document)) {
+        errors.push({
+          index: i,
+          email,
+          message: 'Documento de identidad duplicado dentro del archivo',
+        });
+        continue;
+      }
       seenEmails.add(email);
+      seenDocuments.add(document);
 
+      // Contraseña automática (documento obligatorio en la plantilla).
+      const password = generateStudentPassword(
+        data.firstName,
+        data.lastName,
+        data.idDocument,
+      );
       try {
         await this.prisma.user.create({
           data: {
             email,
-            password: await argon2.hash(data.password),
+            password: await argon2.hash(password),
             firstName: data.firstName,
             lastName: data.lastName,
             phone: data.phone,
-            idDocument: data.idDocument ?? null,
+            idDocument: data.idDocument,
+            issuedIn: data.issuedIn ?? null,
+            gender: data.gender,
+            originUniversity: data.originUniversity ?? null,
+            profession: data.profession ?? null,
             role: Role.STUDENT,
             isActive: true,
           },
         });
         created++;
+        // Correo de credenciales (encolado; no bloquea el lote).
+        await this.mail.enqueueCredentials({
+          to: email,
+          firstName: data.firstName,
+          email,
+          password,
+        });
       } catch (e) {
         if (
           e instanceof Prisma.PrismaClientKnownRequestError &&
           e.code === 'P2002'
         ) {
-          errors.push({
-            index: i,
-            email,
-            message: 'Ya existe un usuario con ese correo',
-          });
+          errors.push({ index: i, email, message: uniqueConflictMessage(e) });
         } else {
           errors.push({ index: i, email, message: 'No se pudo registrar' });
         }

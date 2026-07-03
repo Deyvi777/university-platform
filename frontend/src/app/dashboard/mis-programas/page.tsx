@@ -200,7 +200,7 @@ function ProgramAccordion({
 
 function ModuleRow({ module: m }: { module: ProgramModule }) {
   const status = MODULE_STATUS[m.status];
-  const teacherNames = m.teachers.map((t) => `${t.firstName} ${t.lastName}`);
+  const teacherNames = m.teachers.map((t) => `${t.lastName} ${t.firstName}`);
   return (
     <li>
       <Link

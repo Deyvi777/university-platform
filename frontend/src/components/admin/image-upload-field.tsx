@@ -4,6 +4,11 @@ import { ImageIcon, Loader2, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  fileSizeError,
+  MAX_IMAGE_UPLOAD_BYTES,
+  MAX_IMAGE_UPLOAD_MB,
+} from "@/lib/upload-limits";
 
 interface ImageUploadFieldProps {
   value: string;
@@ -34,6 +39,12 @@ export function ImageUploadField({
   }, [localPreview]);
 
   async function handleFile(file: File) {
+    const sizeError = fileSizeError(file, MAX_IMAGE_UPLOAD_BYTES);
+    if (sizeError) {
+      toast.error(sizeError);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     const preview = URL.createObjectURL(file);
     setLocalPreview(preview);
     setUploading(true);
@@ -118,7 +129,7 @@ export function ImageUploadField({
           {value ? "Cambiar imagen" : "Subir imagen"}
         </Button>
         <p className="max-w-50 text-xs text-muted-foreground">
-          WEBP, PNG, JPG o AVIF. Máximo 5 MB.
+          WEBP, PNG, JPG o AVIF. Máximo {MAX_IMAGE_UPLOAD_MB} MB.
         </p>
       </div>
     </div>

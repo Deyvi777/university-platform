@@ -51,7 +51,7 @@ function effectiveStatus(m: StudentGradeModule): ModuleGradeStatus | null {
 }
 
 function studentName(s: AdminUser): string {
-  return `${s.firstName} ${s.lastName}`.trim();
+  return `${s.lastName} ${s.firstName}`.trim();
 }
 
 /** Panel con los datos del estudiante en la parte superior del modal. */

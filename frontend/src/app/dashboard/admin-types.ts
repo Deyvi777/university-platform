@@ -56,13 +56,23 @@ export interface TeamMemberPayload {
 /** El backend solo acepta PROFESSOR o STUDENT al crear/editar usuarios. */
 export type ManagedUserRole = "PROFESSOR" | "STUDENT";
 
+export type UserGender = "MALE" | "FEMALE";
+
 export interface UserPayload {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
-  /** Documento de identidad (carnet): opcional; `null` lo limpia. */
-  idDocument?: string | null;
+  /** Documento de identidad (carnet): obligatorio y único. */
+  idDocument: string;
+  /** "Expedido en": lugar de emisión del documento (opcional); `null` lo limpia. */
+  issuedIn?: string | null;
+  /** Género (obligatorio al crear; omitido en edición conserva el actual). */
+  gender?: UserGender;
+  /** Universidad de origen (opcional); `null` lo limpia. */
+  originUniversity?: string | null;
+  /** Profesión (opcional); `null` lo limpia. */
+  profession?: string | null;
   /** Opcional en edición: si se omite, el backend mantiene la contraseña. */
   password?: string;
   /**
@@ -112,6 +122,7 @@ export interface CoursePayload {
   name: string;
   code?: string;
   description?: string | null;
+  icon?: string | null;
   modality?: string | null;
   startDate?: string | null;
   endDate?: string | null;

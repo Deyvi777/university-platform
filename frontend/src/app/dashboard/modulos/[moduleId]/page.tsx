@@ -74,6 +74,7 @@ export default async function ModuleManagePage({
           contents={mod.contents}
           gradebook={gradebook}
           readOnly={mod.status === "FINISHED"}
+          isAdmin={isAdmin}
           chat={{
             contacts: chatContacts,
             currentUserId: session.user.id,

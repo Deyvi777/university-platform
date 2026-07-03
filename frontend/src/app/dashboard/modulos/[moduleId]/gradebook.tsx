@@ -60,7 +60,7 @@ const GRADE_STATUS: Record<ModuleGradeStatus, { label: string; cls: string }> = 
 type SortDir = "asc" | "desc";
 
 function studentName(row: GradebookRow): string {
-  return `${row.student.firstName} ${row.student.lastName}`;
+  return `${row.student.lastName} ${row.student.firstName}`;
 }
 
 // Valor numérico de una fila para una columna de nota (actividad o módulo).
@@ -312,6 +312,20 @@ function ActivityHeader({
         /{activity.maxScore}
         {activity.weight ? ` · ${activity.weight}%` : ""}
       </span>
+      {/* Examen de recuperación: no pondera, su nota reemplaza la del módulo. */}
+      {activity.recoveryStage && (
+        <span
+          className={
+            activity.recoveryStage === "SEGUNDA_INSTANCIA"
+              ? "mt-0.5 inline-block rounded-full bg-purple-100 px-1.5 py-px text-[0.6rem] font-semibold text-purple-700 dark:bg-purple-500/15 dark:text-purple-300"
+              : "mt-0.5 inline-block rounded-full bg-rose-100 px-1.5 py-px text-[0.6rem] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
+          }
+        >
+          {activity.recoveryStage === "SEGUNDA_INSTANCIA"
+            ? "2.ª instancia"
+            : "Recuperatorio"}
+        </span>
+      )}
       {activity.isOffline && !readOnly && (
         <span className="mt-0.5 flex items-center justify-center gap-1">
           <button
@@ -370,7 +384,7 @@ function StudentRow({
       : "IN_PROGRESS"
     : null;
   const grade = effectiveStatus ? GRADE_STATUS[effectiveStatus] : null;
-  const fullName = `${row.student.firstName} ${row.student.lastName}`;
+  const fullName = `${row.student.lastName} ${row.student.firstName}`;
 
   return (
     <>
@@ -581,7 +595,8 @@ function NewActivityForm({
         isOffline: true,
         isPublished: true,
         activityType: "ASSIGNMENT",
-        maxScore: Number(maxScore) || 0,
+        // Campo vacío/inválido → default 100 (el backend rechaza maxScore 0).
+        maxScore: Number(maxScore) > 0 ? Number(maxScore) : 100,
         weight: Number(weight) || 0,
       });
       if (result.ok) {
@@ -614,7 +629,7 @@ function NewActivityForm({
             <Input
               id={`${uid}-max`}
               type="number"
-              min={0}
+              min={1}
               max={100}
               value={maxScore}
               onChange={(e) => setMaxScore(e.target.value)}

@@ -1,7 +1,7 @@
 "use client";
 
-import { LogOut, PanelRightClose, PanelRightOpen } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PanelRightClose, PanelRightOpen, X } from "lucide-react";
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./dashboard-sidebar";
 
@@ -37,7 +37,29 @@ export function DashboardShell({
   children: React.ReactNode;
   profilePanel: React.ReactNode;
 }) {
-  const { profileOpen } = useSidebar();
+  const { profileOpen, toggleProfile } = useSidebar();
+
+  // Trampa de historial: con el drawer abierto en móvil, el botón "atrás" del
+  // navegador debe CERRAR el panel, no salir de la página. Al abrir empujamos
+  // una entrada de historial; el `popstate` (atrás) la consume y cierra el
+  // drawer. En `xl+` el panel es inline, así que no se intercepta.
+  useEffect(() => {
+    if (!profileOpen) return;
+    if (!window.matchMedia("(max-width: 1279px)").matches) return;
+
+    window.history.pushState({ profileDrawer: true }, "");
+    const onPopState = () => toggleProfile();
+    window.addEventListener("popstate", onPopState);
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      // Si el drawer se cerró por la X o el backdrop (no por "atrás"), nuestra
+      // entrada sigue siendo la actual: la retiramos para no dejarla colgada.
+      if (window.history.state?.profileDrawer) {
+        window.history.back();
+      }
+    };
+  }, [profileOpen, toggleProfile]);
 
   return (
     // `min-w-0` evita que el contenido ancho (tablas, etc.) desborde la columna
@@ -63,19 +85,49 @@ export function DashboardShell({
             Cada página decide internamente si limita el ancho de bloques angostos
             (p. ej. formularios de una sola columna). */}
         <main className="min-w-0">{children}</main>
-        {/* El panel se monta siempre (es Server Component) pero se oculta con
-            CSS cuando `profileOpen` es falso, para no perder su contenido. */}
-        <div className={cn("min-w-0", !profileOpen && "xl:hidden")}>
+        {/* Columna inline del panel: solo `xl+`. Se monta siempre pero se oculta
+            con CSS cuando `profileOpen` es falso, para no perder su contenido. */}
+        <div className={cn("hidden min-w-0 xl:block", !profileOpen && "xl:hidden")}>
           {profilePanel}
         </div>
       </div>
+
+      {/* Drawer del panel en móvil/tablet (< xl): backdrop + hoja deslizable
+          desde la derecha. Solo se monta cuando está abierto, así no deja un
+          elemento fuera de pantalla que provoque scroll horizontal. */}
+      {profileOpen && (
+        <div className="xl:hidden">
+          <button
+            type="button"
+            onClick={toggleProfile}
+            aria-label="Cerrar el panel de perfil"
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] duration-200 motion-safe:animate-in motion-safe:fade-in-0"
+          />
+          <div className="fixed inset-y-0 right-0 z-50 w-80 max-w-[85vw] bg-background shadow-2xl duration-300 motion-safe:animate-in motion-safe:slide-in-from-right-[20rem]">
+            {/* Botón de cierre (X): mismo diseño rojo que "Cerrar sesión",
+                medio fuera del panel (left negativo = mitad del ancho del
+                botón). Va FUERA del contenedor scrolleable para que el
+                `overflow` no lo recorte. */}
+            <button
+              type="button"
+              onClick={toggleProfile}
+              aria-label="Cerrar el panel de perfil"
+              className="absolute -left-[1.125rem] top-4 z-10 inline-flex size-9 items-center justify-center rounded-full bg-red-500/15 text-white ring-1 ring-red-400/40 transition-colors hover:bg-red-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+            >
+              <X className="size-5" aria-hidden="true" />
+            </button>
+            <div className="h-full overflow-y-auto p-4">{profilePanel}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /**
- * Botón de ocultar/mostrar el panel de perfil derecho. Solo escritorio `xl+`
- * (el panel solo existe a partir de ese breakpoint). Vive en la barra superior.
+ * Botón de ocultar/mostrar el panel de perfil derecho. Visible en todos los
+ * tamaños: en `xl+` alterna la columna inline; en móvil/tablet abre el panel
+ * como un drawer deslizable. Vive en la barra superior.
  */
 export function ProfileToggle() {
   const { profileOpen, toggleProfile } = useSidebar();
@@ -88,7 +140,7 @@ export function ProfileToggle() {
       }
       aria-pressed={profileOpen}
       title={profileOpen ? "Ocultar perfil" : "Mostrar perfil"}
-      className="hidden size-10 items-center justify-center rounded-full border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 xl:inline-flex"
+      className="inline-flex size-10 items-center justify-center rounded-full border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
     >
       {profileOpen ? (
         <PanelRightClose className="size-5" aria-hidden="true" />
@@ -96,26 +148,5 @@ export function ProfileToggle() {
         <PanelRightOpen className="size-5" aria-hidden="true" />
       )}
     </button>
-  );
-}
-
-/**
- * Botón "Salir" compacto de la barra superior. Visible bajo `xl` (donde el panel
- * de perfil derecho — que también ofrece "Cerrar sesión" — no existe) y, en
- * `xl+`, solo cuando ese panel está oculto (`!profileOpen`), para que el usuario
- * nunca se quede sin una forma visible de cerrar sesión.
- *
- * `logout` es un Server Action; pasarlo como prop a este Client Component es
- * válido (Next serializa la referencia de la action, no la función).
- */
-export function HeaderLogout({ logout }: { logout: () => Promise<void> }) {
-  const { profileOpen } = useSidebar();
-  return (
-    <form action={logout} className={cn(profileOpen && "xl:hidden")}>
-      <Button type="submit" variant="destructive" size="sm">
-        <LogOut className="size-4" />
-        <span className="hidden sm:inline">Salir</span>
-      </Button>
-    </form>
   );
 }

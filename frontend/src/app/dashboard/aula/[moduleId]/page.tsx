@@ -60,7 +60,7 @@ export default async function ClassroomPage({
                 {mod.teachers.length === 1 ? "Docente" : "Docentes"}:
               </span>{" "}
               {mod.teachers
-                .map((t) => `${t.firstName} ${t.lastName}`)
+                .map((t) => `${t.lastName} ${t.firstName}`)
                 .join(", ")}
             </span>
           </p>

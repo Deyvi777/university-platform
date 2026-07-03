@@ -22,6 +22,8 @@ export const createCourseSchema = z.object({
   // Código institucional único (ej. "MBA-2026-I"). Si no se envía, se genera.
   code: z.string().trim().min(1).optional(),
   description: z.string().trim().nullish(),
+  // Clave de icono predefinido para las tarjetas del panel.
+  icon: z.string().trim().min(1).nullish(),
   modality: z.string().trim().nullish(),
   // Fechas ISO ("2026-08-03"); se convierten a Date en el servicio.
   startDate: z.string().min(1).nullish(),
@@ -45,6 +47,7 @@ export const updateCourseSchema = z.object({
   name: z.string().trim().min(1).optional(),
   code: z.string().trim().min(1).optional(),
   description: z.string().trim().nullish(),
+  icon: z.string().trim().min(1).nullish(),
   modality: z.string().trim().nullish(),
   startDate: z.string().min(1).nullish(),
   endDate: z.string().min(1).nullish(),
