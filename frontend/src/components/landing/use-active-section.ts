@@ -5,19 +5,32 @@ import { usePathname } from "next/navigation";
 
 const SECTION_IDS = ["inicio", "programas", "nosotros", "contacto"];
 
+/**
+ * Sección activa según la ruta. Cada página del landing monta su propio
+ * `<Navbar />`, así que el hook se remonta al navegar entre `/`, `/nosotros`
+ * y `/contacto`: el valor inicial debe derivarse del pathname, no fijarse en
+ * "inicio", o al aterrizar en otra página se marcaría "Inicio" por error.
+ */
+function sectionForPathname(pathname: string): string {
+  if (pathname === "/nosotros") return "nosotros";
+  if (pathname === "/") return "inicio";
+  return "";
+}
+
 export function useActiveSection() {
   const pathname = usePathname();
-  const [activeSection, setActiveSection] = useState<string>("inicio");
+  const [activeSection, setActiveSection] = useState<string>(() =>
+    sectionForPathname(pathname),
+  );
   const [prevPathname, setPrevPathname] = useState(pathname);
 
   // Sync URL-derived state during render (not in an effect) — see AGENTS.md
-  // (react-hooks/set-state-in-effect).
+  // (react-hooks/set-state-in-effect). En "/" no se toca: lo refina el
+  // IntersectionObserver según la sección visible al hacer scroll.
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
-    if (pathname === "/nosotros") {
-      setActiveSection("nosotros");
-    } else if (pathname !== "/") {
-      setActiveSection("");
+    if (pathname !== "/") {
+      setActiveSection(sectionForPathname(pathname));
     }
   }
 
