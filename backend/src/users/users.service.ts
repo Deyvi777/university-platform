@@ -144,6 +144,8 @@ export class UsersService {
       await this.mail.enqueueCredentials({
         to: user.email,
         firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
         email: user.email,
         password,
       });
@@ -300,6 +302,8 @@ export class UsersService {
         await this.mail.enqueueCredentials({
           to: email,
           firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
           email,
           password,
         });

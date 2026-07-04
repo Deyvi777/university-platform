@@ -20,6 +20,7 @@ import {
 import { formatRelative, metaFor } from "@/lib/notifications-meta";
 import { NotificationBody } from "@/components/dashboard/notification-body";
 import { NotificationDetailDialog } from "@/components/dashboard/notification-detail-dialog";
+import { WhatsAppIcon } from "@/components/dashboard/whatsapp-icon";
 import { cn } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -274,7 +275,12 @@ function NotificationRow({
   const { id, type, title, body, createdAt, read } = notification;
   const meta = metaFor(type);
   const Icon = meta.icon;
-  const ActionIcon = action?.kind === "activity" ? ClipboardList : MessageSquare;
+  const ActionIcon =
+    action?.kind === "activity"
+      ? ClipboardList
+      : action?.kind === "whatsapp"
+        ? WhatsAppIcon
+        : MessageSquare;
 
   const content = (
     <div className="flex items-start gap-3">
@@ -333,7 +339,14 @@ function NotificationRow({
           <Link
             href={action.href}
             onClick={onNavigate}
-            className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 dark:text-blue-300"
+            target={action.external ? "_blank" : undefined}
+            rel={action.external ? "noopener noreferrer" : undefined}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2",
+              action.kind === "whatsapp"
+                ? "bg-green-600/10 text-green-700 hover:bg-green-600/20 focus-visible:ring-green-500/50 dark:text-green-300"
+                : "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 focus-visible:ring-blue-400/50 dark:text-blue-300",
+            )}
           >
             <ActionIcon className="size-3.5" aria-hidden="true" />
             {action.label}

@@ -110,6 +110,7 @@ enum NotificationType {
   GRADE // el docente calificó una actividad del estudiante
   ACTIVITY_PUBLISHED // se publicó una nueva actividad en un módulo
   MESSAGE // mensaje de chat recibido (docente ↔ estudiante en un módulo)
+  MAIL_FAILED // aviso al ADMIN: el correo de credenciales de un usuario no se pudo enviar
 }
 
 // Configuración global de la landing (fila única / singleton). Guarda los

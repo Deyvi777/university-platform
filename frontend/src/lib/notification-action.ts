@@ -5,7 +5,9 @@ export interface NotificationAction {
   href: string;
   label: string;
   /** Distingue el icono a usar en la UI. */
-  kind: "chat" | "activity";
+  kind: "chat" | "activity" | "whatsapp";
+  /** URL externa (wa.me): abrir en pestaña nueva, no navegación interna. */
+  external?: boolean;
 }
 
 function strOf(v: unknown): string | null {
@@ -19,6 +21,8 @@ function strOf(v: unknown): string | null {
  *   docente/admin) con `?chat=<remitente>`.
  * - ACTIVITY_PUBLISHED → "Ir a la actividad" (aula del módulo) con
  *   `?content=<actividad>` para seleccionarla. Siempre va a estudiantes.
+ * - MAIL_FAILED (solo ADMIN) → "Enviar por WhatsApp": abre wa.me al teléfono
+ *   del usuario con las credenciales prellenadas (el correo no le llegó).
  * Devuelve `null` si la notificación no tiene una acción navegable.
  */
 export function notificationActionFor(
@@ -40,6 +44,32 @@ export function notificationActionFor(
       ? `${base}?chat=${encodeURIComponent(fromUserId)}`
       : `${base}?chat=1`;
     return { href, label: "Ir al chat", kind: "chat" };
+  }
+
+  if (type === "MAIL_FAILED") {
+    const phone = strOf(data.phone);
+    const email = strOf(data.email);
+    const password = strOf(data.password);
+    if (!phone || !email || !password) return null;
+    // Misma normalización que `WhatsAppButton`: local boliviano → +591.
+    const digits = phone.replace(/\D/g, "");
+    if (!digits) return null;
+    const number = digits.startsWith("591") ? digits : `591${digits}`;
+    const firstName = strOf(data.firstName);
+    const loginUrl = strOf(data.loginUrl);
+    const text = [
+      `Hola${firstName ? ` ${firstName}` : ""}:`,
+      "Se creó tu cuenta en la plataforma Certificate. Estas son tus credenciales de acceso:",
+      `Correo: ${email}`,
+      `Contraseña: ${password}`,
+      ...(loginUrl ? [`Inicia sesión aquí: ${loginUrl}`] : []),
+    ].join("\n");
+    return {
+      href: `https://wa.me/${number}?text=${encodeURIComponent(text)}`,
+      label: "Enviar credenciales por WhatsApp",
+      kind: "whatsapp",
+      external: true,
+    };
   }
 
   if (type === "ACTIVITY_PUBLISHED") {

@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { NotificationBody } from "@/components/dashboard/notification-body";
+import { WhatsAppIcon } from "@/components/dashboard/whatsapp-icon";
 import type { NotificationType } from "@/lib/api/notifications";
 import type { NotificationAction } from "@/lib/notification-action";
 import { formatFull, metaFor } from "@/lib/notifications-meta";
@@ -44,7 +45,12 @@ export function NotificationDetailDialog({
 }) {
   const meta = notification ? metaFor(notification.type) : null;
   const Icon = meta?.icon;
-  const ActionIcon = action?.kind === "activity" ? ClipboardList : MessageSquare;
+  const ActionIcon =
+    action?.kind === "activity"
+      ? ClipboardList
+      : action?.kind === "whatsapp"
+        ? WhatsAppIcon
+        : MessageSquare;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,7 +90,14 @@ export function NotificationDetailDialog({
                 <Link
                   href={action.href}
                   onClick={onNavigate}
-                  className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 dark:text-blue-300"
+                  target={action.external ? "_blank" : undefined}
+                  rel={action.external ? "noopener noreferrer" : undefined}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2",
+                    action.kind === "whatsapp"
+                      ? "bg-green-600/10 text-green-700 hover:bg-green-600/20 focus-visible:ring-green-500/50 dark:text-green-300"
+                      : "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 focus-visible:ring-blue-400/50 dark:text-blue-300",
+                  )}
                 >
                   <ActionIcon className="size-4" aria-hidden="true" />
                   {action.label}

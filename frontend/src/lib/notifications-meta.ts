@@ -1,4 +1,4 @@
-import { Mail, MessageSquare, type LucideIcon } from "lucide-react";
+import { Mail, MailX, MessageSquare, type LucideIcon } from "lucide-react";
 import type { NotificationType } from "@/lib/api/notifications";
 
 /**
@@ -40,6 +40,12 @@ export const NOTIFICATION_META: Record<
     icon: MessageSquare,
     label: "Mensaje",
     tint: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  },
+  // Solo la ve el ADMIN: un correo de credenciales agotó sus reintentos.
+  MAIL_FAILED: {
+    icon: MailX,
+    label: "Correo fallido",
+    tint: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
   },
 };
 

@@ -127,7 +127,8 @@ const HOME_ITEM: NavItem = {
   icon: "home",
 };
 
-/** Item de notificaciones, visible para docentes y estudiantes. */
+/** Item de notificaciones, visible para todos los roles (el ADMIN recibe los
+ * avisos de correos de credenciales fallidos). */
 const NOTIFICATIONS_ITEM: NavItem = {
   href: "/dashboard/notificaciones",
   label: "Notificaciones",
@@ -151,8 +152,9 @@ const KARDEX_ITEM: NavItem = {
 export function navSectionsForRole(role: string | undefined): NavSection[] {
   if (role === "ADMIN") {
     return [
-      // "Inicio" suelto, sin encabezado, arriba de las secciones.
-      { items: [HOME_ITEM] },
+      // "Inicio" y "Notificaciones" sueltos, sin encabezado, arriba de las
+      // secciones.
+      { items: [HOME_ITEM, NOTIFICATIONS_ITEM] },
       {
         title: "Académico",
         icon: "courses",

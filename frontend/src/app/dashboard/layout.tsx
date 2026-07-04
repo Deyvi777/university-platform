@@ -20,8 +20,11 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
   const role = session?.user?.role;
-  // El centro de notificaciones es para docentes y estudiantes (no para ADMIN).
-  const showNotifications = role === "PROFESSOR" || role === "STUDENT";
+  // El centro de notificaciones es para todos los roles autenticados: al ADMIN
+  // le llegan los avisos MAIL_FAILED (correo de credenciales que no se pudo
+  // enviar), a docentes y estudiantes el resto de tipos.
+  const showNotifications =
+    role === "ADMIN" || role === "PROFESSOR" || role === "STUDENT";
   // Se cargan al entrar al panel (sin tiempo real): el layout las trae con el
   // token de la sesión y se las pasa al campanario.
   const notifications = showNotifications ? await listNotifications() : [];
@@ -86,7 +89,7 @@ export default async function DashboardLayout({
               </span>
             </span>
           )}
-          {/* Centro de notificaciones (docentes y estudiantes) */}
+          {/* Centro de notificaciones (todos los roles) */}
           {showNotifications && (
             <NotificationBell
               role={role}

@@ -12,6 +12,9 @@ export const CREDENTIALS_JOB = 'credentials';
 export interface CredentialsMailPayload {
   to: string;
   firstName: string;
+  /** Apellido y teléfono: los usa el aviso al ADMIN si el envío falla. */
+  lastName: string;
+  phone: string;
   email: string;
   /** Contraseña en claro (solo disponible al momento del alta). */
   password: string;
@@ -70,9 +73,11 @@ export class MailService implements OnModuleInit {
    * WebSockets (puede llevar varios orígenes separados por coma para
    * desarrollo + producción a la vez, y el link no debe depender de cuál
    * quede primero en esa lista). Sin `MAIL_LOGIN_URL`, cae al primer origen
-   * de `FRONTEND_URL` + `/login` (comportamiento previo).
+   * de `FRONTEND_URL` + `/login` (comportamiento previo). Pública porque el
+   * procesador la incluye en el aviso al ADMIN cuando un envío falla (para el
+   * mensaje de WhatsApp con las credenciales).
    */
-  private loginUrl(): string {
+  loginUrl(): string {
     const explicit = this.config.get<string>('MAIL_LOGIN_URL');
     if (explicit) return explicit.trim().replace(/\/$/, '');
     const base = (
