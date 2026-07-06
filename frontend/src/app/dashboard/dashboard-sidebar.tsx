@@ -206,9 +206,10 @@ function useSectionOpen(slug: string): { open: boolean; toggle: () => void } {
  *
  * - El encabezado "Programas" usa `dashboard:nav-programs` con default
  *   **`true`** (abierto): el árbol arranca desplegado.
- * - Cada programa usa `dashboard:nav-program:<id>` con default **`false`**
- *   (cerrado): los módulos arrancan plegados para no inundar el riel con un
- *   árbol gigante; el usuario expande el programa que le interesa.
+ * - Cada programa usa `dashboard:nav-program:<id>` con default **`true`**
+ *   (abierto): al entrar al panel, los módulos de cada programa se ven de
+ *   inmediato; el usuario puede colapsar el que no le interese y su elección
+ *   persiste (toggle como autoridad, ver `useProgramOpen`).
  *
  * Cacheamos los stores por clave (igual que las secciones) para no recrear el
  * `Set` de listeners en cada render — `useSyncExternalStore` necesita una
@@ -222,7 +223,7 @@ const programStores = new Map<string, ReturnType<typeof createBooleanStore>>();
 function getProgramStore(id: string) {
   let store = programStores.get(id);
   if (!store) {
-    store = createBooleanStore(`dashboard:nav-program:${id}`, false);
+    store = createBooleanStore(`dashboard:nav-program:${id}`, true);
     programStores.set(id, store);
   }
   return store;
@@ -643,16 +644,17 @@ function SectionGroup({
 }
 
 /**
- * Una fila de programa dentro del árbol: un **enlace** al detalle del programa
- * (`/dashboard/mis-cursos/<programId>`, la vista que reúne cabecera + módulos del
- * programa) seguido de un **botón chevron separado** que expande/colapsa el
- * submenú de módulos SIN navegar. Es su propio componente para poder llamar
- * `useProgramOpen` (un hook) por programa sin romper las reglas de hooks.
+ * Una fila de programa dentro del árbol. Cuando el programa tiene módulos, la
+ * fila entera es un **botón toggle** (nombre + chevron en el mismo control): al
+ * hacer clic en el **nombre O en la flecha** se expande/colapsa el submenú de
+ * módulos, igual que el encabezado de una `SectionGroup`. Los módulos arrancan
+ * **visibles** (default abierto) y el usuario puede colapsarlos; su elección
+ * persiste (toggle como autoridad, ver `useProgramOpen`). Es su propio
+ * componente para poder llamar `useProgramOpen` (un hook) por programa sin
+ * romper las reglas de hooks.
  *
- * Patrón de la fila = enlace (flex-1, navega) + chevron-toggle aparte (no navega,
- * lleva `aria-expanded`/`aria-controls`). Nunca se anida un button dentro del
- * link ni viceversa: son dos controles hermanos, ambos navegables por teclado y
- * con foco visible.
+ * Si el programa **no tiene módulos** no hay nada que plegar: la fila se degrada
+ * a un **enlace** al detalle del programa (`/dashboard/mis-cursos/<programId>`).
  *
  * - La fila del programa se marca **activa** (misma píldora translúcida del
  *   sidebar) cuando `pathname` es el detalle del programa.
@@ -673,15 +675,10 @@ function ProgramRow({
 }) {
   const programHref = `/dashboard/mis-cursos/${program.id}`;
   const programActive = pathname === programHref;
-  const containsActive = program.modules.some(
-    (mod) => pathname === `${moduleHrefBase}/${mod.id}`,
-  );
-  // Auto-abierto: cuando estás viendo el detalle del programa o uno de sus
-  // módulos, arranca desplegado — PERO solo como DEFAULT mientras el usuario no
-  // haya tocado el chevron. El `toggle` (autoridad) manda sobre el auto-abierto,
-  // así el programa activo SÍ se puede colapsar y la elección persiste.
-  const autoOpen = programActive || containsActive;
-  const { open: effectiveOpen, toggle } = useProgramOpen(program.id, autoOpen);
+  // Los módulos arrancan visibles (autoOpen = true) al entrar al panel; el
+  // `toggle` (autoridad) manda sobre el default, así el usuario puede colapsar
+  // cualquier programa y la elección persiste.
+  const { open: effectiveOpen, toggle } = useProgramOpen(program.id, true);
 
   const headerId = `nav-program-${program.id}`;
   const regionId = `nav-program-${program.id}-modules`;
@@ -689,35 +686,21 @@ function ProgramRow({
 
   return (
     <div role="group" aria-labelledby={headerId}>
-      {/* Fila = enlace al detalle del programa (flex-1) + chevron-toggle aparte.
-          El `headerId` lo lleva el enlace (es la etiqueta del grupo); el chevron
-          es solo el control de plegado y referencia la región vía aria. */}
+      {/* Fila con módulos = un solo botón toggle (nombre + chevron): un clic en
+          cualquiera de los dos pliega/despliega los módulos. Sin módulos, se
+          degrada a un enlace al detalle del programa. */}
       <div
         className={cn(
-          "group/prog flex items-center gap-1 rounded-lg pr-1 transition-colors",
+          "group/prog flex items-center rounded-lg transition-colors",
           programActive
             ? "bg-white/15 ring-1 ring-white/15"
             : "hover:bg-white/[0.07]",
         )}
       >
-        <Link
-          id={headerId}
-          href={programHref}
-          onClick={onNavigate}
-          aria-current={programActive ? "page" : undefined}
-          className={cn(
-            "flex min-w-0 flex-1 items-center rounded-lg py-1.5 pl-2 pr-1 text-left text-sm font-medium transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
-            programActive
-              ? "text-white"
-              : "text-sidebar-foreground/90 group-hover/prog:text-sidebar-foreground",
-          )}
-        >
-          <span className="truncate">{program.name}</span>
-        </Link>
-        {hasModules && (
+        {hasModules ? (
           <button
             type="button"
+            id={headerId}
             onClick={toggle}
             aria-expanded={effectiveOpen}
             aria-controls={regionId}
@@ -727,21 +710,41 @@ function ProgramRow({
                 : `Mostrar módulos de ${program.name}`
             }
             className={cn(
-              "inline-flex size-6 shrink-0 items-center justify-center rounded-md transition-colors",
+              "flex min-w-0 flex-1 items-center gap-1 rounded-lg py-1.5 pl-2 pr-2 text-left text-sm font-medium transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
               programActive
-                ? "text-white/80 hover:bg-white/10 hover:text-white"
-                : "text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-foreground",
+                ? "text-white"
+                : "text-sidebar-foreground/90 group-hover/prog:text-sidebar-foreground",
             )}
           >
+            <span className="min-w-0 flex-1 truncate">{program.name}</span>
             <ChevronDown
               className={cn(
                 "size-3.5 shrink-0 transition-transform duration-200",
+                programActive
+                  ? "text-white/80"
+                  : "text-sidebar-foreground/70",
                 effectiveOpen ? "rotate-0" : "-rotate-90",
               )}
               aria-hidden="true"
             />
           </button>
+        ) : (
+          <Link
+            id={headerId}
+            href={programHref}
+            onClick={onNavigate}
+            aria-current={programActive ? "page" : undefined}
+            className={cn(
+              "flex min-w-0 flex-1 items-center rounded-lg py-1.5 pl-2 pr-2 text-left text-sm font-medium transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+              programActive
+                ? "text-white"
+                : "text-sidebar-foreground/90 group-hover/prog:text-sidebar-foreground",
+            )}
+          >
+            <span className="truncate">{program.name}</span>
+          </Link>
         )}
       </div>
 
