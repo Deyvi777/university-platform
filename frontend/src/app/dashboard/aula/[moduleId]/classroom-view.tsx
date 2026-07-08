@@ -68,6 +68,18 @@ const KIND_ICON: Record<ContentKind, typeof FileText> = {
   FOLDER: Folder,
 };
 
+// Color del badge del icono por tipo de contenido (fondo + texto, claro+oscuro).
+// Coincide con `KIND_META` del gestor del docente (`content-manager.tsx`); para
+// una ACTIVITY el color sale del `activityType` (registro `ACTIVITY_TYPES`).
+const KIND_TINT: Record<ContentKind, string> = {
+  TEXT: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  VIDEO: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  MATERIAL: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  ACTIVITY:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  FOLDER: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+};
+
 const KIND_LABEL: Record<ContentKind, string> = {
   TEXT: "Tema",
   VIDEO: "Video",
@@ -365,6 +377,7 @@ export function ClassroomView({
                       ? ACTIVITY_TYPES[c.activityType ?? "ASSIGNMENT"]
                       : null;
                   const Icon = activityMeta?.Icon ?? KIND_ICON[c.kind];
+                  const iconTint = activityMeta?.tint ?? KIND_TINT[c.kind];
                   const isFolder = c.kind === "FOLDER";
                   const folderFiles = c.folderFiles ?? [];
                   const expanded = isFolder && !collapsedFolders.has(c.id);
@@ -390,11 +403,12 @@ export function ClassroomView({
                           <span
                             className={cn(
                               "flex size-7 shrink-0 items-center justify-center rounded-full",
+                              // Completado = check verde; si no, el color del
+                              // tipo de contenido/actividad (como en el gestor
+                              // del docente y el selector de creación).
                               c.completed
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                                : active
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted text-muted-foreground",
+                                : iconTint,
                             )}
                             aria-hidden="true"
                           >
