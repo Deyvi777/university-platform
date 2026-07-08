@@ -2,20 +2,29 @@
 
 import { ArrowLeft, Printer } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 /**
  * Barra de acciones de la vista imprimible (oculta al imprimir vía `print:hidden`).
  * "Descargar PDF" abre el diálogo de impresión del navegador → Guardar como PDF.
  * `backHref` permite reutilizarla tanto desde el kárdex del estudiante como
- * desde las vistas del ADMIN (notas/kárdex de un estudiante).
+ * desde las vistas del ADMIN (notas/kárdex de un estudiante) y la libreta del
+ * módulo; `className` ajusta el ancho al del documento (p. ej. `max-w-5xl`).
  */
 export function PrintBar({
   backHref = "/dashboard/kardex",
+  className,
 }: {
   backHref?: string;
+  className?: string;
 }) {
   return (
-    <div className="mx-auto mb-6 flex max-w-3xl items-center justify-between gap-3 print:hidden">
+    <div
+      className={cn(
+        "mx-auto mb-6 flex max-w-3xl items-center justify-between gap-3 print:hidden",
+        className,
+      )}
+    >
       <Link
         href={backHref}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"

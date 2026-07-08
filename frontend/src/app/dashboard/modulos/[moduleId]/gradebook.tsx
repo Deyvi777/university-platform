@@ -5,6 +5,8 @@ import {
   ChevronDown,
   ChevronsUpDown,
   ChevronUp,
+  Download,
+  FileSpreadsheet,
   Loader2,
   MessageSquarePlus,
   Pencil,
@@ -13,7 +15,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,6 +63,16 @@ type SortDir = "asc" | "desc";
 
 function studentName(row: GradebookRow): string {
   return `${row.student.lastName} ${row.student.firstName}`;
+}
+
+/** Metadato de la columna de una actividad ("/100 · 40%", "/100 · Recuperatorio"). */
+function activityColumnMeta(a: GradebookActivity): string {
+  if (a.recoveryStage) {
+    return `/${a.maxScore} · ${
+      a.recoveryStage === "SEGUNDA_INSTANCIA" ? "2.ª instancia" : "Recuperatorio"
+    }`;
+  }
+  return `/${a.maxScore}${a.weight ? ` · ${a.weight}%` : ""}`;
 }
 
 // Valor numérico de una fila para una columna de nota (actividad o módulo).
@@ -125,6 +137,7 @@ export function Gradebook({
   const [addOpen, setAddOpen] = useState(false);
   const [sortKey, setSortKey] = useState<string>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [exporting, setExporting] = useState(false);
 
   function toggleSort(key: string) {
     if (key === sortKey) {
@@ -152,6 +165,63 @@ export function Gradebook({
     return rows;
   }, [gradebook, sortKey, sortDir]);
 
+  // Exporta la libreta (con el orden visible) a un .xlsx generado en el
+  // navegador con SheetJS (import dinámico: la librería solo se carga al usarla).
+  async function downloadExcel() {
+    if (!gradebook || exporting) return;
+    setExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const header = [
+        "N°",
+        "Estudiante",
+        "Correo",
+        ...gradebook.activities.map(
+          (a) => `${a.title} (${activityColumnMeta(a)})`,
+        ),
+        "Nota del módulo",
+        "Estado",
+        "Observación",
+      ];
+      const rows = students.map((row, i) => {
+        const status = row.moduleGrade
+          ? readOnly
+            ? GRADE_STATUS[row.moduleGrade.status].label
+            : "En curso"
+          : "Sin nota";
+        return [
+          i + 1,
+          studentName(row),
+          row.student.email,
+          ...gradebook.activities.map(
+            (a) => row.grades.find((g) => g.activityId === a.id)?.score ?? "",
+          ),
+          row.moduleGrade?.finalScore ?? "",
+          status,
+          row.observation || "",
+        ];
+      });
+      const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+      ws["!cols"] = header.map((h, idx) => ({
+        wch:
+          idx === 1 || idx === 2
+            ? 32
+            : Math.max(10, Math.min(String(h).length + 2, 28)),
+      }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Calificaciones");
+      const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, "-");
+      XLSX.writeFile(
+        wb,
+        `Calificaciones - ${safe(gradebook.course.name)} - Módulo ${gradebook.module.order}.xlsx`,
+      );
+    } catch {
+      toast.error("No se pudo generar el Excel");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (!gradebook) {
     return (
       <div className="rounded-2xl border border-dashed bg-muted/20 px-6 py-12 text-center text-sm text-muted-foreground">
@@ -175,11 +245,41 @@ export function Gradebook({
               : "Notas por actividad, nota del módulo (calculada) y tu observación. Puedes agregar actividades y calificarlas a mano aquí."}
           </p>
         </div>
-        {!readOnly && (
-          <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
-            <Plus className="size-4" /> Nueva calificación
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {students.length > 0 && (
+            <>
+              <a
+                href={`/libreta-pdf/${moduleId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                )}
+              >
+                <Download className="size-4" aria-hidden="true" /> PDF
+              </a>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={downloadExcel}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <FileSpreadsheet className="size-4" aria-hidden="true" />
+                )}
+                Excel
+              </Button>
+            </>
+          )}
+          {!readOnly && (
+            <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
+              <Plus className="size-4" /> Nueva calificación
+            </Button>
+          )}
+        </div>
       </div>
 
       {!readOnly && (
