@@ -41,6 +41,10 @@ export const createCourseSchema = z.object({
     .array(createModuleSchema)
     .min(1, 'Define al menos un módulo')
     .max(50),
+  // Con módulo 0, la numeración de la malla empieza en 0 (el primer módulo de
+  // la lista es el "Módulo 0"); sin él, empieza en 1. No es una columna: solo
+  // define la base del `order` derivado de la posición.
+  moduleZero: z.boolean().default(false),
 });
 
 export const updateCourseSchema = z.object({
@@ -61,6 +65,8 @@ export const updateCourseSchema = z.object({
     ])
     .optional(),
   modules: z.array(updateModuleSchema).min(1).max(50).optional(),
+  // Si no llega, se conserva la base actual (se infiere del primer `order`).
+  moduleZero: z.boolean().optional(),
 });
 
 // Asignación de docentes (co-docencia) a un módulo: reemplaza la lista completa.

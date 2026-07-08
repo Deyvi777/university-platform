@@ -25,6 +25,8 @@ export const courseFormSchema = z.object({
       }),
     )
     .min(1, "Agrega al menos un módulo"),
+  // La numeración empieza en 0: el primer módulo de la lista es el "Módulo 0".
+  moduleZero: z.boolean(),
 });
 
 export type CourseFormValues = z.infer<typeof courseFormSchema>;
@@ -42,6 +44,7 @@ export function toFormValues(course?: AdminCourse): CourseFormValues {
       passingScore: 71,
       status: "DRAFT",
       modules: [{ name: "" }],
+      moduleZero: false,
     };
   }
 
@@ -56,6 +59,8 @@ export function toFormValues(course?: AdminCourse): CourseFormValues {
     passingScore: Number(course.passingScore),
     status: course.status,
     modules: course.modules.map((m) => ({ id: m.id, name: m.name })),
+    // La base actual del curso se infiere del `order` del primer módulo.
+    moduleZero: course.modules[0]?.order === 0,
   };
 }
 
@@ -74,5 +79,6 @@ export function toPayload(values: CourseFormValues): CoursePayload {
       ...(m.id ? { id: m.id } : {}),
       name: m.name.trim(),
     })),
+    moduleZero: values.moduleZero,
   };
 }

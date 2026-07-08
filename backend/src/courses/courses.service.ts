@@ -479,6 +479,7 @@ export class CoursesService {
   async create(dto: CreateCourseDto) {
     const {
       modules,
+      moduleZero,
       code: providedCode,
       startDate,
       endDate,
@@ -486,6 +487,8 @@ export class CoursesService {
       ...scalars
     } = dto;
     const code = await this.buildUniqueCode(providedCode ?? dto.name);
+    // Con módulo 0 la numeración empieza en 0; sin él, en 1.
+    const orderBase = moduleZero ? 0 : 1;
 
     return this.prisma.course.create({
       data: {
@@ -496,7 +499,7 @@ export class CoursesService {
         passingScore: new Prisma.Decimal(passingScore),
         modules: {
           create: modules.map((m, i) => ({
-            order: i + 1,
+            order: i + orderBase,
             name: m.name,
             description: m.description ?? null,
             credits: m.credits ?? null,
@@ -513,7 +516,15 @@ export class CoursesService {
   async update(id: string, dto: UpdateCourseDto) {
     const existing = await this.findOneAdmin(id);
 
-    const { modules, code, startDate, endDate, passingScore, ...rest } = dto;
+    const {
+      modules,
+      moduleZero,
+      code,
+      startDate,
+      endDate,
+      passingScore,
+      ...rest
+    } = dto;
     const data: Prisma.CourseUpdateInput = { ...rest };
     if (code !== undefined) {
       data.code = await this.buildUniqueCode(code, id);
@@ -571,7 +582,17 @@ export class CoursesService {
         }
 
         // Reasignar `order` por posición sin chocar con @@unique([courseId,order]):
-        // primero a un rango temporal alto, luego al definitivo.
+        // primero a un rango temporal alto, luego al definitivo. Con módulo 0
+        // la numeración empieza en 0; si el flag no llega, se conserva la base
+        // actual del curso (inferida del primer `order` existente).
+        const orderBase =
+          moduleZero !== undefined
+            ? moduleZero
+              ? 0
+              : 1
+            : existing.modules[0]?.order === 0
+              ? 0
+              : 1;
         const existingIds = new Set(existing.modules.map((m) => m.id));
         for (let i = 0; i < modules.length; i++) {
           const m = modules[i];
@@ -592,11 +613,11 @@ export class CoursesService {
           if (m.id && existingIds.has(m.id)) {
             await tx.courseModule.update({
               where: { id: m.id },
-              data: { ...fields, order: i + 1 },
+              data: { ...fields, order: i + orderBase },
             });
           } else {
             await tx.courseModule.create({
-              data: { ...fields, order: i + 1, courseId: id },
+              data: { ...fields, order: i + orderBase, courseId: id },
             });
           }
         }

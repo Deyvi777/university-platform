@@ -2,8 +2,25 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   AlertCircle,
   GraduationCap,
+  GripVertical,
   Info,
   Layers,
   Loader2,
@@ -13,11 +30,18 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  useWatch,
+  type UseFormRegister,
+} from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -90,6 +114,26 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
     });
   const { errors, isSubmitting } = formState;
   const modules = useFieldArray({ control, name: "modules" });
+  // `useWatch`, no `watch()`: compatible con React Compiler (ver AGENTS.md).
+  const moduleZero = useWatch({ control, name: "moduleZero" });
+  // Con módulo 0 la numeración visible (y el `order` guardado) empieza en 0.
+  const orderBase = moduleZero ? 0 : 1;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  function onModuleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = modules.fields.findIndex((f) => f.id === active.id);
+    const newIndex = modules.fields.findIndex((f) => f.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    modules.move(oldIndex, newIndex);
+  }
 
   async function onSubmit(values: CourseFormValues) {
     setFormError(null);
@@ -330,7 +374,7 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
       <FormSection
         icon={Layers}
         title="Módulos"
-        description="Define la malla del programa. Podrás asignar docentes a cada módulo después de crearlo."
+        description="Define la malla del programa. Arrastra para reordenar: el número de cada módulo es su posición en la lista. Podrás asignar docentes a cada módulo después de crearlo."
       >
         {errors.modules?.root && (
           <p className="flex items-center gap-1.5 text-xs text-destructive">
@@ -338,6 +382,28 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
             {errors.modules.root.message}
           </p>
         )}
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border bg-muted/30 p-3">
+          <div className="space-y-0.5">
+            <Label htmlFor="moduleZero">Incluir módulo 0</Label>
+            <p className="text-xs text-muted-foreground">
+              La numeración empieza en 0: el primer módulo de la lista es el
+              «Módulo 0» (p. ej. nivelación o inducción).
+            </p>
+          </div>
+          <Controller
+            control={control}
+            name="moduleZero"
+            render={({ field }) => (
+              <Switch
+                id="moduleZero"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                className="mt-1"
+              />
+            )}
+          />
+        </div>
 
         {modules.fields.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed bg-muted/30 px-6 py-8 text-center">
@@ -350,47 +416,31 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
             </p>
           </div>
         ) : (
-          <ol className="space-y-2.5">
-            {modules.fields.map((field, index) => (
-              <li
-                key={field.id}
-                className="flex items-start gap-3 rounded-lg border bg-background p-3"
-              >
-                <span
-                  className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums text-muted-foreground"
-                  aria-hidden="true"
-                >
-                  {index + 1}
-                </span>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <Input
-                    placeholder={`Nombre del módulo ${index + 1}`}
-                    aria-label={`Nombre del módulo ${index + 1}`}
-                    aria-invalid={
-                      errors.modules?.[index]?.name ? true : undefined
-                    }
-                    {...register(`modules.${index}.name` as const)}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onModuleDragEnd}
+          >
+            <SortableContext
+              items={modules.fields.map((f) => f.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ol className="space-y-2.5">
+                {modules.fields.map((field, index) => (
+                  <SortableModuleRow
+                    key={field.id}
+                    fieldId={field.id}
+                    number={index + orderBase}
+                    register={register}
+                    index={index}
+                    error={errors.modules?.[index]?.name?.message}
+                    removeDisabled={modules.fields.length === 1}
+                    onRemove={() => modules.remove(index)}
                   />
-                  {errors.modules?.[index]?.name && (
-                    <p className="text-xs text-destructive">
-                      {errors.modules[index]?.name?.message}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="mt-0.5 text-muted-foreground hover:text-destructive"
-                  aria-label={`Quitar módulo ${index + 1}`}
-                  disabled={modules.fields.length === 1}
-                  onClick={() => modules.remove(index)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </li>
-            ))}
-          </ol>
+                ))}
+              </ol>
+            </SortableContext>
+          </DndContext>
         )}
 
         <Button
@@ -426,5 +476,81 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
         </Button>
       </div>
     </form>
+  );
+}
+
+/** Fila de módulo reordenable: asa de arrastre + número por posición + nombre.
+ * El id sortable es el `id` del field array (estable entre reordenes). */
+function SortableModuleRow({
+  fieldId,
+  number,
+  index,
+  register,
+  error,
+  removeDisabled,
+  onRemove,
+}: {
+  fieldId: string;
+  number: number;
+  index: number;
+  register: UseFormRegister<CourseFormValues>;
+  error?: string;
+  removeDisabled: boolean;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: fieldId });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "flex items-start gap-2 rounded-lg border bg-background p-3",
+        isDragging && "relative z-10 shadow-lg",
+      )}
+    >
+      <button
+        type="button"
+        className="mt-0.5 flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+        aria-label={`Arrastrar para reordenar el módulo ${number}`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <span
+        className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold tabular-nums text-muted-foreground"
+        aria-hidden="true"
+      >
+        {number}
+      </span>
+      <div className="min-w-0 flex-1 space-y-1">
+        <Input
+          placeholder={`Nombre del módulo ${number}`}
+          aria-label={`Nombre del módulo ${number}`}
+          aria-invalid={error ? true : undefined}
+          {...register(`modules.${index}.name` as const)}
+        />
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="mt-0.5 text-muted-foreground hover:text-destructive"
+        aria-label={`Quitar módulo ${number}`}
+        disabled={removeDisabled}
+        onClick={onRemove}
+      >
+        <Trash2 className="size-4" />
+      </Button>
+    </li>
   );
 }

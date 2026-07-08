@@ -129,6 +129,8 @@ export interface CoursePayload {
   passingScore: number;
   status: CourseStatusValue;
   modules: CourseModuleInput[];
+  /** La numeración de la malla empieza en 0 (el primero es el "Módulo 0"). */
+  moduleZero: boolean;
 }
 
 export interface SettingsPayload {
