@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  CalendarClock,
   CornerDownRight,
   Loader2,
   MessageSquarePlus,
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { ForumPost, ForumThread as ForumThreadData } from "@/lib/api/me";
+import { DUE_URGENCY_CLS, dueUrgency, formatDueDateTime } from "@/lib/due-date";
 import { cn } from "@/lib/utils";
 
 function initials(first: string, last: string): string {
@@ -41,6 +43,9 @@ function timeAgo(iso: string): string {
 export function ForumThread({ activityId }: { activityId: string }) {
   const qc = useQueryClient();
   const queryKey = ["me-forum", activityId];
+
+  // "Ahora" fijado una vez por montaje, para teñir el plazo por urgencia.
+  const now = useMemo(() => new Date().getTime(), []);
 
   const { data, isLoading, isError } = useQuery<ForumThreadData>({
     queryKey,
@@ -116,6 +121,8 @@ export function ForumThread({ activityId }: { activityId: string }) {
   const repliesOf = (id: string) =>
     data.posts.filter((p) => p.parentId === id);
   const canPost = data.canPost;
+  const due = formatDueDateTime(data.activity.dueDate);
+  const urgency = dueUrgency(data.activity.dueDate, now);
 
   return (
     <div className="space-y-4">
@@ -138,6 +145,21 @@ export function ForumThread({ activityId }: { activityId: string }) {
         {data.activity.instructions && (
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             {data.activity.instructions}
+          </p>
+        )}
+        {due && urgency && (
+          <p
+            className={cn(
+              "mt-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium",
+              DUE_URGENCY_CLS[urgency],
+            )}
+          >
+            <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              Fecha y hora límite de participación:{" "}
+              <span className="font-semibold">{due}</span>
+              {urgency === "overdue" && " · plazo vencido"}
+            </span>
           </p>
         )}
       </div>

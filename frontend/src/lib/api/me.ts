@@ -70,6 +70,8 @@ export interface ForumThread {
     id: string;
     title: string;
     instructions: string | null;
+    /** Fecha límite de participación (informativa). */
+    dueDate: string | null;
     moduleStatus: ModuleStatus;
   };
   viewer: { id: string; isTeacher: boolean };

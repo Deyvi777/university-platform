@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
+  CalendarClock,
+  CalendarPlus,
   CheckCircle2,
   Clock,
   ListChecks,
@@ -24,6 +26,7 @@ import type {
   QuizRunnerQuestion,
   SavedQuizAnswer,
 } from "@/lib/api/me";
+import { DUE_URGENCY_CLS, dueUrgency, formatDueDateTime } from "@/lib/due-date";
 import { cn } from "@/lib/utils";
 
 type AnswerState = {
@@ -70,6 +73,9 @@ export function QuizRunner({ activityId }: { activityId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey }),
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // "Ahora" fijado una vez por montaje, para teñir el cierre por urgencia.
+  const now = useMemo(() => new Date().getTime(), []);
 
   if (isLoading) {
     return (
@@ -191,6 +197,45 @@ export function QuizRunner({ activityId }: { activityId: string }) {
           {data.activity.instructions}
         </p>
       )}
+
+      {/* Ventana de disponibilidad: desde cuándo se puede rendir y el cierre
+          (teñido por urgencia: verde → ámbar → rosa según lo que falte). */}
+      {(() => {
+        const from = formatDueDateTime(data.settings.availableFrom);
+        const until = formatDueDateTime(data.settings.availableUntil);
+        const untilUrgency = dueUrgency(data.settings.availableUntil, now);
+        if (!from && !until) return null;
+        return (
+          <div className="mt-3.5 flex flex-wrap gap-2">
+            {from && (
+              <p className="inline-flex items-center gap-1.5 rounded-lg bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
+                <CalendarPlus className="size-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  Disponible desde: <span className="font-semibold">{from}</span>
+                </span>
+              </p>
+            )}
+            {until && untilUrgency && (
+              <p
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium",
+                  DUE_URGENCY_CLS[untilUrgency],
+                )}
+              >
+                <CalendarClock
+                  className="size-3.5 shrink-0"
+                  aria-hidden="true"
+                />
+                <span>
+                  Fecha y hora límite:{" "}
+                  <span className="font-semibold">{until}</span>
+                  {untilUrgency === "overdue" && " · cerrado"}
+                </span>
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
         {data.settings.timeLimitMin != null && (

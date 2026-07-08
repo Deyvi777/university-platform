@@ -33,6 +33,7 @@ export class ForumService {
         activityType: true,
         title: true,
         instructions: true,
+        dueDate: true,
         isPublished: true,
         moduleId: true,
         module: {
@@ -111,6 +112,7 @@ export class ForumService {
         id: content.id,
         title: content.title,
         instructions: content.instructions,
+        dueDate: content.dueDate,
         moduleStatus: content.module.status,
       },
       viewer: { id: viewer.id, isTeacher },

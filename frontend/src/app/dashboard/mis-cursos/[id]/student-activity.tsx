@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import {
   Award,
   CalendarClock,
@@ -41,6 +41,7 @@ import type {
   SubmissionFile,
   SubmissionStatus,
 } from "@/lib/api/me";
+import { DUE_URGENCY_CLS, dueUrgency } from "@/lib/due-date";
 import {
   fileSizeError,
   MAX_DOCUMENT_UPLOAD_BYTES,
@@ -96,6 +97,10 @@ export function StudentActivity({
   const meta = STATUS_META[status];
   const isGraded = status === "GRADED";
   const due = formatDue(activity.dueDate);
+  // "Ahora" fijado una vez por montaje (patrón de ProfileCalendar): suficiente
+  // para teñir el plazo por urgencia sin llamar Date.now() en cada render.
+  const now = useMemo(() => new Date().getTime(), []);
+  const urgency = dueUrgency(activity.dueDate, now);
   const typeMeta = ACTIVITY_TYPES[activity.type];
   const TypeIcon = typeMeta.Icon;
   const isProject = activity.type === "PROJECT";
@@ -150,13 +155,22 @@ export function StudentActivity({
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             <span>Sobre {activity.maxScore}</span>
             {activity.weight > 0 && <span>Peso {activity.weight}%</span>}
-            {due && (
-              <span className="inline-flex items-center gap-1">
-                <CalendarClock className="size-3" />
-                {due}
-              </span>
-            )}
           </div>
+          {due && urgency && (
+            <p
+              className={cn(
+                "mt-1.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium",
+                DUE_URGENCY_CLS[urgency],
+              )}
+            >
+              <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>
+                Fecha y hora límite de entrega:{" "}
+                <span className="font-semibold">{due}</span>
+                {urgency === "overdue" && " · plazo vencido"}
+              </span>
+            </p>
+          )}
           {activity.instructions && (
             <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
               {activity.instructions}
