@@ -22,7 +22,7 @@ import {
   type UploadedFileLike,
 } from './storage.service';
 
-// Subida de archivos de docentes (materiales de sus módulos) y estudiantes
+// Subida de archivos de docentes/admin (materiales de sus módulos) y estudiantes
 // (entregas de actividades): PDF, Office, imágenes, etc. Hasta 20 MB. La carpeta
 // depende del rol (`materials` vs `submissions`). El archivo solo queda
 // vinculado al crear el Material / la entrega (operaciones autorizadas).
@@ -30,7 +30,7 @@ import {
 @ApiBearerAuth()
 @Controller('me/uploads')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.PROFESSOR, Role.STUDENT)
+@Roles(Role.PROFESSOR, Role.STUDENT, Role.ADMIN)
 export class MeUploadsController {
   constructor(private readonly storage: StorageService) {}
 

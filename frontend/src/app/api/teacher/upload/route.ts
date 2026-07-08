@@ -6,18 +6,20 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:4000";
 
-// Reenvía el archivo del docente al backend (`/me/uploads`) con su token. El
-// backend valida rol PROFESSOR, tipo y tamaño, y devuelve la ruta `/files/...`.
+// Reenvía el archivo del docente (o del admin, que gestiona módulos como
+// docente) al backend (`/me/uploads`) con su token. El backend valida rol,
+// tipo y tamaño, y devuelve la ruta `/files/...`.
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ message: "No autenticado" }, { status: 401 });
   }
-  if (session.user.role !== "PROFESSOR") {
+  // Leer el body ANTES de rechazar: responder 4xx sin consumir el multipart
+  // deja la subida del navegador colgada en "Subiendo…" para siempre.
+  const form = await request.formData();
+  if (session.user.role !== "PROFESSOR" && session.user.role !== "ADMIN") {
     return NextResponse.json({ message: "No autorizado" }, { status: 403 });
   }
-
-  const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
     return NextResponse.json({ message: "Archivo requerido" }, { status: 400 });
