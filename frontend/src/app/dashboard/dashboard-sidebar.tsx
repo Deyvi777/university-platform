@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BookOpen,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -689,12 +690,15 @@ function ProgramRow({
       {/* Fila con módulos = un solo botón toggle (nombre + chevron): un clic en
           cualquiera de los dos pliega/despliega los módulos. Sin módulos, se
           degrada a un enlace al detalle del programa. */}
+      {/* El nombre del programa es el "encabezado" del grupo: superficie sutil
+          permanente + icono ámbar (acento institucional) + texto a contraste
+          pleno, para que destaque sobre los ítems normales del sidebar. */}
       <div
         className={cn(
           "group/prog flex items-center rounded-lg transition-colors",
           programActive
             ? "bg-white/15 ring-1 ring-white/15"
-            : "hover:bg-white/[0.07]",
+            : "bg-white/[0.06] hover:bg-white/10",
         )}
       >
         {hasModules ? (
@@ -710,20 +714,18 @@ function ProgramRow({
                 : `Mostrar módulos de ${program.name}`
             }
             className={cn(
-              "flex min-w-0 flex-1 items-center gap-1 rounded-lg py-1.5 pl-2 pr-2 text-left text-sm font-medium transition-colors",
+              "flex min-w-0 flex-1 items-center gap-1.5 rounded-lg py-2 pl-2 pr-2 text-left text-sm font-semibold text-white transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
-              programActive
-                ? "text-white"
-                : "text-sidebar-foreground/90 group-hover/prog:text-sidebar-foreground",
             )}
           >
+            <BookOpen
+              className="size-3.5 shrink-0 text-amber-300/90"
+              aria-hidden="true"
+            />
             <span className="min-w-0 flex-1 truncate">{program.name}</span>
             <ChevronDown
               className={cn(
-                "size-3.5 shrink-0 transition-transform duration-200",
-                programActive
-                  ? "text-white/80"
-                  : "text-sidebar-foreground/70",
+                "size-3.5 shrink-0 text-white/80 transition-transform duration-200",
                 effectiveOpen ? "rotate-0" : "-rotate-90",
               )}
               aria-hidden="true"
@@ -736,13 +738,14 @@ function ProgramRow({
             onClick={onNavigate}
             aria-current={programActive ? "page" : undefined}
             className={cn(
-              "flex min-w-0 flex-1 items-center rounded-lg py-1.5 pl-2 pr-2 text-left text-sm font-medium transition-colors",
+              "flex min-w-0 flex-1 items-center gap-1.5 rounded-lg py-2 pl-2 pr-2 text-left text-sm font-semibold text-white transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
-              programActive
-                ? "text-white"
-                : "text-sidebar-foreground/90 group-hover/prog:text-sidebar-foreground",
             )}
           >
+            <BookOpen
+              className="size-3.5 shrink-0 text-amber-300/90"
+              aria-hidden="true"
+            />
             <span className="truncate">{program.name}</span>
           </Link>
         )}
@@ -761,7 +764,7 @@ function ProgramRow({
               : "grid-rows-[0fr] opacity-0",
           )}
         >
-          <ul className="ml-4 flex flex-col gap-0.5 overflow-hidden border-l border-white/10 pl-2 pt-0.5">
+          <ul className="ml-4 flex flex-col gap-0.5 overflow-hidden border-l border-white/20 pl-2 pt-1">
             {program.modules.map((mod) => {
               const href = `${moduleHrefBase}/${mod.id}`;
               const active = pathname === href;
@@ -776,8 +779,8 @@ function ProgramRow({
                       "flex items-center rounded-full px-3 py-1.5 text-sm transition-colors",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
                       active
-                        ? "bg-white/15 font-medium text-white ring-1 ring-white/15"
-                        : "text-sidebar-foreground/75 hover:bg-white/[0.07] hover:text-sidebar-foreground",
+                        ? "bg-white/15 font-semibold text-white ring-1 ring-white/15"
+                        : "text-white/85 hover:bg-white/[0.07] hover:text-white",
                     )}
                   >
                     <span className="truncate">Módulo {mod.order}</span>
@@ -883,13 +886,13 @@ function ProgramTree({
           aria-expanded={open}
           aria-controls={regionId}
           className={cn(
-            "group/acc flex flex-1 items-center justify-between gap-2 rounded-lg pb-1.5 pt-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/75 transition-colors",
-            "hover:text-sidebar-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+            "group/acc flex flex-1 items-center justify-between gap-2 rounded-lg pb-1.5 pt-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/85 transition-colors",
+            "hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
           )}
         >
           <span className="flex min-w-0 items-center gap-1.5">
             <GraduationCap
-              className="size-3.5 shrink-0 text-sidebar-foreground/70"
+              className="size-3.5 shrink-0 text-sidebar-foreground/80"
               aria-hidden="true"
             />
             <span className="truncate">Programas</span>

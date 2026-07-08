@@ -285,14 +285,16 @@ export function ClassroomView({
         )}
       </div>
 
-      {/* Columna lateral */}
+      {/* Columna lateral. El borde teñido de primario + la franja de pestañas
+          diferencian este panel del resto de tarjetas: aquí viven el temario,
+          las actividades y las notas del estudiante. */}
       <aside className="lg:sticky lg:top-20 lg:self-start">
-        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
+        <div className="overflow-hidden rounded-2xl border-2 border-primary/25 bg-card shadow-md shadow-blue-950/[0.08] dark:shadow-none">
           {/* Pestañas */}
           <div
             role="tablist"
             aria-label="Panel del módulo"
-            className="grid grid-cols-3 border-b"
+            className="grid grid-cols-3 border-b bg-muted/50 dark:bg-white/[0.04]"
           >
             <PanelTabButton
               active={tab === "temario"}
@@ -1201,9 +1203,11 @@ function PanelTabButton({
       onClick={onClick}
       className={cn(
         "flex items-center justify-center gap-1.5 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40",
+        // Activa: "levantada" sobre la franja (fondo de tarjeta + texto primario),
+        // para que se lea como la sección abierta del panel.
         active
-          ? "border-b-2 border-primary text-foreground"
-          : "border-b-2 border-transparent text-muted-foreground hover:text-foreground",
+          ? "border-b-2 border-primary bg-card font-semibold text-primary"
+          : "border-b-2 border-transparent text-muted-foreground hover:bg-card/60 hover:text-foreground",
       )}
     >
       <span aria-hidden="true">{icon}</span>
