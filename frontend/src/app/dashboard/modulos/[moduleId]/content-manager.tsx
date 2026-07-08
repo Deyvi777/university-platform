@@ -425,7 +425,17 @@ function SortableRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: content.id, disabled: readOnly });
   const meta = KIND_META[content.kind];
-  const Icon = meta.icon;
+  // Para una ACTIVITY el icono/tint/etiqueta reflejan su `activityType` (los
+  // mismos del selector de creación: Tarea/Proyecto/Foro/Cuestionario/Examen),
+  // no el genérico de "Actividad". Se indexa el registro (no se deriva el
+  // componente en render — regla `react-hooks/static-components`).
+  const activityMeta =
+    content.kind === "ACTIVITY"
+      ? ACTIVITY_TYPES[content.activityType ?? "ASSIGNMENT"]
+      : null;
+  const Icon = activityMeta?.Icon ?? meta.icon;
+  const iconTint = activityMeta?.tint ?? meta.tint;
+  const kindLabel = activityMeta?.label ?? meta.label;
   const recovery = content.recoveryStage
     ? RECOVERY_META[content.recoveryStage]
     : null;
@@ -465,7 +475,7 @@ function SortableRow({
         <span
           className={cn(
             "flex size-8 shrink-0 items-center justify-center rounded-lg",
-            meta.tint,
+            iconTint,
           )}
           aria-hidden="true"
         >
@@ -493,7 +503,7 @@ function SortableRow({
                     ? "archivo"
                     : "archivos"
                 }`
-              : meta.label}
+              : kindLabel}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">

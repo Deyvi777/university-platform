@@ -44,6 +44,7 @@ import type {
   ModuleGradeStatus,
   SubmissionStatus,
 } from "@/lib/api/me";
+import { ACTIVITY_TYPES } from "@/lib/activity-types";
 import { cn } from "@/lib/utils";
 import { ForumThread } from "@/components/dashboard/forum-thread";
 import { QuizRunner } from "@/components/dashboard/quiz-runner";
@@ -357,7 +358,13 @@ export function ClassroomView({
               <ol className="max-h-[28rem] overflow-y-auto p-2">
                 {temarioContents.map((c, i) => {
                   const active = c.id === selected?.id;
-                  const Icon = KIND_ICON[c.kind];
+                  // Una ACTIVITY muestra el icono de su `activityType` (el mismo
+                  // del selector de creación), no el genérico de "Actividad".
+                  const activityMeta =
+                    c.kind === "ACTIVITY"
+                      ? ACTIVITY_TYPES[c.activityType ?? "ASSIGNMENT"]
+                      : null;
+                  const Icon = activityMeta?.Icon ?? KIND_ICON[c.kind];
                   const isFolder = c.kind === "FOLDER";
                   const folderFiles = c.folderFiles ?? [];
                   const expanded = isFolder && !collapsedFolders.has(c.id);
@@ -420,7 +427,7 @@ export function ClassroomView({
                                       ? "archivo"
                                       : "archivos"
                                   }`
-                                : KIND_LABEL[c.kind]}
+                                : (activityMeta?.label ?? KIND_LABEL[c.kind])}
                               {/* Examen de recuperación: reemplaza la nota. */}
                               {c.recoveryStage && (
                                 <span
