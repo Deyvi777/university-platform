@@ -32,8 +32,17 @@ const bulkGender = z
 // profesión son opcionales (cadena vacía → null); el género se normaliza
 // (por defecto MALE).
 export const bulkStudentRowSchema = z.object({
-  firstName: z.string().trim().min(1, 'El nombre es obligatorio'),
-  lastName: z.string().trim().min(1, 'El apellido es obligatorio'),
+  // Igual que el alta individual: nombres/apellidos siempre en mayúsculas.
+  firstName: z
+    .string()
+    .trim()
+    .min(1, 'El nombre es obligatorio')
+    .transform((v) => v.toUpperCase()),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, 'El apellido es obligatorio')
+    .transform((v) => v.toUpperCase()),
   email: z
     .email('Correo electrónico no válido')
     .transform((v) => v.toLowerCase()),

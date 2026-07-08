@@ -13,8 +13,18 @@ const optionalText = z
 // El admin solo crea cuentas de PROFESSOR o STUDENT desde el panel; las cuentas
 // ADMIN no se emiten por este formulario.
 export const createUserSchema = z.object({
-  firstName: z.string().trim().min(1, 'El nombre es obligatorio'),
-  lastName: z.string().trim().min(1, 'El apellido es obligatorio'),
+  // Nombres y apellidos se guardan SIEMPRE en mayúsculas (convención
+  // institucional; también homogeneiza orden/búsqueda, que son case-sensitive).
+  firstName: z
+    .string()
+    .trim()
+    .min(1, 'El nombre es obligatorio')
+    .transform((v) => v.toUpperCase()),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, 'El apellido es obligatorio')
+    .transform((v) => v.toUpperCase()),
   // Normalizado a minúsculas (el login busca por email exacto; guardar
   // "Maria@..." dejaría la cuenta inaccesible para quien escribe "maria@...").
   email: z
