@@ -18,10 +18,16 @@ COPY frontend frontend
 # backend por la red interna de Docker (http://backend:4000).
 ARG NEXT_PUBLIC_API_URL
 ARG API_URL=http://backend:4000
+# Umami (analíticas self-hosted): URL del script + website id, se inlinean
+# en el bundle. Vacíos → no se inyecta el script (dev/builds locales).
+ARG NEXT_PUBLIC_UMAMI_SRC
+ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
 # AUTH_SECRET de relleno solo para que `next build` no falle al evaluar
 # NextAuth; el valor real llega por variable de entorno en runtime.
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     API_URL=$API_URL \
+    NEXT_PUBLIC_UMAMI_SRC=$NEXT_PUBLIC_UMAMI_SRC \
+    NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID \
     AUTH_SECRET=build-placeholder-secret \
     NEXT_TELEMETRY_DISABLED=1
 

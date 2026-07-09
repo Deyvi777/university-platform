@@ -108,6 +108,10 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         # Red interna: fetchers server-side y el rewrite de /files/*
         API_URL: http://backend:4000
+        # Umami (servicio aparte en Coolify): script + website id, inlineados
+        # en el build. Vacíos → sin analíticas (no rompe nada).
+        NEXT_PUBLIC_UMAMI_SRC: ${NEXT_PUBLIC_UMAMI_SRC:-}
+        NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
     restart: unless-stopped
     environment:
       AUTH_SECRET: ${AUTH_SECRET}
