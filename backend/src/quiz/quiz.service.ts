@@ -97,7 +97,7 @@ export class QuizService {
           select: {
             status: true,
             courseId: true,
-            course: { select: { status: true } },
+            course: { select: { status: true, passingScore: true } },
           },
         },
       },
@@ -504,6 +504,9 @@ export class QuizService {
         maxScore: content.maxScore !== null ? Number(content.maxScore) : 0,
         questionCount,
         recoveryStage: content.recoveryStage,
+        // Tope de la nota de recuperación (= nota de aprobación del curso):
+        // el frontend lo muestra en el aviso del examen de recuperación.
+        passingScore: Number(content.module.course.passingScore),
       },
       settings,
       open,

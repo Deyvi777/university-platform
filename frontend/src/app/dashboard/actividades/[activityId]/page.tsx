@@ -65,7 +65,7 @@ export default async function ActivityGradingPage({
           </p>
           <h1 className="flex flex-wrap items-center gap-2 font-heading text-2xl font-bold tracking-tight">
             {activity.title}
-            {/* Examen de recuperación: su nota reemplaza la del módulo. */}
+            {/* Examen de recuperación: nota mayor con tope de aprobación. */}
             {activity.recoveryStage && (
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${

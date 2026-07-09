@@ -122,7 +122,7 @@ const KIND_ORDER: ContentKind[] = [
   "FOLDER",
 ];
 
-// Etiquetas/estilos del examen de recuperación (nota que reemplaza la del módulo).
+// Etiquetas/estilos del examen de recuperación (nota mayor con tope de aprobación).
 const RECOVERY_META: Record<
   RecoveryStage,
   { label: string; badge: string }
@@ -285,8 +285,8 @@ export function ContentManager({
           {failedCount === 1 ? "estudiante reprobado" : "estudiantes reprobados"}{" "}
           en este módulo.{" "}
           {canEnableRecuperatorio
-            ? "Puedes habilitar un examen recuperatorio: solo lo verán los reprobados y su nota reemplazará la nota final del módulo."
-            : "Puedes habilitar la segunda instancia para quienes reprobaron el recuperatorio: su nota reemplazará la nota final del módulo."}
+            ? "Puedes habilitar un examen recuperatorio: solo lo verán los reprobados y la nota final será la mayor entre la nota del módulo y la del examen (con tope en la nota de aprobación)."
+            : "Puedes habilitar la segunda instancia para quienes reprobaron el recuperatorio: la nota final será la mayor entre el módulo, el recuperatorio y este examen (con tope en la nota de aprobación)."}
         </p>
       )}
 
@@ -612,7 +612,8 @@ function ContentFormDialog({
   moduleId: string;
   kind: ContentKind | null;
   content?: TeacherContent;
-  /** Examen de recuperación: fija el tipo (EXAM) y su nota reemplaza la del módulo. */
+  /** Examen de recuperación: fija el tipo (EXAM); la nota final es la mayor
+   *  entre la del módulo y la del examen, topeada en la nota de aprobación. */
   recoveryStage?: RecoveryStage | null;
 }) {
   const isEdit = Boolean(content);
@@ -645,7 +646,7 @@ function ContentFormDialog({
               </DialogTitle>
               <DialogDescription>
                 {recovery
-                  ? "Examen para los estudiantes reprobados: su nota reemplaza la nota final del módulo."
+                  ? "Examen para los estudiantes reprobados: la nota final será la mayor entre la nota del módulo y la del examen, con tope en la nota de aprobación."
                   : meta.description}
               </DialogDescription>
             </DialogHeader>
@@ -1019,7 +1020,7 @@ function ContentForm({
       // Campo vacío/inválido → cae al default 100 (el backend rechaza maxScore 0:
       // una actividad "sobre 0" no es calificable).
       payload.maxScore = Number(maxScore) > 0 ? Number(maxScore) : 100;
-      // La recuperación no pondera (su nota reemplaza la del módulo) → peso 0.
+      // La recuperación no pondera (nota mayor con tope de aprobación) → peso 0.
       payload.weight = isRecovery ? 0 : Number(weight) || 0;
       // Ajustes del motor de preguntas (solo QUIZ/EXAM; null en los demás).
       payload.timeLimitMin =
@@ -1217,16 +1218,17 @@ function ContentForm({
 
       {kind === "ACTIVITY" && (
         <div className="space-y-3">
-          {/* Recuperación: tipo fijo (examen), sin peso — la nota reemplaza. */}
+          {/* Recuperación: tipo fijo (examen), sin peso — nota mayor con tope. */}
           {isRecovery && (
             <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
               Este examen solo lo verán los estudiantes{" "}
               {recoveryStage === "SEGUNDA_INSTANCIA"
                 ? "que reprobaron el recuperatorio"
                 : "reprobados"}
-              . La nota que obtengan <strong>reemplazará su nota final del
-              módulo</strong> (no pondera con las demás actividades); quien no lo
-              rinda conserva su nota actual.
+              . La nota final será <strong>la mayor entre la nota del módulo y
+              la de este examen, con tope en la nota de aprobación</strong> (no
+              pondera con las demás actividades); quien no lo rinda conserva su
+              nota actual.
             </p>
           )}
           {/* Tipo de actividad: selector visual (cada tipo funciona distinto). */}

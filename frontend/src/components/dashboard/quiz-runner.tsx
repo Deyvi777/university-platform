@@ -136,7 +136,7 @@ export function QuizRunner({ activityId }: { activityId: string }) {
             data.attempt.score != null
               ? `Obtuviste ${data.attempt.score} de ${data.activity.maxScore}.${
                   data.activity.recoveryStage
-                    ? " Esta nota reemplaza tu nota final del módulo."
+                    ? ` Tu nota final del módulo será la mayor entre tu nota anterior y esta (máximo ${data.activity.passingScore}).`
                     : ""
                 }`
               : "Tu intento fue calificado."
@@ -181,14 +181,17 @@ export function QuizRunner({ activityId }: { activityId: string }) {
         </div>
       </div>
 
-      {/* Examen de recuperación: la nota obtenida reemplaza la del módulo. */}
+      {/* Examen de recuperación: se toma la nota mayor, con tope en la nota
+          de aprobación (superar el mínimo solo es posible sin recuperación). */}
       {data.activity.recoveryStage && (
         <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
           Este es tu examen de{" "}
           {data.activity.recoveryStage === "SEGUNDA_INSTANCIA"
             ? "segunda instancia"
             : "recuperatorio"}
-          : la nota que obtengas <strong>reemplazará tu nota final del módulo</strong>.
+          : tu nota final del módulo será{" "}
+          <strong>la mayor entre tu nota actual y la de este examen</strong>,
+          con un máximo de {data.activity.passingScore}.
         </p>
       )}
 

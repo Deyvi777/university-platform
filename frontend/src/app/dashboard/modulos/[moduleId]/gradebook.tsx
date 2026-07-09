@@ -412,7 +412,7 @@ function ActivityHeader({
         /{activity.maxScore}
         {activity.weight ? ` · ${activity.weight}%` : ""}
       </span>
-      {/* Examen de recuperación: no pondera, su nota reemplaza la del módulo. */}
+      {/* Examen de recuperación: no pondera — nota mayor con tope de aprobación. */}
       {activity.recoveryStage && (
         <span
           className={

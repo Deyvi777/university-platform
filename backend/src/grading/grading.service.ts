@@ -465,7 +465,8 @@ export class GradingService {
     if (!module) return;
 
     // Los exámenes de recuperación NO ponderan con las demás actividades: si el
-    // estudiante rindió uno (calificado), su nota reemplaza la nota del módulo.
+    // estudiante rindió uno (calificado), entre su nota (topeada en la nota de
+    // aprobación) y la nota ponderada del módulo se queda la mayor.
     const regular = module.contents.filter((a) => a.recoveryStage === null);
     const recovery = module.contents.filter((a) => a.recoveryStage !== null);
     const recoveryScore = await this.recoveryOverride(studentId, recovery);
@@ -506,9 +507,15 @@ export class GradingService {
     let finalScore: number;
     let status: ModuleGradeStatus;
     if (recoveryScore !== null) {
-      // La recuperación pisa la nota ponderada: es directamente la nota final
-      // (el módulo ya está concluido, así que aprueba/reprueba de inmediato).
-      finalScore = recoveryScore;
+      // Regla institucional: entre la nota ponderada del módulo y la de
+      // recuperación se queda la MAYOR, pero la de recuperación se topea en la
+      // nota mínima de aprobación asignada al programa (`course.passingScore`,
+      // 71 por defecto): superar el mínimo solo es posible sin haber entrado a
+      // recuperación. El módulo ya está concluido, así que aprueba/reprueba de
+      // inmediato.
+      const weightedScore =
+        totalWeight > 0 ? Math.round((acc / totalWeight) * 100) / 100 : 0;
+      finalScore = Math.max(weightedScore, Math.min(recoveryScore, passing));
       status =
         finalScore >= passing
           ? ModuleGradeStatus.PASSED
@@ -544,9 +551,10 @@ export class GradingService {
 
   /**
    * Nota de recuperación del estudiante en base 100, o null si no rindió
-   * ninguna. La SEGUNDA_INSTANCIA (si está calificada) pisa al RECUPERATORIO;
-   * cualquiera de las dos pisa a la nota ponderada. Solo cuentan entregas
-   * GRADED ("pisa solo si lo rinde": sin rendir conserva su nota original).
+   * ninguna. Entre RECUPERATORIO y SEGUNDA_INSTANCIA se queda la MAYOR (la
+   * regla final es "la nota más alta entre módulo, recuperatorio y segunda
+   * instancia", con el tope de aprobación aplicado por el llamador). Solo
+   * cuentan entregas GRADED (sin rendir conserva su nota original).
    */
   private async recoveryOverride(
     studentId: string,
@@ -575,9 +583,11 @@ export class GradingService {
       if (max <= 0) return null;
       return Math.round((Number(score) / max) * 100 * 100) / 100;
     };
-    return (
-      pick(RecoveryStage.SEGUNDA_INSTANCIA) ?? pick(RecoveryStage.RECUPERATORIO)
-    );
+    const scores = [
+      pick(RecoveryStage.RECUPERATORIO),
+      pick(RecoveryStage.SEGUNDA_INSTANCIA),
+    ].filter((s): s is number => s !== null);
+    return scores.length > 0 ? Math.max(...scores) : null;
   }
 
   /**

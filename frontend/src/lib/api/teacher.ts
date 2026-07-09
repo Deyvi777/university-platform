@@ -63,7 +63,7 @@ export interface TeacherContent {
   singleAttempt: boolean | null;
   shuffle: boolean | null;
   revealAnswers: boolean | null;
-  /** Examen de recuperación: su nota reemplaza la nota final del módulo. */
+  /** Examen de recuperación: la nota final es la mayor entre módulo y examen (tope: nota de aprobación). */
   recoveryStage: "RECUPERATORIO" | "SEGUNDA_INSTANCIA" | null;
   /** Archivos contenidos (solo kind = FOLDER). */
   folderFiles?: FolderFile[];
@@ -116,7 +116,7 @@ export interface ActivityGrading {
     maxScore: number;
     weight: number;
     dueDate: string | null;
-    /** Examen de recuperación: su nota reemplaza la nota del módulo. */
+    /** Examen de recuperación: la nota final es la mayor entre módulo y examen (tope: nota de aprobación). */
     recoveryStage: "RECUPERATORIO" | "SEGUNDA_INSTANCIA" | null;
     module: { id: string; name: string; order: number; status: ModuleStatus };
     course: { id: string; name: string };
@@ -225,7 +225,7 @@ export interface GradebookActivity {
   isPublished: boolean;
   /** Presencial: el docente edita el puntaje directo en la libreta. */
   isOffline: boolean;
-  /** Examen de recuperación: no pondera, su nota reemplaza la del módulo. */
+  /** Examen de recuperación: no pondera — nota mayor con tope de aprobación. */
   recoveryStage: "RECUPERATORIO" | "SEGUNDA_INSTANCIA" | null;
 }
 

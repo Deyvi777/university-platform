@@ -442,7 +442,7 @@ export function ClassroomView({
                                       : "archivos"
                                   }`
                                 : (activityMeta?.label ?? KIND_LABEL[c.kind])}
-                              {/* Examen de recuperación: reemplaza la nota. */}
+                              {/* Examen de recuperación: se toma la nota mayor. */}
                               {c.recoveryStage && (
                                 <span
                                   className={cn(
@@ -619,7 +619,9 @@ function GradesPanel({ module: learn }: { module: LearnModule }) {
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                    {/* Recuperación: no pondera, su nota reemplaza la del módulo. */}
+                    {/* Recuperación: no pondera — la nota final es la mayor
+                        entre la del módulo y la del examen, con tope en la
+                        nota de aprobación. */}
                     {a.recoveryStage ? (
                       <span
                         className={cn(
@@ -630,8 +632,8 @@ function GradesPanel({ module: learn }: { module: LearnModule }) {
                         )}
                       >
                         {a.recoveryStage === "SEGUNDA_INSTANCIA"
-                          ? "Segunda instancia — reemplaza la nota"
-                          : "Recuperatorio — reemplaza la nota"}
+                          ? "Segunda instancia — se toma la nota mayor"
+                          : "Recuperatorio — se toma la nota mayor"}
                       </span>
                     ) : null}
                     {a.weight ? <span>Peso {a.weight}%</span> : null}

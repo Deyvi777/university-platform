@@ -139,8 +139,13 @@ export interface QuizRunner {
     instructions: string | null;
     maxScore: number;
     questionCount: number;
-    /** Examen de recuperación: su nota reemplaza la nota del módulo. */
+    /**
+     * Examen de recuperación: la nota final del módulo pasa a ser la mayor
+     * entre la nota actual y la del examen, topeada en `passingScore`.
+     */
     recoveryStage: RecoveryStage | null;
+    /** Nota de aprobación del curso (tope de la nota de recuperación). */
+    passingScore: number;
   };
   settings: {
     timeLimitMin: number | null;

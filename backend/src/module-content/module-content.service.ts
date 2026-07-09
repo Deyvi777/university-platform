@@ -775,7 +775,11 @@ export class ModuleContentService {
     const [module, eligible] = await Promise.all([
       this.prisma.courseModule.findUnique({
         where: { id: moduleId },
-        select: { name: true, courseId: true },
+        select: {
+          name: true,
+          courseId: true,
+          course: { select: { passingScore: true } },
+        },
       }),
       this.grading.recoveryEligibleStudents(moduleId, stage),
     ]);
@@ -789,7 +793,7 @@ export class ModuleContentService {
         userId: studentId,
         type: NotificationType.ACTIVITY_PUBLISHED,
         title: `Examen de ${label} habilitado`,
-        body: `Se habilitó el examen de ${label} «${activityTitle}» del módulo «${module.name}». Su nota reemplazará tu nota del módulo.`,
+        body: `Se habilitó el examen de ${label} «${activityTitle}» del módulo «${module.name}». Si lo rindes, tu nota final será la mayor entre tu nota actual y la del examen (máximo ${Number(module.course.passingScore)}).`,
         data: { courseId: module.courseId, moduleId, activityId: contentId },
       })),
     );
