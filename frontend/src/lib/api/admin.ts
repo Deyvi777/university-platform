@@ -99,6 +99,18 @@ export interface AdminPartner {
   isPublished: boolean;
 }
 
+export type GalleryMediaType = "IMAGE" | "VIDEO";
+
+export interface AdminGalleryItem {
+  id: string;
+  type: GalleryMediaType;
+  url: string;
+  title: string | null;
+  displayOrder: number;
+  isPublished: boolean;
+  createdAt: string;
+}
+
 export interface AdminTeamMember {
   id: string;
   name: string;
@@ -282,6 +294,10 @@ export async function listAdminPartners(): Promise<AdminPartner[]> {
 
 export async function getAdminPartner(id: string): Promise<AdminPartner> {
   return parse(await adminFetch(`/admin/partners/${id}`));
+}
+
+export async function listAdminGallery(): Promise<AdminGalleryItem[]> {
+  return parse(await adminFetch("/admin/gallery"));
 }
 
 export async function listAdminTeam(): Promise<AdminTeamMember[]> {

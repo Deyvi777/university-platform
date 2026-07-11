@@ -22,16 +22,17 @@ export class CalendarService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Datos del calendario del usuario: fechas plazo de actividades (según rol) +
-   * sus recordatorios. Los feriados se calculan en el cliente (son fijos por
-   * año, no dependen del usuario).
+   * Datos del calendario del usuario: fechas plazo de actividades + clases del
+   * cronograma (según rol) + sus recordatorios. Los feriados se calculan en el
+   * cliente (son fijos por año, no dependen del usuario).
    */
   async overview(userId: string, role: Role) {
-    const [deadlines, reminders] = await Promise.all([
+    const [deadlines, reminders, classes] = await Promise.all([
       this.deadlines(userId, role),
       this.listReminders(userId),
+      this.classes(userId, role),
     ]);
-    return { deadlines, reminders };
+    return { deadlines, reminders, classes };
   }
 
   /**
@@ -94,6 +95,65 @@ export class CalendarService {
         courseId: r.module.course.id,
         courseName: r.module.course.name,
       }));
+  }
+
+  /**
+   * Clases del cronograma relevantes para el usuario (misma visibilidad por rol
+   * que `deadlines`):
+   * - STUDENT: módulos no borrador de sus cursos inscritos (ACTIVE/FINISHED).
+   * - PROFESSOR: módulos que dicta.
+   * - ADMIN: ninguna.
+   */
+  async classes(userId: string, role: Role) {
+    if (role === Role.ADMIN) return [];
+
+    const where =
+      role === Role.PROFESSOR
+        ? { module: { teachers: { some: { teacherId: userId } } } }
+        : {
+            module: {
+              status: { not: 'DRAFT' as const },
+              course: {
+                status: { in: ['ACTIVE' as const, 'FINISHED' as const] },
+                enrollments: { some: { studentId: userId } },
+              },
+            },
+          };
+
+    const rows = await this.prisma.classSession.findMany({
+      where,
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        title: true,
+        location: true,
+        module: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+            course: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    return rows.map((r) => ({
+      id: r.id,
+      date: toISODate(r.date),
+      startTime: r.startTime,
+      endTime: r.endTime,
+      title: r.title,
+      location: r.location,
+      moduleId: r.module.id,
+      moduleName: r.module.name,
+      moduleOrder: r.module.order,
+      courseId: r.module.course.id,
+      courseName: r.module.course.name,
+    }));
   }
 
   async listReminders(userId: string) {

@@ -14,6 +14,7 @@ import { CleanupModule } from './cleanup/cleanup.module';
 import { CoursesModule } from './courses/courses.module';
 import { EnrollmentRequestsModule } from './enrollment-requests/enrollment-requests.module';
 import { ForumModule } from './forum/forum.module';
+import { GalleryModule } from './gallery/gallery.module';
 import { GradingModule } from './grading/grading.module';
 import { ModuleContentModule } from './module-content/module-content.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -22,6 +23,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ProgramsModule } from './programs/programs.module';
 import { QueueModule } from './queue/queue.module';
 import { QuizModule } from './quiz/quiz.module';
+import { ScheduleModule } from './schedule/schedule.module';
 import { SettingsModule } from './settings/settings.module';
 import { StorageModule } from './storage/storage.module';
 import { TeamModule } from './team/team.module';
@@ -36,6 +38,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     ProgramsModule,
     PartnersModule,
+    GalleryModule,
     StorageModule,
     CategoriesModule,
     SettingsModule,
@@ -48,6 +51,7 @@ import { UsersModule } from './users/users.module';
     NotificationsModule,
     ChatModule,
     CalendarModule,
+    ScheduleModule,
     ForumModule,
     QuizModule,
     CleanupModule,

@@ -1,19 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { GraduationCap, LayoutList, MessageSquare } from "lucide-react";
+import {
+  CalendarDays,
+  GraduationCap,
+  LayoutList,
+  MessageSquare,
+} from "lucide-react";
 import { ContentManager } from "./content-manager";
 import { Gradebook } from "./gradebook";
+import { ScheduleManager } from "./schedule-manager";
 import {
   ChatTabBadge,
   ModuleChat,
   useModuleChat,
 } from "@/components/dashboard/module-chat";
 import type { ChatContact } from "@/lib/api/chat";
-import type { ModuleGradebook, TeacherContent } from "@/lib/api/teacher";
+import type {
+  ClassSession,
+  ModuleGradebook,
+  TeacherContent,
+} from "@/lib/api/teacher";
 import { cn } from "@/lib/utils";
 
-type Tab = "contenido" | "calificaciones" | "chat";
+type Tab = "contenido" | "cronograma" | "calificaciones" | "chat";
 
 /** Datos para el chat del docente (estudiantes del curso + sesión). */
 export interface WorkspaceChat {
@@ -23,13 +33,14 @@ export interface WorkspaceChat {
 }
 
 /**
- * Espacio de trabajo del módulo del docente con tres pestañas: "Contenido"
- * (temario / `ContentManager`), "Calificaciones" (`Gradebook`) y "Chat"
- * (mensajería con los estudiantes del curso).
+ * Espacio de trabajo del módulo del docente con pestañas: "Contenido"
+ * (temario / `ContentManager`), "Cronograma" (clases / `ScheduleManager`),
+ * "Calificaciones" (`Gradebook`) y "Chat" (mensajería con los estudiantes).
  */
 export function ModuleWorkspace({
   moduleId,
   contents,
+  schedule,
   gradebook,
   readOnly = false,
   isAdmin = false,
@@ -40,6 +51,7 @@ export function ModuleWorkspace({
 }: {
   moduleId: string;
   contents: TeacherContent[];
+  schedule: ClassSession[];
   gradebook: ModuleGradebook | null;
   /** Módulo concluido (FINISHED): todo en solo lectura. */
   readOnly?: boolean;
@@ -93,6 +105,13 @@ export function ModuleWorkspace({
           Contenido
         </TabButton>
         <TabButton
+          active={tab === "cronograma"}
+          onClick={() => setTab("cronograma")}
+          icon={<CalendarDays className="size-4" />}
+        >
+          Cronograma
+        </TabButton>
+        <TabButton
           active={tab === "calificaciones"}
           onClick={() => setTab("calificaciones")}
           icon={<GraduationCap className="size-4" />}
@@ -134,6 +153,12 @@ export function ModuleWorkspace({
                   }).length
                 : 0
             }
+          />
+        ) : tab === "cronograma" ? (
+          <ScheduleManager
+            moduleId={moduleId}
+            sessions={schedule}
+            readOnly={readOnly}
           />
         ) : tab === "calificaciones" || !showChat ? (
           <Gradebook

@@ -13,7 +13,7 @@ import { Role } from '@prisma/client';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UploadQueryDto } from './dto/upload-query.dto';
+import { UploadQueryDto, VideoUploadQueryDto } from './dto/upload-query.dto';
 import {
   ALLOWED_IMAGE_MIME,
   ALLOWED_VIDEO_MIME,
@@ -56,7 +56,8 @@ export class UploadsController {
     return this.storage.uploadImage(file, query.folder);
   }
 
-  // Video promocional de un programa (MP4/WebM/OGG/MOV, hasta 200 MB).
+  // Videos del admin (MP4/WebM/OGG/MOV, hasta 200 MB): promocional de un
+  // programa (carpeta por defecto) o galería de la landing (?folder=gallery-videos).
   @Post('video')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
@@ -71,10 +72,13 @@ export class UploadsController {
       },
     }),
   )
-  uploadVideo(@UploadedFile() file: UploadedFileLike | undefined) {
+  uploadVideo(
+    @UploadedFile() file: UploadedFileLike | undefined,
+    @Query() query: VideoUploadQueryDto,
+  ) {
     if (!file) {
       throw new BadRequestException('Archivo requerido');
     }
-    return this.storage.uploadVideo(file, 'programs-videos');
+    return this.storage.uploadVideo(file, query.folder);
   }
 }

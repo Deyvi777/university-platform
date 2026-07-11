@@ -8,9 +8,11 @@ import {
   ChevronRight,
   Clock,
   Loader2,
+  MapPin,
   PartyPopper,
   Pencil,
   Plus,
+  Presentation,
   StickyNote,
   Trash2,
   X,
@@ -37,9 +39,23 @@ interface Reminder {
   date: string; // YYYY-MM-DD
   note: string;
 }
+interface ClassItem {
+  id: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string | null;
+  title: string | null;
+  location: string | null;
+  moduleId: string;
+  moduleName: string;
+  moduleOrder: number;
+  courseId: string;
+  courseName: string;
+}
 interface Overview {
   deadlines: Deadline[];
   reminders: Reminder[];
+  classes?: ClassItem[];
 }
 
 const WEEKDAYS = ["lu", "ma", "mi", "ju", "vi", "sá", "do"];
@@ -148,6 +164,16 @@ export function ProfileCalendar({ role }: { role?: string }) {
     return map;
   }, [data]);
 
+  const classesByDate = useMemo(() => {
+    const map = new Map<string, ClassItem[]>();
+    for (const c of data?.classes ?? []) {
+      const arr = map.get(c.date) ?? [];
+      arr.push(c);
+      map.set(c.date, arr);
+    }
+    return map;
+  }, [data]);
+
   const weeks = useMemo(() => buildWeeks(view.y, view.m), [view]);
 
   const createMut = useMutation({
@@ -231,11 +257,18 @@ export function ProfileCalendar({ role }: { role?: string }) {
   const selHoliday = holidays.get(selected);
   const selDeadlines = deadlinesByDate.get(selected) ?? [];
   const selReminders = remindersByDate.get(selected) ?? [];
+  const selClasses = classesByDate.get(selected) ?? [];
 
   function deadlineHref(dl: Deadline): string {
     return role === "STUDENT"
       ? `/dashboard/aula/${dl.moduleId}?content=${dl.contentId}`
       : `/dashboard/modulos/${dl.moduleId}`;
+  }
+
+  function classHref(c: ClassItem): string {
+    return role === "STUDENT"
+      ? `/dashboard/aula/${c.moduleId}`
+      : `/dashboard/modulos/${c.moduleId}`;
   }
 
   return (
@@ -288,6 +321,7 @@ export function ProfileCalendar({ role }: { role?: string }) {
           const isHoliday = holidays.has(cell.key);
           const hasDeadline = deadlinesByDate.has(cell.key);
           const hasReminder = remindersByDate.has(cell.key);
+          const hasClass = classesByDate.has(cell.key);
           return (
             <button
               key={cell.key}
@@ -304,13 +338,21 @@ export function ProfileCalendar({ role }: { role?: string }) {
             >
               <span>{cell.d}</span>
               {/* Indicadores */}
-              {(isHoliday || hasDeadline || hasReminder) && (
+              {(isHoliday || hasDeadline || hasReminder || hasClass) && (
                 <span className="absolute bottom-1 flex items-center gap-0.5">
                   {isHoliday && (
                     <span
                       className={cn(
                         "size-1 rounded-full",
                         isToday ? "bg-primary-foreground" : "bg-red-500",
+                      )}
+                    />
+                  )}
+                  {hasClass && (
+                    <span
+                      className={cn(
+                        "size-1 rounded-full",
+                        isToday ? "bg-primary-foreground" : "bg-sky-500",
                       )}
                     />
                   )}
@@ -343,6 +385,9 @@ export function ProfileCalendar({ role }: { role?: string }) {
           <span className="size-1.5 rounded-full bg-red-500" /> Feriado
         </span>
         <span className="inline-flex items-center gap-1">
+          <span className="size-1.5 rounded-full bg-sky-500" /> Clase
+        </span>
+        <span className="inline-flex items-center gap-1">
           <span className="size-1.5 rounded-full bg-amber-500" /> Entrega
         </span>
         <span className="inline-flex items-center gap-1">
@@ -365,6 +410,40 @@ export function ProfileCalendar({ role }: { role?: string }) {
             <PartyPopper className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
             <span className="font-medium">{selHoliday}</span>
           </div>
+        )}
+
+        {selClasses.length > 0 && (
+          <ul className="mt-2 space-y-1.5">
+            {selClasses.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={classHref(c)}
+                  className="flex items-start gap-2 rounded-lg bg-sky-500/10 px-2.5 py-1.5 text-xs text-sky-800 transition-colors hover:bg-sky-500/20 dark:text-sky-200"
+                >
+                  <Presentation
+                    className="mt-0.5 size-3.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0">
+                    <span className="block font-medium tabular-nums">
+                      Clase {c.startTime}
+                      {c.endTime ? ` – ${c.endTime}` : ""}
+                      {c.title ? ` · ${c.title}` : ""}
+                    </span>
+                    <span className="block truncate text-sky-700/80 dark:text-sky-300/70">
+                      {c.courseName} · Módulo {c.moduleOrder}
+                    </span>
+                    {c.location && (
+                      <span className="mt-0.5 flex items-center gap-1 text-sky-700/80 dark:text-sky-300/70">
+                        <MapPin className="size-3 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{c.location}</span>
+                      </span>
+                    )}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
 
         {selDeadlines.length > 0 && (
@@ -466,6 +545,7 @@ export function ProfileCalendar({ role }: { role?: string }) {
 
         {!isLoading &&
           !selHoliday &&
+          selClasses.length === 0 &&
           selDeadlines.length === 0 &&
           selReminders.length === 0 && (
             <p className="mt-2 text-xs text-muted-foreground">

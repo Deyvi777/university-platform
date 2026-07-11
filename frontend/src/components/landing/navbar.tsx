@@ -13,6 +13,7 @@ import { getCategories } from "@/lib/api/programs";
 function sectionFromHref(href: string): string {
   if (href.startsWith("/#")) return href.slice(2);
   if (href === "/nosotros") return "nosotros";
+  if (href === "/galeria") return "galeria";
   if (href === "/contacto") return "contacto";
   return "";
 }
@@ -29,6 +30,7 @@ function isLinkActive(activeSection: string, href: string): boolean {
 
 const navLinks = [
   { href: "/nosotros", label: "Nosotros" },
+  { href: "/galeria", label: "Galería" },
   { href: "/contacto", label: "Contacto" },
 ];
 

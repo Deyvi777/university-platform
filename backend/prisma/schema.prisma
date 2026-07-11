@@ -265,6 +265,25 @@ model Partner {
   @@map("partners")
 }
 
+enum GalleryMediaType {
+  IMAGE
+  VIDEO
+}
+
+model GalleryItem {
+  id           String           @id @default(uuid())
+  type         GalleryMediaType @default(IMAGE)
+  url          String // ruta relativa subida al storage, ej. /files/gallery/<uuid>.webp
+  title        String? // pie de foto opcional mostrado en la landing
+  displayOrder Int              @default(0)
+  isPublished  Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([isPublished, displayOrder])
+  @@map("gallery_items")
+}
+
 model TeamMember {
   id           String   @id @default(uuid())
   name         String
@@ -427,9 +446,30 @@ model CourseModule {
   contents ModuleContent[] // contenidos ordenados (temario): tema/video/material/actividad
   grades   ModuleGrade[]
   messages ChatMessage[] // chat docente↔estudiante dentro del módulo
+  classSessions ClassSession[] // cronograma de clases del módulo
 
   @@unique([courseId, order])
   @@map("course_modules")
+}
+
+// Una clase del cronograma de un módulo (creada por el docente/admin). El
+// estudiante la ve en el aula y ambos en su calendario. Las horas se guardan
+// como texto "HH:mm" (hora local de Bolivia): no hay zonas horarias que
+// convertir y coincide 1:1 con los inputs del formulario.
+model ClassSession {
+  id        String       @id @default(uuid())
+  moduleId  String
+  module    CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  date      DateTime     @db.Date
+  startTime String // "HH:mm"
+  endTime   String? // "HH:mm", opcional
+  title     String? // tema de la clase, ej. "Clase 3: Marco teórico"
+  location  String? // aula física o enlace de la sesión virtual
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([moduleId, date])
+  @@map("class_sessions")
 }
 
 // Asignación docente↔módulo (co-docencia: un módulo puede tener varios docentes

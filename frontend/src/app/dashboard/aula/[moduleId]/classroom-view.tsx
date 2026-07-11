@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -10,6 +11,7 @@ import {
 import {
   ArrowLeft,
   Award,
+  CalendarDays,
   Check,
   ChevronDown,
   ClipboardList,
@@ -34,6 +36,11 @@ import {
   useModuleChat,
 } from "@/components/dashboard/module-chat";
 import { RichTextContent } from "@/components/dashboard/rich-text-content";
+import {
+  ClassScheduleList,
+  localDateKey,
+} from "@/components/dashboard/class-schedule";
+import type { ClassSession } from "@/lib/api/teacher";
 import type { ChatContact } from "@/lib/api/chat";
 import type {
   ContentKind,
@@ -111,12 +118,15 @@ function toActivity(c: LearnContent): CourseActivity {
 
 export function ClassroomView({
   module: learn,
+  schedule = [],
   chat,
   initialChatContactId,
   openChat = false,
   initialContentId,
 }: {
   module: LearnModule;
+  /** Cronograma de clases del módulo (definido por el docente). */
+  schedule?: ClassSession[];
   chat: ClassroomChat;
   /** Abrir directamente la pestaña Chat con este contacto (deep-link). */
   initialChatContactId?: string;
@@ -147,6 +157,9 @@ export function ClassroomView({
   // Archivo de carpeta abierto en el panel central (se previsualiza como un
   // material). `null` = se muestra el contenido seleccionado normal.
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  // "Hoy" fijado una vez por montaje (regla react-hooks/purity), para marcar
+  // las clases pasadas/próximas del cronograma.
+  const today = useMemo(() => localDateKey(new Date()), []);
 
   function toggleFolder(id: string) {
     setCollapsedFolders((prev) => {
@@ -365,6 +378,29 @@ export function ClassroomView({
                     : "contenidos completados"}
                 </p>
               </div>
+
+              {/* Cronograma de clases (si el docente lo definió) */}
+              {schedule.length > 0 && (
+                <details className="group border-b">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                    <CalendarDays
+                      className="size-4 text-sky-600 dark:text-sky-300"
+                      aria-hidden="true"
+                    />
+                    Cronograma de clases
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                      {schedule.length}
+                    </span>
+                    <ChevronDown
+                      className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <div className="px-3 pb-3">
+                    <ClassScheduleList sessions={schedule} today={today} />
+                  </div>
+                </details>
+              )}
 
               {/* Lista de contenidos */}
               <ol className="max-h-[28rem] overflow-y-auto p-2">

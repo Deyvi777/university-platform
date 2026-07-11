@@ -4,6 +4,7 @@ import {
   Building2,
   ClipboardList,
   GraduationCap,
+  Images,
   LayoutDashboard,
   Presentation,
   ScrollText,
@@ -31,6 +32,7 @@ export type NavIcon =
   | "courses"
   | "categories"
   | "partners"
+  | "gallery"
   | "team"
   | "users"
   | "social"
@@ -49,6 +51,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   courses: BookOpen,
   categories: Tags,
   partners: Building2,
+  gallery: Images,
   team: UsersRound,
   users: Users,
   social: Share2,
@@ -224,6 +227,11 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
             href: "/dashboard/equipo",
             label: "Equipo",
             icon: "team",
+          },
+          {
+            href: "/dashboard/galeria",
+            label: "Galería",
+            icon: "gallery",
           },
           {
             href: "/dashboard/configuracion",

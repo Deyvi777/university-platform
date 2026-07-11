@@ -146,6 +146,41 @@ export async function getActivityGrading(
   return (await res.json()) as ActivityGrading;
 }
 
+/** Una clase del cronograma de un módulo. */
+export interface ClassSession {
+  id: string;
+  /** "YYYY-MM-DD" */
+  date: string;
+  /** "HH:mm" */
+  startTime: string;
+  /** "HH:mm" o null */
+  endTime: string | null;
+  title: string | null;
+  location: string | null;
+}
+
+/**
+ * Cronograma de clases del módulo. Lo lee el docente (gestión) y el estudiante
+ * (aula): el backend autoriza por docencia o inscripción. `[]` si no hay acceso.
+ */
+export async function getModuleSchedule(
+  moduleId: string,
+): Promise<ClassSession[]> {
+  const session = await auth();
+  const token = session?.accessToken;
+  if (!token) return [];
+
+  const res = await fetch(
+    `${API_URL}/me/modules/${encodeURIComponent(moduleId)}/schedule`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) return [];
+  return (await res.json()) as ClassSession[];
+}
+
 export class MeApiError extends Error {
   constructor(
     public readonly status: number,

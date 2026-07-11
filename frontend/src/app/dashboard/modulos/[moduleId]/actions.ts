@@ -83,6 +83,42 @@ export async function reorderContentsAction(
   );
 }
 
+// ── Cronograma de clases ─────────────────────────────────────────────────────
+
+export interface ClassSessionPayload {
+  /** "YYYY-MM-DD" */
+  date: string;
+  /** "HH:mm" */
+  startTime: string;
+  /** "HH:mm" o null */
+  endTime?: string | null;
+  title?: string | null;
+  location?: string | null;
+}
+
+export async function createSessionAction(
+  moduleId: string,
+  payload: ClassSessionPayload,
+) {
+  return run(moduleId, () =>
+    mutateMe("POST", `/me/modules/${moduleId}/schedule`, payload),
+  );
+}
+
+export async function updateSessionAction(
+  moduleId: string,
+  sessionId: string,
+  payload: ClassSessionPayload,
+) {
+  return run(moduleId, () =>
+    mutateMe("PATCH", `/me/schedule/${sessionId}`, payload),
+  );
+}
+
+export async function deleteSessionAction(moduleId: string, sessionId: string) {
+  return run(moduleId, () => mutateMe("DELETE", `/me/schedule/${sessionId}`));
+}
+
 /** Guarda la observación del docente sobre la nota de módulo de un estudiante. */
 export async function setObservationAction(
   moduleId: string,

@@ -3,6 +3,7 @@ import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
 import { getLearnModule } from "@/lib/api/me";
+import { getModuleSchedule } from "@/lib/api/teacher";
 import { getChatContacts } from "@/lib/api/chat";
 import { ClassroomView } from "./classroom-view";
 
@@ -27,8 +28,9 @@ export default async function ClassroomPage({
   const openChat = Boolean(chatParam);
   // `?content=<id>` (desde una notificación de actividad) abre ese contenido.
   const initialContentId = Array.isArray(content) ? content[0] : content;
-  const [mod, chatContacts] = await Promise.all([
+  const [mod, schedule, chatContacts] = await Promise.all([
     getLearnModule(moduleId),
+    getModuleSchedule(moduleId),
     getChatContacts(moduleId),
   ]);
   if (!mod) {
@@ -78,6 +80,7 @@ export default async function ClassroomPage({
       <div className="mt-6">
         <ClassroomView
           module={mod}
+          schedule={schedule}
           chat={{
             contacts: chatContacts,
             currentUserId: session.user.id,

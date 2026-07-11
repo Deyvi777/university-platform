@@ -2,7 +2,11 @@ import { Layers, Lock } from "lucide-react";
 import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
-import { getModuleGradebook, getTeacherModule } from "@/lib/api/teacher";
+import {
+  getModuleGradebook,
+  getModuleSchedule,
+  getTeacherModule,
+} from "@/lib/api/teacher";
 import { getChatContacts } from "@/lib/api/chat";
 import { ModuleWorkspace } from "./module-workspace";
 
@@ -28,9 +32,10 @@ export default async function ModuleManagePage({
   // El ADMIN gestiona el módulo sin chat (entra desde el detalle del programa).
   const isAdmin = session.user.role === "ADMIN";
   const showChat = !isAdmin;
-  const [mod, gradebook, chatContacts] = await Promise.all([
+  const [mod, gradebook, schedule, chatContacts] = await Promise.all([
     getTeacherModule(moduleId),
     getModuleGradebook(moduleId),
+    getModuleSchedule(moduleId),
     showChat ? getChatContacts(moduleId) : Promise.resolve([]),
   ]);
   if (!mod) {
@@ -72,6 +77,7 @@ export default async function ModuleManagePage({
         <ModuleWorkspace
           moduleId={mod.id}
           contents={mod.contents}
+          schedule={schedule}
           gradebook={gradebook}
           readOnly={mod.status === "FINISHED"}
           isAdmin={isAdmin}

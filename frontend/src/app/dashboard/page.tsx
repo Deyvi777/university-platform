@@ -4,6 +4,7 @@ import {
   BookOpen,
   ClipboardList,
   GraduationCap,
+  Images,
   Send,
   Share2,
   Tags,
@@ -17,6 +18,7 @@ import {
   listAdminCategories,
   listAdminCourses,
   listAdminEnrollmentRequests,
+  listAdminGallery,
   listAdminPartners,
   listAdminPrograms,
   listAdminTeam,
@@ -119,16 +121,25 @@ type HomeCard = {
 };
 
 async function AdminHome({ firstName }: { firstName?: string | null }) {
-  const [programs, categories, partners, team, users, courses, requests] =
-    await Promise.all([
-      listAdminPrograms(),
-      listAdminCategories(),
-      listAdminPartners(),
-      listAdminTeam(),
-      listAdminUsers(),
-      listAdminCourses(),
-      listAdminEnrollmentRequests(),
-    ]);
+  const [
+    programs,
+    categories,
+    partners,
+    team,
+    users,
+    courses,
+    requests,
+    gallery,
+  ] = await Promise.all([
+    listAdminPrograms(),
+    listAdminCategories(),
+    listAdminPartners(),
+    listAdminTeam(),
+    listAdminUsers(),
+    listAdminCourses(),
+    listAdminEnrollmentRequests(),
+    listAdminGallery(),
+  ]);
 
   const academicCards: HomeCard[] = [
     {
@@ -189,6 +200,15 @@ async function AdminHome({ firstName }: { firstName?: string | null }) {
       count: team.length,
       icon: UsersRound,
       tint: "violet",
+    },
+    {
+      href: "/dashboard/galeria",
+      label: "Galería",
+      category: "Multimedia",
+      description: "Fotos y videos del carrusel de la página Galería.",
+      count: gallery.length,
+      icon: Images,
+      tint: "amber",
     },
     {
       href: "/dashboard/configuracion",
