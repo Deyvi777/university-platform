@@ -22,3 +22,4 @@ garage.toml
 
 # despliegue: credenciales del VPS y secretos de producción (NUNCA subir)
 .deploy/
+DEPLOY.md
