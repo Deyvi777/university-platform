@@ -25,7 +25,7 @@ export interface AdminProgramListItem {
   title: string;
   category: ProgramCategory;
   flyerUrl: string;
-  startDate: string;
+  startDate: string | null;
   isPublished: boolean;
   updatedAt: string;
 }
@@ -42,9 +42,21 @@ export interface AdminProgramModule {
 export interface AdminProgramTeacher {
   id: string;
   fullName: string;
-  credentials: string;
+  credentials: string | null;
+  bio: string | null;
   photoUrl: string | null;
   order: number;
+}
+
+export interface AdminProgramExtraFeature {
+  label: string;
+  value: string;
+}
+
+export interface AdminProgramBankAccount {
+  bank: string;
+  accountNumber: string;
+  holder: string;
 }
 
 export interface AdminProgram {
@@ -54,17 +66,26 @@ export interface AdminProgram {
   categoryId: string;
   category: ProgramCategory;
   flyerUrl: string;
-  objective: string;
-  targetAudience: string;
-  modality: string;
-  startDate: string;
-  duration: string;
-  schedule: string;
+  objective: string | null;
+  specificObjectives: string[];
+  targetAudience: string | null;
+  modality: string | null;
+  startDate: string | null;
+  duration: string | null;
+  hourlyLoad: string | null;
+  schedule: string | null;
+  videoUrl: string | null;
+  extraFeatures: AdminProgramExtraFeature[];
   requirements: string[];
-  enrollmentFee: string;
-  totalCost: string;
+  enrollmentFee: string | null;
+  totalCost: string | null;
   currency: string;
+  installmentCount: number | null;
+  installmentAmount: string | null;
+  installmentCurrency: string;
   paymentFacilities: string | null;
+  bankAccounts: AdminProgramBankAccount[];
+  qrImageUrl: string | null;
   isPublished: boolean;
   modules: AdminProgramModule[];
   teachers: AdminProgramTeacher[];
@@ -119,6 +140,8 @@ export interface AdminSettings {
   youtube: string | null;
   tiktok: string | null;
   whatsapp: string | null;
+  /** Buzón que recibe el aviso por correo de cada solicitud de inscripción. */
+  enrollmentNotifyEmail: string;
 }
 
 // ---- Programas académicos (capa Course/LMS) ----
@@ -286,6 +309,35 @@ export async function listAdminUsers(
 
 export async function getAdminUser(id: string): Promise<AdminUser> {
   return parse(await adminFetch(`/admin/users/${id}`));
+}
+
+// ---- Solicitudes de inscripción (formulario público de la landing) ----
+
+export type EnrollmentRequestStatus = "PENDING" | "ENROLLED";
+
+export interface AdminEnrollmentRequest {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  idDocument: string;
+  issuedIn: string;
+  gender: Gender;
+  originUniversity: string;
+  profession: string;
+  programTitle: string;
+  programSlug: string | null;
+  status: EnrollmentRequestStatus;
+  enrolledUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listAdminEnrollmentRequests(): Promise<
+  AdminEnrollmentRequest[]
+> {
+  return parse(await adminFetch("/admin/enrollment-requests"));
 }
 
 // ---- Notas de un estudiante (vista del ADMIN) ----

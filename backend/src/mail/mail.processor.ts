@@ -7,9 +7,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   CREDENTIALS_JOB,
   CredentialsMailPayload,
+  ENROLLMENT_NOTICE_JOB,
+  EnrollmentNoticeMailPayload,
   MAIL_QUEUE,
   MailService,
 } from './mail.service';
+
+type MailJob = Job<CredentialsMailPayload | EnrollmentNoticeMailPayload>;
 
 /**
  * Procesa la cola `mail` fuera de la petición HTTP (con reintentos y
@@ -27,9 +31,13 @@ export class MailProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<CredentialsMailPayload>): Promise<void> {
+  async process(job: MailJob): Promise<void> {
     if (job.name === CREDENTIALS_JOB) {
-      await this.mail.sendCredentials(job.data);
+      await this.mail.sendCredentials(job.data as CredentialsMailPayload);
+    } else if (job.name === ENROLLMENT_NOTICE_JOB) {
+      await this.mail.sendEnrollmentNotice(
+        job.data as EnrollmentNoticeMailPayload,
+      );
     } else {
       this.logger.warn(`Job de correo desconocido: ${job.name}`);
     }
@@ -44,12 +52,25 @@ export class MailProcessor extends WorkerHost {
    * el ADMIN pueda reenviarlas por WhatsApp desde la propia notificación.
    */
   @OnWorkerEvent('failed')
-  async onFailed(job: Job<CredentialsMailPayload> | undefined, error: Error) {
-    if (!job || job.name !== CREDENTIALS_JOB) return;
+  async onFailed(job: MailJob | undefined, error: Error) {
+    if (!job) return;
     // Aún quedan reintentos: BullMQ lo reintentará con backoff, no avisamos.
     if (job.attemptsMade < (job.opts.attempts ?? 1)) return;
 
-    const p = job.data;
+    // El aviso de solicitud solo se registra: la solicitud ya quedó guardada y
+    // notificada en la campana del panel (no hay credenciales que reponer).
+    if (job.name === ENROLLMENT_NOTICE_JOB) {
+      const n = job.data as EnrollmentNoticeMailPayload;
+      this.logger.error(
+        `El aviso por correo de la solicitud de ${n.email} agotó sus reintentos: ${
+          error?.message || 'Error desconocido'
+        }`,
+      );
+      return;
+    }
+    if (job.name !== CREDENTIALS_JOB) return;
+
+    const p = job.data as CredentialsMailPayload;
     const reason = error?.message || 'Error desconocido';
     this.logger.error(
       `Correo de credenciales agotó sus reintentos para ${p.email}: ${reason}`,

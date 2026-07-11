@@ -4,7 +4,7 @@ import { SOCIAL_DEFS } from "./social-defs";
 import { getSiteSettings } from "@/lib/api/settings";
 
 const ADDRESS =
-  "Calle Jordán entre Esteban Arce y 25 de Mayo. Centro comercial COSCENTER";
+  "Calle Jordán N°333 entre 25 de mayo y Esteban Arce. Edificio COSCENTER, 1° piso / Of. 7B";
 const WHATSAPP_NUMBER = "59177933003";
 const WHATSAPP_DISPLAY = "+591 77933003";
 const MAPS_LINK =
@@ -65,10 +65,13 @@ export async function Contacto() {
             {/* Dirección */}
             <InfoCard
               icon={<MapPin className="h-5 w-5" />}
-              title="Dirección"
+              title="OFICINA CENTRAL"
               badge="bg-blue-500/15 text-blue-400 ring-blue-400/20"
             >
               <p className="text-sm leading-6 text-slate-300">{ADDRESS}</p>
+              <p className="text-sm font-medium leading-6 text-slate-200">
+                Cochabamba - Bolivia
+              </p>
               <a
                 href={MAPS_LINK}
                 target="_blank"

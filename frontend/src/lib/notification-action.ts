@@ -23,6 +23,8 @@ function strOf(v: unknown): string | null {
  *   `?content=<actividad>` para seleccionarla. Siempre va a estudiantes.
  * - MAIL_FAILED (solo ADMIN) → "Enviar por WhatsApp": abre wa.me al teléfono
  *   del usuario con las credenciales prellenadas (el correo no le llegó).
+ * - ENROLLMENT_REQUEST (solo ADMIN) → "Ver solicitud": abre la sección de
+ *   solicitudes de inscripción del panel.
  * Devuelve `null` si la notificación no tiene una acción navegable.
  */
 export function notificationActionFor(
@@ -69,6 +71,14 @@ export function notificationActionFor(
       label: "Enviar credenciales por WhatsApp",
       kind: "whatsapp",
       external: true,
+    };
+  }
+
+  if (type === "ENROLLMENT_REQUEST") {
+    return {
+      href: "/dashboard/solicitudes",
+      label: "Ver solicitud",
+      kind: "activity",
     };
   }
 

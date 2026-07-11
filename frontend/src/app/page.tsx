@@ -1,3 +1,4 @@
+import { Beneficios } from "@/components/landing/beneficios";
 import { Cta } from "@/components/landing/cta";
 import { Footer } from "@/components/landing/footer";
 import { Hero } from "@/components/landing/hero";
@@ -14,6 +15,7 @@ export default function Home() {
       <main>
         <Hero />
         <Programs />
+        <Beneficios />
         <Partners />
         <Cta />
       </main>

@@ -13,7 +13,18 @@ import { getCategories } from "@/lib/api/programs";
 function sectionFromHref(href: string): string {
   if (href.startsWith("/#")) return href.slice(2);
   if (href === "/nosotros") return "nosotros";
+  if (href === "/contacto") return "contacto";
   return "";
+}
+
+/**
+ * Un enlace está activo solo si su sección coincide y NO es vacía: en rutas
+ * sin sección propia (p. ej. el detalle de un programa) `activeSection` es
+ * `""` y sin este guard coincidiría con cualquier href no mapeado.
+ */
+function isLinkActive(activeSection: string, href: string): boolean {
+  const section = sectionFromHref(href);
+  return section !== "" && activeSection === section;
 }
 
 const navLinks = [
@@ -104,7 +115,7 @@ export function Navbar() {
             </div>
           </li>
           {navLinks.map((link) => {
-            const isActive = activeSection === sectionFromHref(link.href);
+            const isActive = isLinkActive(activeSection, link.href);
             return (
               <li key={link.href}>
                 <ScrollLink
@@ -201,7 +212,7 @@ export function Navbar() {
               </ul>
             </li>
             {navLinks.map((link) => {
-              const isActive = activeSection === sectionFromHref(link.href);
+              const isActive = isLinkActive(activeSection, link.href);
               return (
                 <li key={link.href}>
                   <ScrollLink

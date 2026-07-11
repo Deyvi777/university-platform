@@ -4,14 +4,12 @@ import {
   ArrowRight,
   Award,
   BookOpen,
-  Building2,
   Calendar,
   Eye,
   Gem,
   GraduationCap,
   Handshake,
   Headset,
-  Landmark,
   type LucideIcon,
   Monitor,
   Rocket,
@@ -19,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { getTeam } from "@/lib/api/team";
+import { getPartners } from "@/lib/api/partners";
 
 const features = [
   {
@@ -82,7 +81,7 @@ const values = [
 
 
 export async function Nosotros() {
-  const team = await getTeam();
+  const [team, partners] = await Promise.all([getTeam(), getPartners()]);
 
   return (
     <section id="nosotros" className="bg-slate-950 pb-24 pt-32 sm:pb-32">
@@ -99,44 +98,58 @@ export async function Nosotros() {
         </div>
 
         {/* ── Bloque principal: collage + texto ────────────────────── */}
-        <div className="mt-16 grid items-start gap-12 lg:grid-cols-5 lg:gap-14">
+        <div className="mt-16 grid items-start gap-12 lg:grid-cols-5 lg:items-center lg:gap-14">
           {/* Collage de imágenes — 3 columnas de 5 */}
           <div className="relative lg:col-span-3">
             <div
               aria-hidden="true"
               className="animate-pulse-glow pointer-events-none absolute -left-10 top-1/4 -z-10 h-72 w-72 rounded-full bg-amber-400/[0.12] blur-[120px]"
             />
-            <div className="grid grid-cols-2 items-stretch gap-4 sm:gap-5">
-              {/* Columna izquierda: imagen vertical que ocupa toda la altura */}
-              <div className="relative min-h-[320px] overflow-hidden rounded-[2rem] border border-white/10 sm:min-h-[400px]">
+            {/* Las tres fotos son horizontales (~3:2): about-3 va grande arriba
+                con su proporción exacta (se ve completa, sin recorte) y las
+                otras dos comparten la fila de abajo, también en 3:2. */}
+            <div className="space-y-4 sm:space-y-5">
+              <div className="group relative aspect-[3/2] overflow-hidden rounded-[2rem] border border-white/10 shadow-xl shadow-black/40 ring-1 ring-inset ring-white/10">
                 <Image
                   src="/landing/abaout/about-3.webp"
-                  alt="Profesional estudiando un programa de Certificate"
+                  alt="Equipo de Certificate atendiendo en la oficina central"
                   fill
-                  sizes="(max-width: 1024px) 45vw, 35vw"
-                  className="object-cover"
+                  sizes="(max-width: 1024px) 90vw, 55vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                {/* Velo interior para realzar el marco recortado */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-black/10"
                 />
               </div>
 
-              {/* Columna derecha: dos imágenes horizontales */}
-              <div className="space-y-4 sm:space-y-5">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] border border-white/10">
+              <div className="grid grid-cols-2 gap-4 sm:gap-5">
+                <div className="group relative aspect-[3/2] overflow-hidden rounded-[2rem] border border-white/10 shadow-xl shadow-black/40 ring-1 ring-inset ring-white/10">
                   <Image
                     src="/landing/abaout/about-1.webp"
                     alt="Equipo de profesionales en sesión de trabajo"
                     fill
-                    sizes="(max-width: 1024px) 45vw, 18vw"
-                    className="object-cover"
+                    sizes="(max-width: 1024px) 45vw, 27vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-black/10"
                   />
                 </div>
 
-                <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] border border-white/10">
+                <div className="group relative aspect-[3/2] overflow-hidden rounded-[2rem] border border-white/10 shadow-xl shadow-black/40 ring-1 ring-inset ring-white/10">
                   <Image
                     src="/landing/abaout/about-2.webp"
                     alt="Docente acompañando a una estudiante"
                     fill
-                    sizes="(max-width: 1024px) 45vw, 18vw"
-                    className="object-cover"
+                    sizes="(max-width: 1024px) 45vw, 27vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-black/10"
                   />
                 </div>
               </div>
@@ -349,43 +362,35 @@ export async function Nosotros() {
             En <span className="font-semibold text-white">Certificate Bolivia S.R.L.</span> promovemos alianzas estratégicas con universidades, instituciones públicas y privadas, colegios profesionales y organismos nacionales e internacionales para fortalecer la calidad de nuestros programas y ampliar las oportunidades de formación. Estas alianzas nos permiten desarrollar programas de postgrado, formación continua, investigación, consultoría y certificación profesional, garantizando una oferta educativa pertinente, actualizada y respaldada por instituciones de reconocido prestigio.
           </p>
 
-          {/* Grid de instituciones aliadas */}
-          <div className="mt-14">
-            <h4 className="mb-8 text-center text-lg font-semibold text-slate-300">
-              Instituciones con las que Certificate Bolivia mantiene o ha formado vínculos de cooperación
-            </h4>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                { name: "Universidad Autónoma Tomás Frías", type: "university" },
-                { name: "Universidad Nacional Siglo XX", type: "university" },
-                { name: "Universidad San Francisco de Asís", type: "university" },
-                { name: "Universidad Central", type: "university" },
-                { name: "Colegio de Profesionales en Ciencias Administrativas y Empresariales de Cochabamba (CADEC)", type: "college" },
-                { name: "Colegio de Psicólogos Cochabamba", type: "college" },
-                { name: "Colegio de Santa Cruz", type: "college" },
-                { name: "Colegio Departamental de Trabajadores Sociales Santa Cruz", type: "college" },
-                { name: "Colegio Departamental de Trabajadores Sociales Cochabamba", type: "college" },
-                { name: "Veterinaria Evet", type: "college" },
-                { name: "Colegio de Trabajadores Sociales Oruro", type: "college" },
-              ].map((institution) => (
-                <div
-                  key={institution.name}
-                  className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm transition-colors hover:border-amber-400/40"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-400/10 ring-1 ring-amber-400/20">
-                    {institution.type === "university" ? (
-                      <Landmark className="h-5 w-5 text-amber-400" />
-                    ) : (
-                      <Building2 className="h-5 w-5 text-amber-400" />
-                    )}
-                  </span>
-                  <span className="text-sm font-medium leading-snug text-slate-200">
-                    {institution.name}
-                  </span>
-                </div>
-              ))}
+          {/* Grid de instituciones aliadas (desde /dashboard/partners) */}
+          {partners.length > 0 && (
+            <div className="mt-14">
+              <h4 className="mb-8 text-center text-lg font-semibold text-slate-300">
+                Instituciones con las que Certificate Bolivia mantiene o ha formado vínculos de cooperación
+              </h4>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {partners.map((partner) => (
+                  <div
+                    key={partner.id}
+                    className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm transition-colors hover:border-amber-400/40"
+                  >
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white/20">
+                      <Image
+                        src={partner.logoUrl}
+                        alt={partner.name}
+                        width={80}
+                        height={80}
+                        className="h-full w-full object-contain p-1"
+                      />
+                    </span>
+                    <span className="text-sm font-medium leading-snug text-slate-200">
+                      {partner.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ── Oferta Académica ───────────────────────────────────── */}
@@ -485,6 +490,7 @@ export async function Nosotros() {
             Todos nuestros programas están orientados al fortalecimiento de competencias profesionales, la actualización permanente y la formación de líderes capaces de responder a los desafíos del entorno laboral, científico y tecnológico, contribuyendo al desarrollo profesional e institucional de Bolivia.
           </p>
         </div>
+
       </div>
     </section>
   );

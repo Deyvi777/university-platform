@@ -13,7 +13,8 @@ export type NotificationType =
   | "GRADE"
   | "ACTIVITY_PUBLISHED"
   | "MESSAGE"
-  | "MAIL_FAILED";
+  | "MAIL_FAILED"
+  | "ENROLLMENT_REQUEST";
 
 /** Notificación tal como la entrega `GET /notifications`. */
 export interface ApiNotification {

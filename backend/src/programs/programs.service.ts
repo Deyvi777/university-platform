@@ -110,9 +110,17 @@ export class ProgramsService {
         slug,
         displayOrder,
         category: { connect: { id: categoryId } },
-        startDate: new Date(dto.startDate),
-        enrollmentFee: new Prisma.Decimal(dto.enrollmentFee),
-        totalCost: new Prisma.Decimal(dto.totalCost),
+        startDate: dto.startDate ? new Date(dto.startDate) : null,
+        enrollmentFee:
+          dto.enrollmentFee != null
+            ? new Prisma.Decimal(dto.enrollmentFee)
+            : null,
+        totalCost:
+          dto.totalCost != null ? new Prisma.Decimal(dto.totalCost) : null,
+        installmentAmount:
+          dto.installmentAmount != null
+            ? new Prisma.Decimal(dto.installmentAmount)
+            : null,
         modules: { create: modules },
         teachers: { create: teachers },
       },
@@ -133,6 +141,7 @@ export class ProgramsService {
       slug,
       enrollmentFee,
       totalCost,
+      installmentAmount,
       startDate,
       categoryId,
       ...rest
@@ -147,13 +156,20 @@ export class ProgramsService {
       data.slug = await this.buildUniqueSlug(slug, id);
     }
     if (startDate !== undefined) {
-      data.startDate = new Date(startDate);
+      data.startDate = startDate ? new Date(startDate) : null;
     }
     if (enrollmentFee !== undefined) {
-      data.enrollmentFee = new Prisma.Decimal(enrollmentFee);
+      data.enrollmentFee =
+        enrollmentFee != null ? new Prisma.Decimal(enrollmentFee) : null;
     }
     if (totalCost !== undefined) {
-      data.totalCost = new Prisma.Decimal(totalCost);
+      data.totalCost = totalCost != null ? new Prisma.Decimal(totalCost) : null;
+    }
+    if (installmentAmount !== undefined) {
+      data.installmentAmount =
+        installmentAmount != null
+          ? new Prisma.Decimal(installmentAmount)
+          : null;
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -174,7 +190,8 @@ export class ProgramsService {
           await tx.programTeacher.createMany({
             data: teachers.map((t) => ({
               fullName: t.fullName,
-              credentials: t.credentials,
+              credentials: t.credentials ?? null,
+              bio: t.bio ?? null,
               photoUrl: t.photoUrl ?? null,
               order: t.order,
               programId: id,

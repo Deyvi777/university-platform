@@ -166,7 +166,9 @@ function ProgramRow({ program }: { program: AdminProgramListItem }) {
       </TableCell>
       <TableCell className="font-medium">{program.title}</TableCell>
       <TableCell>{program.category.name}</TableCell>
-      <TableCell>{formatStartDate(program.startDate)}</TableCell>
+      <TableCell>
+        {program.startDate ? formatStartDate(program.startDate) : "—"}
+      </TableCell>
       <TableCell>
         {program.isPublished ? (
           <Badge>Publicado</Badge>

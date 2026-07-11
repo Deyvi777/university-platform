@@ -56,6 +56,16 @@ const DOCUMENT_MIME_TO_EXT: Record<string, string> = {
 
 export const ALLOWED_DOCUMENT_MIME = Object.keys(DOCUMENT_MIME_TO_EXT);
 
+// Videos promocionales del landing (admin). Formatos web comunes.
+const VIDEO_MIME_TO_EXT: Record<string, string> = {
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'video/ogg': 'ogv',
+  'video/quicktime': 'mov',
+};
+
+export const ALLOWED_VIDEO_MIME = Object.keys(VIDEO_MIME_TO_EXT);
+
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
@@ -85,6 +95,15 @@ export class StorageService {
       folder,
       DOCUMENT_MIME_TO_EXT,
       'Tipo de archivo no permitido',
+    );
+  }
+
+  uploadVideo(file: UploadedFileLike, folder: string) {
+    return this.put(
+      file,
+      folder,
+      VIDEO_MIME_TO_EXT,
+      'Tipo de video no permitido',
     );
   }
 

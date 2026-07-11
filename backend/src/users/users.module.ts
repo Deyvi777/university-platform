@@ -8,5 +8,8 @@ import { UsersService } from './users.service';
   imports: [StorageModule, MailModule],
   controllers: [AdminUsersController],
   providers: [UsersService],
+  // Exportado para que otros módulos reutilicen el alta (p. ej. la conversión
+  // de una solicitud de inscripción en cuenta STUDENT).
+  exports: [UsersService],
 })
 export class UsersModule {}

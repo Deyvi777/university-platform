@@ -10,11 +10,14 @@ export interface Partner {
 }
 
 export async function getPartners(): Promise<Partner[]> {
-  const res = await fetch(`${API_URL}/partners`, {
-    next: { revalidate: 300 },
-  });
-  if (!res.ok) {
-    throw new Error(`Error al obtener instituciones aliadas: ${res.status}`);
+  try {
+    const res = await fetch(`${API_URL}/partners`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return [];
+    return (await res.json()) as Partner[];
+  } catch {
+    // Si el backend no responde, las secciones de instituciones se renderizan vacías.
+    return [];
   }
-  return res.json();
 }

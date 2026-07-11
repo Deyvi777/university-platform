@@ -13,7 +13,9 @@ const SECTION_IDS = ["inicio", "programas", "nosotros", "contacto"];
  */
 function sectionForPathname(pathname: string): string {
   if (pathname === "/nosotros") return "nosotros";
+  if (pathname === "/contacto") return "contacto";
   if (pathname === "/") return "inicio";
+  // Rutas sin sección propia (p. ej. /programas/[slug]): nada marcado.
   return "";
 }
 

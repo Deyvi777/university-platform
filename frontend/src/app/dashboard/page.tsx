@@ -7,6 +7,7 @@ import {
   Send,
   Share2,
   Tags,
+  UserPlus,
   Users,
   UsersRound,
   type LucideIcon,
@@ -15,6 +16,7 @@ import Link from "next/link";
 import {
   listAdminCategories,
   listAdminCourses,
+  listAdminEnrollmentRequests,
   listAdminPartners,
   listAdminPrograms,
   listAdminTeam,
@@ -117,7 +119,7 @@ type HomeCard = {
 };
 
 async function AdminHome({ firstName }: { firstName?: string | null }) {
-  const [programs, categories, partners, team, users, courses] =
+  const [programs, categories, partners, team, users, courses, requests] =
     await Promise.all([
       listAdminPrograms(),
       listAdminCategories(),
@@ -125,6 +127,7 @@ async function AdminHome({ firstName }: { firstName?: string | null }) {
       listAdminTeam(),
       listAdminUsers(),
       listAdminCourses(),
+      listAdminEnrollmentRequests(),
     ]);
 
   const academicCards: HomeCard[] = [
@@ -207,6 +210,16 @@ async function AdminHome({ firstName }: { firstName?: string | null }) {
       count: users.length,
       icon: Users,
       tint: "amber",
+    },
+    {
+      href: "/dashboard/solicitudes",
+      label: "Solicitudes de inscripción",
+      category: "Personas",
+      description:
+        "Solicitudes enviadas desde la landing, pendientes de inscribir.",
+      count: requests.filter((r) => r.status === "PENDING").length,
+      icon: UserPlus,
+      tint: "emerald",
     },
     {
       href: "/dashboard/notificaciones/enviar",

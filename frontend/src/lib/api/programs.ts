@@ -15,9 +15,9 @@ export interface ProgramSummary {
   title: string;
   category: ProgramCategory;
   flyerUrl: string;
-  modality: string;
-  startDate: string;
-  duration: string;
+  modality: string | null;
+  startDate: string | null;
+  duration: string | null;
 }
 
 export interface ProgramModule {
@@ -30,20 +30,44 @@ export interface ProgramModule {
 export interface ProgramTeacher {
   id: string;
   fullName: string;
-  credentials: string;
+  credentials: string | null;
+  bio: string | null;
   photoUrl: string | null;
 }
 
+/** "Más características del programa": par etiqueta/valor definido por el admin. */
+export interface ProgramExtraFeature {
+  label: string;
+  value: string;
+}
+
+/** Cuenta bancaria para depósito/transferencia (medios de pago). */
+export interface ProgramBankAccount {
+  bank: string;
+  accountNumber: string;
+  holder: string;
+}
+
 export interface ProgramDetail extends ProgramSummary {
-  objective: string;
-  targetAudience: string;
-  schedule: string;
+  objective: string | null;
+  specificObjectives: string[];
+  targetAudience: string | null;
+  hourlyLoad: string | null;
+  schedule: string | null;
+  /** Video promocional: enlace YouTube/Vimeo o ruta /files/... subida. */
+  videoUrl: string | null;
+  extraFeatures: ProgramExtraFeature[];
   requirements: string[];
   // Prisma Decimal se serializa como string en JSON
-  enrollmentFee: string;
-  totalCost: string;
-  currency: string;
+  enrollmentFee: string | null;
+  totalCost: string | null; // monto del pago al contado
+  currency: string; // moneda del contado y la matrícula
+  installmentCount: number | null;
+  installmentAmount: string | null;
+  installmentCurrency: string;
   paymentFacilities: string | null;
+  bankAccounts: ProgramBankAccount[];
+  qrImageUrl: string | null;
   modules: ProgramModule[];
   teachers: ProgramTeacher[];
 }

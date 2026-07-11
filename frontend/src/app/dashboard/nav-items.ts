@@ -11,6 +11,7 @@ import {
   Share2,
   ShieldCheck,
   Tags,
+  UserPlus,
   Users,
   UsersRound,
   type LucideIcon,
@@ -39,7 +40,8 @@ export type NavIcon =
   | "notifications"
   | "send-notification"
   | "student-grades"
-  | "kardex";
+  | "kardex"
+  | "enrollment-requests";
 
 export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   home: LayoutDashboard,
@@ -57,6 +59,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   "send-notification": Send,
   "student-grades": ClipboardList,
   kardex: ScrollText,
+  "enrollment-requests": UserPlus,
 };
 
 export type NavItem = {
@@ -189,6 +192,11 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
             href: "/dashboard/usuarios?rol=estudiantes",
             label: "Estudiantes",
             icon: "students",
+          },
+          {
+            href: "/dashboard/solicitudes",
+            label: "Solicitudes de inscripción",
+            icon: "enrollment-requests",
           },
           {
             href: "/dashboard/notificaciones/enviar",

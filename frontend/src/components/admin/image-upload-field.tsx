@@ -28,6 +28,7 @@ export function ImageUploadField({
 }: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   // Vista previa instantánea del archivo local mientras se sube al servidor.
   const [localPreview, setLocalPreview] = useState<string | null>(null);
 
@@ -39,6 +40,11 @@ export function ImageUploadField({
   }, [localPreview]);
 
   async function handleFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("El archivo debe ser una imagen");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     const sizeError = fileSizeError(file, MAX_IMAGE_UPLOAD_BYTES);
     if (sizeError) {
       toast.error(sizeError);
@@ -83,25 +89,56 @@ export function ImageUploadField({
 
   return (
     <div className="flex items-start gap-4">
-      <div
-        className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-input ${boxClasses}`}
+      {/* Dropzone: clic para elegir o arrastrar y soltar la imagen. */}
+      <button
+        type="button"
+        disabled={disabled || uploading}
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!disabled && !uploading) setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          if (disabled || uploading) return;
+          const file = e.dataTransfer.files?.[0];
+          if (file) void handleFile(file);
+        }}
+        aria-label={value ? "Cambiar imagen" : "Subir imagen"}
+        className={`relative flex shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed transition-colors ${boxClasses} ${
+          dragOver
+            ? "border-primary bg-primary/10"
+            : "border-input hover:border-ring/60 hover:bg-accent/40"
+        }`}
       >
         {previewSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={previewSrc}
             alt="Vista previa"
-            className="h-full w-full object-contain"
+            className="pointer-events-none h-full w-full object-contain"
           />
         ) : (
-          <ImageIcon className="size-8 text-muted-foreground" />
+          <span className="pointer-events-none flex flex-col items-center gap-2 px-3 text-center text-muted-foreground">
+            <ImageIcon className="size-8" />
+            <span className="text-[11px] leading-tight">
+              Arrastra la imagen aquí o haz clic
+            </span>
+          </span>
+        )}
+        {dragOver && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm">
+            <UploadCloud className="size-7 text-primary" />
+          </span>
         )}
         {uploading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
             <Loader2 className="size-6 animate-spin text-foreground" />
-          </div>
+          </span>
         )}
-      </div>
+      </button>
 
       <div className="space-y-2">
         <input
@@ -129,7 +166,8 @@ export function ImageUploadField({
           {value ? "Cambiar imagen" : "Subir imagen"}
         </Button>
         <p className="max-w-50 text-xs text-muted-foreground">
-          WEBP, PNG, JPG o AVIF. Máximo {MAX_IMAGE_UPLOAD_MB} MB.
+          Arrastra y suelta o haz clic. WEBP, PNG, JPG o AVIF. Máximo{" "}
+          {MAX_IMAGE_UPLOAD_MB} MB.
         </p>
       </div>
     </div>

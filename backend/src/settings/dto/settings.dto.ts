@@ -15,6 +15,13 @@ export const updateSettingsSchema = z.object({
   youtube: linkField,
   tiktok: linkField,
   whatsapp: linkField,
+  // Buzón del aviso de solicitudes de inscripción. Opcional en el PATCH (los
+  // formularios de redes no lo envían); si viene, debe ser un correo válido.
+  enrollmentNotifyEmail: z
+    .email('Debe ser un correo válido')
+    .max(320)
+    .transform((v) => v.toLowerCase())
+    .optional(),
 });
 
 export class UpdateSettingsDto extends createZodDto(updateSettingsSchema) {}

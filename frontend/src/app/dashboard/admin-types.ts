@@ -10,9 +10,21 @@ export interface ProgramModulePayload {
 
 export interface ProgramTeacherPayload {
   fullName: string;
-  credentials: string;
+  credentials?: string | null;
+  bio?: string | null;
   photoUrl?: string | null;
   order: number;
+}
+
+export interface ProgramExtraFeaturePayload {
+  label: string;
+  value: string;
+}
+
+export interface ProgramBankAccountPayload {
+  bank: string;
+  accountNumber: string;
+  holder: string;
 }
 
 export interface ProgramPayload {
@@ -20,17 +32,26 @@ export interface ProgramPayload {
   slug?: string;
   categoryId: string;
   flyerUrl: string;
-  objective: string;
-  targetAudience: string;
-  modality: string;
-  startDate: string;
-  duration: string;
-  schedule: string;
+  objective?: string | null;
+  specificObjectives: string[];
+  targetAudience?: string | null;
+  modality?: string | null;
+  startDate?: string | null;
+  duration?: string | null;
+  hourlyLoad?: string | null;
+  schedule?: string | null;
+  videoUrl?: string | null;
+  extraFeatures: ProgramExtraFeaturePayload[];
   requirements: string[];
-  enrollmentFee: number;
-  totalCost: number;
+  enrollmentFee?: number | null;
+  totalCost?: number | null;
   currency: string;
+  installmentCount?: number | null;
+  installmentAmount?: number | null;
+  installmentCurrency: string;
   paymentFacilities?: string | null;
+  bankAccounts: ProgramBankAccountPayload[];
+  qrImageUrl?: string | null;
   isPublished: boolean;
   modules: ProgramModulePayload[];
   teachers: ProgramTeacherPayload[];

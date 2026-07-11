@@ -12,6 +12,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ChatModule } from './chat/chat.module';
 import { CleanupModule } from './cleanup/cleanup.module';
 import { CoursesModule } from './courses/courses.module';
+import { EnrollmentRequestsModule } from './enrollment-requests/enrollment-requests.module';
 import { ForumModule } from './forum/forum.module';
 import { GradingModule } from './grading/grading.module';
 import { ModuleContentModule } from './module-content/module-content.module';
@@ -40,6 +41,7 @@ import { UsersModule } from './users/users.module';
     SettingsModule,
     TeamModule,
     UsersModule,
+    EnrollmentRequestsModule,
     CoursesModule,
     ModuleContentModule,
     GradingModule,

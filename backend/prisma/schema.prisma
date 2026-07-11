@@ -111,6 +111,7 @@ enum NotificationType {
   ACTIVITY_PUBLISHED // se publicó una nueva actividad en un módulo
   MESSAGE // mensaje de chat recibido (docente ↔ estudiante en un módulo)
   MAIL_FAILED // aviso al ADMIN: el correo de credenciales de un usuario no se pudo enviar
+  ENROLLMENT_REQUEST // aviso al ADMIN: llegó una solicitud de inscripción desde la landing
 }
 
 // Configuración global de la landing (fila única / singleton). Guarda los
@@ -123,6 +124,9 @@ model SiteSettings {
   youtube   String?
   tiktok    String?
   whatsapp  String?
+  // Buzón que recibe el aviso por correo de cada solicitud de inscripción
+  // (editable desde /dashboard/solicitudes). No se expone en el GET público.
+  enrollmentNotifyEmail String @default("certificatebolivia@gmail.com")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -282,17 +286,32 @@ model Program {
   categoryId        String
   category          ProgramCategory @relation(fields: [categoryId], references: [id])
   flyerUrl          String // ruta pública servida por el frontend, ej. /landing/program/programa1.webp
-  objective         String
-  targetAudience    String
-  modality          String
-  startDate         DateTime
-  duration          String
-  schedule          String
+  // Solo title/categoría/flyer son obligatorios: lo demás es opcional y la
+  // landing oculta cada campo vacío.
+  objective         String?
+  specificObjectives String[]       @default([]) // objetivos específicos (viñetas en la landing)
+  targetAudience    String?
+  modality          String?
+  startDate         DateTime?
+  duration          String?
+  hourlyLoad        String? // carga horaria, ej. "1200 horas académicas"
+  schedule          String?
+  // Video promocional: enlace YouTube/Vimeo o ruta /files/... de un archivo subido.
+  videoUrl          String?
+  extraFeatures     Json            @default("[]") // "más características": [{ label, value }]
   requirements      String[]
-  enrollmentFee     Decimal         @db.Decimal(10, 2)
-  totalCost         Decimal         @db.Decimal(10, 2)
-  currency          String          @default("Bs")
-  paymentFacilities String?
+  // Opciones de pago (cada una con su moneda; vacías no se muestran en la landing):
+  // "Pago al contado" = totalCost + currency; "Plan de cuotas" = installment*.
+  enrollmentFee       Decimal?      @db.Decimal(10, 2) // matrícula (moneda = currency)
+  totalCost           Decimal?      @db.Decimal(10, 2) // monto del pago al contado
+  currency            String        @default("Bs") // moneda del contado y la matrícula
+  installmentCount    Int? // nº de cuotas del plan
+  installmentAmount   Decimal?      @db.Decimal(10, 2) // monto por cuota
+  installmentCurrency String        @default("Bs")
+  paymentFacilities   String?
+  // Medios de pago:
+  bankAccounts        Json          @default("[]") // [{ bank, accountNumber, holder }]
+  qrImageUrl          String? // imagen QR de pago (ruta /files/...)
   isPublished       Boolean         @default(true)
   displayOrder      Int             @default(0) // orden manual (drag-and-drop del panel); también rige el orden en la landing
   createdAt         DateTime        @default(now())
@@ -317,11 +336,42 @@ model ProgramModule {
   @@map("program_modules")
 }
 
+// Solicitud de inscripción enviada desde la landing (formulario público de un
+// programa). Mismos datos que el alta de estudiante (sin contraseña) — el
+// ADMIN la revisa en el panel y puede convertirla en cuenta STUDENT.
+model EnrollmentRequest {
+  id               String                  @id @default(uuid())
+  firstName        String
+  lastName         String
+  email            String
+  phone            String
+  idDocument       String
+  issuedIn         String // "expedido en"
+  gender           Gender
+  originUniversity String
+  profession       String
+  programTitle     String // nombre del programa desde el que se inscribió
+  programSlug      String? // referencia suave (el programa puede borrarse)
+  status           EnrollmentRequestStatus @default(PENDING)
+  enrolledUserId   String? // id del User STUDENT creado al inscribirla
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([status, createdAt])
+  @@map("enrollment_requests")
+}
+
+enum EnrollmentRequestStatus {
+  PENDING
+  ENROLLED
+}
+
 model ProgramTeacher {
   id          String  @id @default(uuid())
   programId   String
   fullName    String
-  credentials String
+  credentials String? // grado / especialidad (opcional)
+  bio         String? // descripción / historial del docente
   photoUrl    String?
   order       Int     @default(0)
   program     Program @relation(fields: [programId], references: [id], onDelete: Cascade)

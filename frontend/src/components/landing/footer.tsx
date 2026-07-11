@@ -51,9 +51,9 @@ export async function Footer() {
               <Image
                 src="/landing/logo.webp"
                 alt="Certificate — Escuela Multidisciplinaria de Postgrado"
-                width={150}
-                height={64}
-                className="h-12 w-auto"
+                width={225}
+                height={96}
+                className="h-20 w-auto"
               />
             </Link>
             <a
@@ -64,9 +64,11 @@ export async function Footer() {
             >
               <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
               <span>
-                <span className="block font-semibold text-white">Dirección</span>
-                Calle Jordán entre Esteban Arce y 25 de Mayo. Centro comercial
-                COSCENTER
+                <span className="block font-semibold text-white">OFICINA CENTRAL</span>
+                Calle Jordán N°333 entre 25 de mayo y Esteban Arce. Edificio COSCENTER, 1° piso / Of. 7B
+                <span className="mt-1 block font-medium text-slate-300">
+                  Cochabamba - Bolivia
+                </span>
               </span>
             </a>
 

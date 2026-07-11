@@ -1,4 +1,10 @@
-import { Mail, MailX, MessageSquare, type LucideIcon } from "lucide-react";
+import {
+  Mail,
+  MailX,
+  MessageSquare,
+  UserPlus,
+  type LucideIcon,
+} from "lucide-react";
 import type { NotificationType } from "@/lib/api/notifications";
 
 /**
@@ -46,6 +52,12 @@ export const NOTIFICATION_META: Record<
     icon: MailX,
     label: "Correo fallido",
     tint: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+  },
+  // Solo la ve el ADMIN: llegó una solicitud de inscripción desde la landing.
+  ENROLLMENT_REQUEST: {
+    icon: UserPlus,
+    label: "Solicitud de inscripción",
+    tint: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
   },
 };
 

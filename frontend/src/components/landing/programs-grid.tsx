@@ -108,10 +108,18 @@ export function ProgramsGrid({ programs }: { programs: ProgramSummary[] }) {
                   {program.title}
                 </h3>
               </ViewTransition>
-              <p className="mt-2 text-sm text-slate-300">
-                Inicio: {formatStartDate(program.startDate)} ·{" "}
-                {program.modality}
-              </p>
+              {(program.startDate || program.modality) && (
+                <p className="mt-2 text-sm text-slate-300">
+                  {[
+                    program.startDate
+                      ? `Inicio: ${formatStartDate(program.startDate)}`
+                      : null,
+                    program.modality,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              )}
               <p className="mt-4 text-sm font-semibold text-amber-400 transition-colors group-hover:text-amber-300">
                 Ver más →
               </p>
