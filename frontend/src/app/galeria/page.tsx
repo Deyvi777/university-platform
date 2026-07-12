@@ -34,7 +34,7 @@ export default async function GaleriaPage() {
               id="galeria-titulo"
               className="mt-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl"
             >
-              Galería de <span className="text-amber-400">momentos</span>
+              Galería de momentos
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-200">
               Fotos y videos de nuestras actividades académicas, graduaciones y
@@ -42,7 +42,7 @@ export default async function GaleriaPage() {
             </p>
           </div>
 
-          <div className="mt-14">
+          <div className="mt-2">
             {items.length > 0 ? (
               <GalleryCarousel items={items} />
             ) : (

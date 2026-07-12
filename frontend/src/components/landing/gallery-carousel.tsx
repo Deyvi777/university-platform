@@ -71,7 +71,7 @@ export function GalleryCarousel({ items }: { items: GalleryItem[] }) {
   return (
     <div>
       <div
-        className="relative h-[320px] sm:h-[400px] lg:h-[440px] [perspective:1400px]"
+        className="relative h-[500px] sm:h-[620px] lg:h-[720px] [perspective:2000px]"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -92,9 +92,9 @@ export function GalleryCarousel({ items }: { items: GalleryItem[] }) {
                 `Ver ${item.type === "IMAGE" ? "foto" : "video"} ${index + 1} en grande`
               }
               tabIndex={hidden ? -1 : 0}
-              className="absolute left-1/2 top-1/2 aspect-square w-52 overflow-hidden rounded-2xl border-4 border-white bg-slate-900 shadow-2xl shadow-black/60 transition-all duration-700 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 motion-reduce:transition-none sm:w-72 lg:w-80"
+              className="absolute left-1/2 top-1/2 h-[380px] w-[22rem] overflow-hidden rounded-2xl border-2 border-white/20 bg-slate-950 shadow-2xl shadow-black/60 transition-all duration-700 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 motion-reduce:transition-none sm:h-[480px] sm:w-[30rem] lg:h-[560px] lg:w-[38rem]"
               style={{
-                transform: `translateX(${-50 + offset * 58}%) translateY(-50%) rotateY(${offset * -9}deg) scale(${1 - abs * 0.1})`,
+                transform: `translateX(${-50 + offset * 62}%) translateY(-50%) rotateY(${offset * -8}deg) scale(${1 - abs * 0.09})`,
                 zIndex: 20 - abs,
                 opacity: hidden ? 0 : 1,
                 pointerEvents: hidden ? "none" : "auto",
@@ -106,8 +106,8 @@ export function GalleryCarousel({ items }: { items: GalleryItem[] }) {
                   src={item.url}
                   alt={item.title ?? `Foto ${index + 1} de la galería`}
                   fill
-                  sizes="(min-width: 1024px) 320px, (min-width: 640px) 288px, 208px"
-                  className="object-cover"
+                  sizes="(min-width: 1024px) 608px, (min-width: 640px) 480px, 352px"
+                  className="object-contain p-1"
                 />
               ) : (
                 <>
@@ -116,7 +116,7 @@ export function GalleryCarousel({ items }: { items: GalleryItem[] }) {
                     preload="metadata"
                     muted
                     playsInline
-                    className="size-full object-cover"
+                    className="size-full object-contain"
                   />
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <span className="flex size-14 items-center justify-center rounded-full bg-slate-950/60 text-white backdrop-blur-sm">
