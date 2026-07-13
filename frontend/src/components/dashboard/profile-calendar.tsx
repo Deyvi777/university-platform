@@ -572,7 +572,14 @@ export function ProfileCalendar({
                         {c.endTime ? ` – ${c.endTime}` : ""}
                         {c.title ? ` · ${c.title}` : ""}
                       </span>
-                      <span className="block truncate text-sky-700/80 dark:text-sky-300/70">
+                      <span
+                        className={cn(
+                          "block text-sky-700/80 dark:text-sky-300/70",
+                          expanded
+                            ? "whitespace-normal break-words"
+                            : "truncate",
+                        )}
+                      >
                         {c.courseName} · Módulo {c.moduleOrder}
                       </span>
                       {c.location && (
@@ -581,7 +588,15 @@ export function ProfileCalendar({
                             className="size-3 shrink-0"
                             aria-hidden="true"
                           />
-                          <span className="truncate">{c.location}</span>
+                          <span
+                            className={cn(
+                              expanded
+                                ? "whitespace-normal break-words"
+                                : "truncate",
+                            )}
+                          >
+                            {c.location}
+                          </span>
                         </span>
                       )}
                     </span>
@@ -605,7 +620,14 @@ export function ProfileCalendar({
                     />
                     <span className="min-w-0">
                       <span className="block font-medium">{dl.title}</span>
-                      <span className="block truncate text-amber-700/80 dark:text-amber-300/70">
+                      <span
+                        className={cn(
+                          "block text-amber-700/80 dark:text-amber-300/70",
+                          expanded
+                            ? "whitespace-normal break-words"
+                            : "truncate",
+                        )}
+                      >
                         {dl.courseName}
                       </span>
                     </span>

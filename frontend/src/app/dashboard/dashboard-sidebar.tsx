@@ -20,6 +20,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -69,6 +70,8 @@ type SidebarCtx = {
   /** Overlay de navegación en móvil. */
   mobileOpen: boolean;
   setMobileOpen: (open: boolean) => void;
+  /** Cierra el drawer sin deshacer la navegación iniciada por un enlace. */
+  closeMobileForNavigation: () => void;
   /** Sidebar de escritorio colapsado a riel de iconos. */
   collapsed: boolean;
   toggleCollapsed: () => void;
@@ -282,6 +285,7 @@ function useProgramsHeaderOpen(): { open: boolean; toggle: () => void } {
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const skipHistoryCleanupRef = useRef(false);
 
   // Estado persistido leído vía store externo: durante la hidratación React usa
   // el `getServerSnapshot` (= defaults, igual que el SSR) y tras hidratar pasa
@@ -305,6 +309,11 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     profileStore.set(!profileStore.getSnapshot());
   }, []);
 
+  const closeMobileForNavigation = useCallback(() => {
+    skipHistoryCleanupRef.current = true;
+    setMobileOpen(false);
+  }, []);
+
   // Trampa de historial: con el sidebar abierto como overlay móvil, el botón
   // "atrás" del navegador debe CERRARLO, no salir de la página. Al abrir
   // empujamos una entrada de historial; el `popstate` (atrás) la consume y
@@ -313,15 +322,20 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!mobileOpen) return;
 
+    skipHistoryCleanupRef.current = false;
     window.history.pushState({ sidebarDrawer: true }, "");
     const onPopState = () => setMobileOpen(false);
     window.addEventListener("popstate", onPopState);
 
     return () => {
       window.removeEventListener("popstate", onPopState);
-      // Si se cerró por navegación/backdrop (no por "atrás"), nuestra entrada
+      const skipHistoryCleanup = skipHistoryCleanupRef.current;
+      skipHistoryCleanupRef.current = false;
+      // Si se cerró por X/backdrop (no por "atrás"), nuestra entrada
       // sigue siendo la actual: la retiramos para no dejarla colgada.
-      if (window.history.state?.sidebarDrawer) {
+      // Una navegación por Link gestiona su propia entrada: ejecutar back aquí
+      // revertiría inmediatamente el destino que el usuario acaba de elegir.
+      if (!skipHistoryCleanup && window.history.state?.sidebarDrawer) {
         window.history.back();
       }
     };
@@ -332,6 +346,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       value={{
         mobileOpen,
         setMobileOpen,
+        closeMobileForNavigation,
         collapsed,
         toggleCollapsed,
         profileOpen,
@@ -553,7 +568,9 @@ function SectionGroup({
   const regionId = slug ? `nav-section-${slug}-items` : undefined;
 
   const items = (
-    <div className={cn("flex flex-col gap-1.5", railOnly && "items-center gap-2")}>
+    <div
+      className={cn("flex flex-col gap-1.5", railOnly && "items-center gap-2")}
+    >
       {section.items.map((item) => (
         <NavLink
           key={item.href}
@@ -631,7 +648,9 @@ function SectionGroup({
           accordionApplies &&
             "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
           accordionApplies &&
-            (open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"),
+            (open
+              ? "grid-rows-[1fr] opacity-100"
+              : "grid-rows-[0fr] opacity-0"),
         )}
       >
         {accordionApplies ? (
@@ -986,8 +1005,8 @@ function NavSections({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { setMobileOpen } = useSidebar();
-  const onNavigate = () => setMobileOpen(false);
+  const { closeMobileForNavigation } = useSidebar();
+  const onNavigate = closeMobileForNavigation;
 
   // Modo "riel puro" = colapsado y SIN flyout. Con flyout, dejamos crecer los
   // items a ancho completo y solo ocultamos texto vía CSS.
@@ -1075,7 +1094,7 @@ function NavSectionsFallback({
   programTree?: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { setMobileOpen } = useSidebar();
+  const { closeMobileForNavigation } = useSidebar();
   const railOnly = collapsed && !expandOnHover;
   const flyoutActive = expandOnHover && !suppressHover;
 
@@ -1086,7 +1105,7 @@ function NavSectionsFallback({
     return pathname === path || pathname.startsWith(`${path}/`);
   };
 
-  const onNavigate = () => setMobileOpen(false);
+  const onNavigate = closeMobileForNavigation;
 
   return (
     <nav
@@ -1182,7 +1201,10 @@ function SidebarLogout({
       >
         {/* Icono en caja del tamaño del badge de nav, para alinear el texto con
             la columna de iconos de los items de arriba. */}
-        <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden="true">
+        <span
+          className="flex size-9 shrink-0 items-center justify-center"
+          aria-hidden="true"
+        >
           <LogOut className="size-[1.15rem] shrink-0" aria-hidden="true" />
         </span>
         {!collapsed && <span className="truncate">Cerrar sesión</span>}
@@ -1265,11 +1287,9 @@ export function DashboardSidebar({
   /** Server action de cierre de sesión (botón "Salir" al pie del sidebar). */
   logout?: () => Promise<void>;
 }) {
-  const { mobileOpen, setMobileOpen, collapsed } = useSidebar();
-  const onTreeNavigate = useCallback(
-    () => setMobileOpen(false),
-    [setMobileOpen],
-  );
+  const { mobileOpen, setMobileOpen, closeMobileForNavigation, collapsed } =
+    useSidebar();
+  const onTreeNavigate = closeMobileForNavigation;
 
   // Estado de UI transitorio (NO persistido): al colapsar con el cursor encima,
   // suprimimos el flyout-on-hover para que el riel se vea angosto de inmediato.
@@ -1361,9 +1381,7 @@ export function DashboardSidebar({
           </div>
           {/* "Salir" al pie del sidebar (lenguaje del mockup). En riel se reduce
               a un icono centrado; con flyout, la etiqueta se revela por hover. */}
-          {logout && (
-            <SidebarLogout collapsed={collapsed} logout={logout} />
-          )}
+          {logout && <SidebarLogout collapsed={collapsed} logout={logout} />}
         </div>
       </aside>
 
@@ -1380,7 +1398,7 @@ export function DashboardSidebar({
             <div className="flex items-center justify-between gap-2">
               <Link
                 href="/dashboard"
-                onClick={() => setMobileOpen(false)}
+                onClick={closeMobileForNavigation}
                 aria-label="Certificate · Plataforma — ir al inicio del panel"
                 className="flex items-center rounded-xl py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
               >
@@ -1428,7 +1446,10 @@ export function DashboardSidebar({
                   type="submit"
                   className="group flex w-full items-center gap-3 rounded-full py-1 pl-1 pr-4 text-sm font-medium text-sidebar-foreground/90 transition-colors hover:bg-white/[0.07] hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden="true">
+                  <span
+                    className="flex size-9 shrink-0 items-center justify-center"
+                    aria-hidden="true"
+                  >
                     <LogOut
                       className="size-[1.15rem] shrink-0 text-sidebar-foreground/90 transition-colors group-hover:text-sidebar-foreground"
                       aria-hidden="true"

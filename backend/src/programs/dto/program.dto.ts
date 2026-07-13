@@ -26,7 +26,12 @@ const extraFeatureSchema = z.object({
 const bankAccountSchema = z.object({
   bank: z.string().min(1),
   accountNumber: z.string().min(1),
-  holder: z.string().min(1),
+  holder: z
+    .string()
+    .trim()
+    .nullable()
+    .optional()
+    .transform((value) => value || null),
 });
 
 // Solo title/categoryId/flyerUrl son obligatorios; el resto es opcional y la

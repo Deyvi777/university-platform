@@ -45,7 +45,7 @@ export interface ProgramExtraFeature {
 export interface ProgramBankAccount {
   bank: string;
   accountNumber: string;
-  holder: string;
+  holder: string | null;
 }
 
 export interface ProgramDetail extends ProgramSummary {

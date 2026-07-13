@@ -24,7 +24,7 @@ export interface ProgramExtraFeaturePayload {
 export interface ProgramBankAccountPayload {
   bank: string;
   accountNumber: string;
-  holder: string;
+  holder: string | null;
 }
 
 export interface ProgramPayload {

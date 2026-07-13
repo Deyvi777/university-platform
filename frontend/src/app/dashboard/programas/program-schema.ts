@@ -57,7 +57,7 @@ export const programFormSchema = z.object({
     z.object({
       bank: z.string().min(1, "Requerido"),
       accountNumber: z.string().min(1, "Requerido"),
-      holder: z.string().min(1, "Requerido"),
+      holder: z.string(),
     }),
   ),
   qrImageUrl: z.string(),
@@ -137,7 +137,9 @@ export function toFormValues(program?: AdminProgram): ProgramFormValues {
     })),
     currency: program.currency,
     enrollmentFee:
-      program.enrollmentFee != null ? String(Number(program.enrollmentFee)) : "",
+      program.enrollmentFee != null
+        ? String(Number(program.enrollmentFee))
+        : "",
     totalCost:
       program.totalCost != null ? String(Number(program.totalCost)) : "",
     installmentCurrency: program.installmentCurrency,
@@ -151,7 +153,7 @@ export function toFormValues(program?: AdminProgram): ProgramFormValues {
     bankAccounts: program.bankAccounts.map((a) => ({
       bank: a.bank,
       accountNumber: a.accountNumber,
-      holder: a.holder,
+      holder: a.holder ?? "",
     })),
     qrImageUrl: program.qrImageUrl ?? "",
     isPublished: program.isPublished,
@@ -200,8 +202,7 @@ export function toPayload(values: ProgramFormValues): ProgramPayload {
     currency: values.currency.trim() || "Bs",
     enrollmentFee:
       values.enrollmentFee.trim() === "" ? null : Number(values.enrollmentFee),
-    totalCost:
-      values.totalCost.trim() === "" ? null : Number(values.totalCost),
+    totalCost: values.totalCost.trim() === "" ? null : Number(values.totalCost),
     installmentCurrency: values.installmentCurrency.trim() || "Bs",
     installmentCount:
       values.installmentCount.trim() === ""
@@ -215,7 +216,7 @@ export function toPayload(values: ProgramFormValues): ProgramPayload {
     bankAccounts: values.bankAccounts.map((a) => ({
       bank: a.bank.trim(),
       accountNumber: a.accountNumber.trim(),
-      holder: a.holder.trim(),
+      holder: emptyToNull(a.holder),
     })),
     qrImageUrl: values.qrImageUrl.trim() || null,
     isPublished: values.isPublished,

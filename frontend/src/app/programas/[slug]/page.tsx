@@ -393,22 +393,28 @@ export default async function ProgramPage({ params }: Props) {
                       Depósito o transferencia bancaria
                     </h3>
                     <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                      {program.bankAccounts.map((account, index) => (
-                        <div
-                          key={`${account.accountNumber}-${index}`}
-                          className="rounded-xl border border-white/10 bg-white/5 p-5"
-                        >
-                          <p className="text-sm font-semibold uppercase tracking-wide text-amber-300">
-                            {account.bank}
-                          </p>
-                          <p className="mt-2 break-all font-mono text-xl font-semibold text-white">
-                            {account.accountNumber}
-                          </p>
-                          <p className="mt-1 text-sm text-slate-300">
-                            Titular: {account.holder}
-                          </p>
-                        </div>
-                      ))}
+                      {program.bankAccounts.map((account, index) => {
+                        const holder = account.holder?.trim();
+                        const showHolder = holder && holder !== "-";
+                        return (
+                          <div
+                            key={`${account.accountNumber}-${index}`}
+                            className="rounded-xl border border-white/10 bg-white/5 p-5"
+                          >
+                            <p className="text-sm font-semibold uppercase tracking-wide text-amber-300">
+                              {account.bank}
+                            </p>
+                            <p className="mt-2 break-all font-mono text-xl font-semibold text-white">
+                              {account.accountNumber}
+                            </p>
+                            {showHolder && (
+                              <p className="mt-1 text-sm text-slate-300">
+                                Titular: {holder}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

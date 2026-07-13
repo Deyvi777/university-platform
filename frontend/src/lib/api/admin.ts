@@ -56,7 +56,7 @@ export interface AdminProgramExtraFeature {
 export interface AdminProgramBankAccount {
   bank: string;
   accountNumber: string;
-  holder: string;
+  holder: string | null;
 }
 
 export interface AdminProgram {
@@ -360,11 +360,7 @@ export async function listAdminEnrollmentRequests(): Promise<
 
 export type ModuleGradeStatus = "IN_PROGRESS" | "PASSED" | "FAILED";
 export type ModuleStatus = "DRAFT" | "ACTIVE" | "FINISHED";
-export type SubmissionStatus =
-  | "PENDING"
-  | "SUBMITTED"
-  | "LATE"
-  | "GRADED";
+export type SubmissionStatus = "PENDING" | "SUBMITTED" | "LATE" | "GRADED";
 
 /** Una actividad de un módulo con la nota del estudiante. */
 export interface StudentGradeActivity {

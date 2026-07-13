@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Controller,
   useFieldArray,
@@ -96,8 +97,7 @@ export function ProgramForm({
         <h2 className="text-lg font-semibold">Datos generales</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Solo el nombre, la categoría y el flyer son obligatorios. Los campos
-          opcionales que dejes vacíos no se mostrarán en la página del
-          programa.
+          opcionales que dejes vacíos no se mostrarán en la página del programa.
         </p>
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -163,8 +163,8 @@ export function ProgramForm({
             </Label>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Pega un enlace de YouTube/Vimeo o sube un archivo de video. En la
-              landing aparece un botón para verlo; si lo dejas vacío, el botón no
-              se muestra.
+              landing aparece un botón para verlo; si lo dejas vacío, el botón
+              no se muestra.
             </p>
             <div className="mt-2">
               <VideoField control={control} />
@@ -426,7 +426,11 @@ export function ProgramForm({
                 </Button>
               </div>
               <FieldError message={errors.modules?.[index]?.name?.message} />
-              <ModuleContents control={control} register={register} moduleIndex={index} />
+              <ModuleContents
+                control={control}
+                register={register}
+                moduleIndex={index}
+              />
             </div>
           ))}
         </div>
@@ -540,8 +544,8 @@ export function ProgramForm({
           ))}
           {teachers.fields.length === 0 && (
             <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-              Aún no agregaste docentes. Si no agregas ninguno, la sección no
-              se muestra en la landing.
+              Aún no agregaste docentes. Si no agregas ninguno, la sección no se
+              muestra en la landing.
             </p>
           )}
         </div>
@@ -768,7 +772,10 @@ export function ProgramForm({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Titular de la cuenta</Label>
+                      <Label className="text-xs">
+                        Titular de la cuenta
+                        <OptionalTag />
+                      </Label>
                       <Input
                         {...register(`bankAccounts.${index}.holder`)}
                         className="mt-1"
@@ -830,9 +837,7 @@ export function ProgramForm({
               />
             )}
           />
-          <Label htmlFor="isPublished">
-            Publicado (visible en la landing)
-          </Label>
+          <Label htmlFor="isPublished">Publicado (visible en la landing)</Label>
         </div>
       </section>
 
@@ -863,57 +868,71 @@ function VideoField({ control }: { control: Control<ProgramFormValues> }) {
     <Controller
       control={control}
       name="videoUrl"
-      render={({ field }) => {
-        const isUploaded = field.value.startsWith("/files/");
-        return (
-          <div className="rounded-lg border bg-background p-4">
-            <div className="mb-3 inline-flex rounded-lg border bg-muted/40 p-0.5 text-sm">
-              <button
-                type="button"
-                onClick={() => {
-                  if (isUploaded) field.onChange("");
-                }}
-                className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
-                  !isUploaded
-                    ? "bg-background shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Enlace
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isUploaded) field.onChange("");
-                }}
-                className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
-                  isUploaded
-                    ? "bg-background shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Subir archivo
-              </button>
-            </div>
-
-            {isUploaded ? (
-              <VideoUploadField
-                value={field.value}
-                onChange={field.onChange}
-              />
-            ) : (
-              <Input
-                type="url"
-                inputMode="url"
-                placeholder="https://www.youtube.com/watch?v=…  o  https://vimeo.com/…"
-                value={field.value}
-                onChange={(e) => field.onChange(e.target.value)}
-              />
-            )}
-          </div>
-        );
-      }}
+      render={({ field }) => (
+        <VideoFieldInput value={field.value} onChange={field.onChange} />
+      )}
     />
+  );
+}
+
+function VideoFieldInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [mode, setMode] = useState<"link" | "upload">(() =>
+    value.startsWith("/files/") ? "upload" : "link",
+  );
+
+  function selectMode(nextMode: "link" | "upload") {
+    if (nextMode === mode) return;
+    onChange("");
+    setMode(nextMode);
+  }
+
+  return (
+    <div className="rounded-lg border bg-background p-4">
+      <div className="mb-3 inline-flex rounded-lg border bg-muted/40 p-0.5 text-sm">
+        <button
+          type="button"
+          onClick={() => selectMode("link")}
+          aria-pressed={mode === "link"}
+          className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
+            mode === "link"
+              ? "bg-background shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Enlace
+        </button>
+        <button
+          type="button"
+          onClick={() => selectMode("upload")}
+          aria-pressed={mode === "upload"}
+          className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
+            mode === "upload"
+              ? "bg-background shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Subir archivo
+        </button>
+      </div>
+
+      {mode === "upload" ? (
+        <VideoUploadField value={value} onChange={onChange} />
+      ) : (
+        <Input
+          type="url"
+          inputMode="url"
+          placeholder="https://www.youtube.com/watch?v=…  o  https://vimeo.com/…"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </div>
   );
 }
 
