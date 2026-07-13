@@ -38,11 +38,10 @@ export const programFormSchema = z.object({
       value: z.string().min(1, "Requerido"),
     }),
   ),
-  // Pago al contado (moneda compartida con la matrícula)
+  // Cada opción de pago tiene su propia moneda y matrícula.
   currency: z.string().min(1),
   enrollmentFee: optionalAmount,
   totalCost: optionalAmount,
-  // Plan de cuotas (con su propia moneda)
   installmentCurrency: z.string().min(1),
   installmentCount: z
     .string()
@@ -50,7 +49,9 @@ export const programFormSchema = z.object({
       (v) => v.trim() === "" || (Number.isInteger(Number(v)) && Number(v) >= 1),
       "Entero ≥ 1",
     ),
+  installmentFirstAmount: optionalAmount,
   installmentAmount: optionalAmount,
+  installmentEnrollmentFee: optionalAmount,
   paymentFacilities: z.string().optional(),
   // Medios de pago
   bankAccounts: z.array(
@@ -105,7 +106,9 @@ export function toFormValues(program?: AdminProgram): ProgramFormValues {
       totalCost: "",
       installmentCurrency: "Bs",
       installmentCount: "",
+      installmentFirstAmount: "",
       installmentAmount: "",
+      installmentEnrollmentFee: "",
       paymentFacilities: "",
       bankAccounts: [],
       qrImageUrl: "",
@@ -145,9 +148,17 @@ export function toFormValues(program?: AdminProgram): ProgramFormValues {
     installmentCurrency: program.installmentCurrency,
     installmentCount:
       program.installmentCount != null ? String(program.installmentCount) : "",
+    installmentFirstAmount:
+      program.installmentFirstAmount != null
+        ? String(Number(program.installmentFirstAmount))
+        : "",
     installmentAmount:
       program.installmentAmount != null
         ? String(Number(program.installmentAmount))
+        : "",
+    installmentEnrollmentFee:
+      program.installmentEnrollmentFee != null
+        ? String(Number(program.installmentEnrollmentFee))
         : "",
     paymentFacilities: program.paymentFacilities ?? "",
     bankAccounts: program.bankAccounts.map((a) => ({
@@ -208,10 +219,18 @@ export function toPayload(values: ProgramFormValues): ProgramPayload {
       values.installmentCount.trim() === ""
         ? null
         : Number(values.installmentCount),
+    installmentFirstAmount:
+      values.installmentFirstAmount.trim() === ""
+        ? null
+        : Number(values.installmentFirstAmount),
     installmentAmount:
       values.installmentAmount.trim() === ""
         ? null
         : Number(values.installmentAmount),
+    installmentEnrollmentFee:
+      values.installmentEnrollmentFee.trim() === ""
+        ? null
+        : Number(values.installmentEnrollmentFee),
     paymentFacilities: emptyToNull(values.paymentFacilities),
     bankAccounts: values.bankAccounts.map((a) => ({
       bank: a.bank.trim(),

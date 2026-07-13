@@ -47,7 +47,9 @@ export interface ProgramPayload {
   totalCost?: number | null;
   currency: string;
   installmentCount?: number | null;
+  installmentFirstAmount?: number | null;
   installmentAmount?: number | null;
+  installmentEnrollmentFee?: number | null;
   installmentCurrency: string;
   paymentFacilities?: string | null;
   bankAccounts: ProgramBankAccountPayload[];

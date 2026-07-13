@@ -117,9 +117,17 @@ export class ProgramsService {
             : null,
         totalCost:
           dto.totalCost != null ? new Prisma.Decimal(dto.totalCost) : null,
+        installmentFirstAmount:
+          dto.installmentFirstAmount != null
+            ? new Prisma.Decimal(dto.installmentFirstAmount)
+            : null,
         installmentAmount:
           dto.installmentAmount != null
             ? new Prisma.Decimal(dto.installmentAmount)
+            : null,
+        installmentEnrollmentFee:
+          dto.installmentEnrollmentFee != null
+            ? new Prisma.Decimal(dto.installmentEnrollmentFee)
             : null,
         modules: { create: modules },
         teachers: { create: teachers },
@@ -141,7 +149,9 @@ export class ProgramsService {
       slug,
       enrollmentFee,
       totalCost,
+      installmentFirstAmount,
       installmentAmount,
+      installmentEnrollmentFee,
       startDate,
       categoryId,
       ...rest
@@ -165,10 +175,22 @@ export class ProgramsService {
     if (totalCost !== undefined) {
       data.totalCost = totalCost != null ? new Prisma.Decimal(totalCost) : null;
     }
+    if (installmentFirstAmount !== undefined) {
+      data.installmentFirstAmount =
+        installmentFirstAmount != null
+          ? new Prisma.Decimal(installmentFirstAmount)
+          : null;
+    }
     if (installmentAmount !== undefined) {
       data.installmentAmount =
         installmentAmount != null
           ? new Prisma.Decimal(installmentAmount)
+          : null;
+    }
+    if (installmentEnrollmentFee !== undefined) {
+      data.installmentEnrollmentFee =
+        installmentEnrollmentFee != null
+          ? new Prisma.Decimal(installmentEnrollmentFee)
           : null;
     }
 

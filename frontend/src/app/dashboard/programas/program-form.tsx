@@ -654,7 +654,7 @@ export function ProgramForm({
               Plan de cuotas
               <OptionalTag />
             </Label>
-            <div className="mt-3 grid gap-3 sm:grid-cols-[110px_1fr_1fr]">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <div>
                 <Label htmlFor="installmentCurrency" className="text-xs">
                   Moneda
@@ -680,6 +680,26 @@ export function ProgramForm({
                 <FieldError message={errors.installmentCount?.message} />
               </div>
               <div>
+                <Label
+                  htmlFor="installmentFirstAmount"
+                  className="text-xs"
+                >
+                  Primera cuota
+                  <OptionalTag />
+                </Label>
+                <Input
+                  id="installmentFirstAmount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("installmentFirstAmount")}
+                  className="mt-1"
+                />
+                <FieldError
+                  message={errors.installmentFirstAmount?.message}
+                />
+              </div>
+              <div>
                 <Label htmlFor="installmentAmount" className="text-xs">
                   Monto por cuota
                 </Label>
@@ -692,6 +712,26 @@ export function ProgramForm({
                   className="mt-1"
                 />
                 <FieldError message={errors.installmentAmount?.message} />
+              </div>
+              <div>
+                <Label
+                  htmlFor="installmentEnrollmentFee"
+                  className="text-xs"
+                >
+                  Matrícula
+                  <OptionalTag />
+                </Label>
+                <Input
+                  id="installmentEnrollmentFee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("installmentEnrollmentFee")}
+                  className="mt-1"
+                />
+                <FieldError
+                  message={errors.installmentEnrollmentFee?.message}
+                />
               </div>
             </div>
           </div>

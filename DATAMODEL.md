@@ -6,7 +6,7 @@ Documenta el esquema de Prisma (`backend/prisma/schema.prisma`) de la plataforma
 
 - Todas las tablas usan `id String @id @default(uuid())` y se mapean a nombres `snake_case` en plural vía `@@map(...)`. **Excepción:** `SiteSettings` es un singleton con id fijo (`@default("singleton")`).
 - Timestamps `createdAt`/`updatedAt` (`@default(now())` / `@updatedAt`) en todos los modelos salvo `ProgramModule`/`ProgramTeacher`.
-- Campos `Decimal` (`enrollmentFee`, `totalCost`) llegan al frontend serializados como **string** vía JSON — formatear con `Number(x).toLocaleString("es-BO")`.
+- Campos `Decimal` (`enrollmentFee`, `totalCost`, `installmentFirstAmount`, `installmentAmount`, `installmentEnrollmentFee`) llegan al frontend serializados como **string** vía JSON — formatear con `Number(x).toLocaleString("es-BO")`.
 - Rutas de imágenes (`flyerUrl`, `logoUrl`, `photoUrl`) son **paths relativos**, nunca URLs absolutas: o bien assets estáticos de `frontend/public/landing/...`, o bien objetos subidos servidos por `GET /files/:folder/:filename` (Garage/S3, módulo `storage`). Las subidas del admin guardan la ruta **relativa** `/files/...` que devuelve `POST /uploads`; el frontend hace proxy de `/files/*` al backend (ver CLAUDE.md → Storage module). No guardar `http://localhost:4000/...`: rompe `next/image` en producción y por el bloqueo SSRF de Next 16.
 
 ## Enums
@@ -111,30 +111,35 @@ Gestión completa vía `/admin/categories` (CRUD) + **`PUT /admin/categories/reo
 
 ### `Program` → tabla `programs`
 
-| Campo                     | Tipo               | Notas                                                                                                                     |
-| ------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `id`                      | `String` (uuid)    | PK                                                                                                                        |
-| `slug`                    | `String`           | `@unique`, auto-generado desde `title` vía `slugify` con reintento numérico                                               |
-| `title`                   | `String`           |                                                                                                                           |
-| `categoryId`              | `String`           | FK → `ProgramCategory.id`                                                                                                 |
-| `category`                | `ProgramCategory`  | relación N:1                                                                                                              |
-| `flyerUrl`                | `String`           | path de imagen (ver convenciones)                                                                                         |
-| `objective`               | `String`           | objetivo del programa                                                                                                     |
-| `targetAudience`          | `String`           | "dirigido a"                                                                                                              |
-| `modality`                | `String`           | ej. "Virtual con clases en vivo"                                                                                          |
-| `startDate`               | `DateTime`         | inicio de clases (UTC)                                                                                                    |
-| `duration`                | `String`           | ej. "18 meses (4 semestres)"                                                                                              |
-| `schedule`                | `String`           | ej. "Viernes 19:00–22:00 y sábados 09:00–12:00"                                                                           |
-| `requirements`            | `String[]`         | lista de requisitos                                                                                                       |
-| `enrollmentFee`           | `Decimal(10,2)`    | matrícula                                                                                                                 |
-| `totalCost`               | `Decimal(10,2)`    | inversión total                                                                                                           |
-| `currency`                | `String`           | default `"Bs"`                                                                                                            |
-| `paymentFacilities`       | `String?`          | texto libre, facilidades de pago                                                                                          |
-| `isPublished`             | `Boolean`          | default `true`; solo publicados se exponen públicamente                                                                   |
-| `displayOrder`            | `Int`              | default `0`; **orden manual** (drag-and-drop del panel) que rige tanto la tabla del dashboard como el orden en la landing |
-| `createdAt` / `updatedAt` | `DateTime`         |                                                                                                                           |
-| `modules`                 | `ProgramModule[]`  | relación 1:N, `onDelete: Cascade`                                                                                         |
-| `teachers`                | `ProgramTeacher[]` | relación 1:N, `onDelete: Cascade`                                                                                         |
+| Campo                      | Tipo               | Notas                                                                                                                     |
+| -------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `id`                       | `String` (uuid)    | PK                                                                                                                        |
+| `slug`                     | `String`           | `@unique`, auto-generado desde `title` vía `slugify` con reintento numérico                                               |
+| `title`                    | `String`           |                                                                                                                           |
+| `categoryId`               | `String`           | FK → `ProgramCategory.id`                                                                                                 |
+| `category`                 | `ProgramCategory`  | relación N:1                                                                                                              |
+| `flyerUrl`                 | `String`           | path de imagen (ver convenciones)                                                                                         |
+| `objective`                | `String`           | objetivo del programa                                                                                                     |
+| `targetAudience`           | `String`           | "dirigido a"                                                                                                              |
+| `modality`                 | `String`           | ej. "Virtual con clases en vivo"                                                                                          |
+| `startDate`                | `DateTime`         | inicio de clases (UTC)                                                                                                    |
+| `duration`                 | `String`           | ej. "18 meses (4 semestres)"                                                                                              |
+| `schedule`                 | `String`           | ej. "Viernes 19:00–22:00 y sábados 09:00–12:00"                                                                           |
+| `requirements`             | `String[]`         | lista de requisitos                                                                                                       |
+| `enrollmentFee`            | `Decimal(10,2)?`   | matrícula del pago al contado; usa `currency`                                                                             |
+| `totalCost`                | `Decimal(10,2)?`   | monto del pago al contado                                                                                                 |
+| `currency`                 | `String`           | moneda del pago al contado y su matrícula; default `"Bs"`                                                                 |
+| `installmentCount`         | `Int?`             | número de cuotas del plan                                                                                                 |
+| `installmentFirstAmount`   | `Decimal(10,2)?`   | monto opcional de la primera cuota cuando difiere de las demás                                                            |
+| `installmentAmount`        | `Decimal(10,2)?`   | monto normal por cuota; si hay `installmentFirstAmount`, aplica a las restantes                                           |
+| `installmentEnrollmentFee` | `Decimal(10,2)?`   | matrícula propia del plan de cuotas; usa `installmentCurrency`                                                            |
+| `installmentCurrency`      | `String`           | moneda del plan de cuotas y su matrícula; default `"Bs"`                                                                  |
+| `paymentFacilities`        | `String?`          | texto libre, facilidades de pago                                                                                          |
+| `isPublished`              | `Boolean`          | default `true`; solo publicados se exponen públicamente                                                                   |
+| `displayOrder`             | `Int`              | default `0`; **orden manual** (drag-and-drop del panel) que rige tanto la tabla del dashboard como el orden en la landing |
+| `createdAt` / `updatedAt`  | `DateTime`         |                                                                                                                           |
+| `modules`                  | `ProgramModule[]`  | relación 1:N, `onDelete: Cascade`                                                                                         |
+| `teachers`                 | `ProgramTeacher[]` | relación 1:N, `onDelete: Cascade`                                                                                         |
 
 Índice: `@@index([categoryId, isPublished])`.
 

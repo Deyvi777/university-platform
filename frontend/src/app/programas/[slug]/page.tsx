@@ -73,7 +73,10 @@ export default async function ProgramPage({ params }: Props) {
     Boolean(fact.value),
   );
 
-  const hasInstallments = program.installmentAmount != null;
+  const hasInstallments =
+    program.installmentFirstAmount != null ||
+    program.installmentAmount != null ||
+    program.installmentEnrollmentFee != null;
   const hasInvestment =
     program.enrollmentFee != null ||
     program.totalCost != null ||
@@ -316,40 +319,68 @@ export default async function ProgramPage({ params }: Props) {
                     Inversión
                   </h2>
                   <dl className="mt-4 divide-y divide-white/10">
-                    {program.enrollmentFee != null && (
-                      <div className="flex items-baseline justify-between gap-4 py-4">
-                        <dt className="text-slate-200">Matrícula</dt>
-                        <dd className="text-2xl font-bold text-white">
-                          {program.currency}{" "}
-                          {formatAmount(program.enrollmentFee)}
-                        </dd>
-                      </div>
-                    )}
-                    {program.totalCost != null && (
+                    {(program.totalCost != null ||
+                      program.enrollmentFee != null) && (
                       <div className="flex items-baseline justify-between gap-4 py-4">
                         <dt className="font-semibold text-white">
                           Pago al contado
                         </dt>
-                        <dd className="text-3xl font-bold text-amber-400">
-                          {program.currency} {formatAmount(program.totalCost)}
+                        <dd className="text-right text-3xl font-bold text-amber-400">
+                          {program.totalCost != null && (
+                            <span>
+                              {program.currency}{" "}
+                              {formatAmount(program.totalCost)}
+                            </span>
+                          )}
+                          {program.enrollmentFee != null && (
+                            <span className="block text-sm font-normal text-slate-300">
+                              Matrícula: {program.currency}{" "}
+                              {formatAmount(program.enrollmentFee)}
+                            </span>
+                          )}
                         </dd>
                       </div>
                     )}
-                    {hasInstallments && program.installmentAmount != null && (
+                    {hasInstallments && (
                       <div className="flex items-baseline justify-between gap-4 py-4">
                         <dt className="font-semibold text-white">
                           Plan de cuotas
                         </dt>
                         <dd className="text-right">
-                          <span className="text-2xl font-bold text-white">
-                            {program.installmentCurrency}{" "}
-                            {formatAmount(program.installmentAmount)}
-                          </span>
-                          <span className="block text-sm text-slate-300">
-                            {program.installmentCount != null
-                              ? `en ${program.installmentCount} cuotas`
-                              : "por cuota"}
-                          </span>
+                          {program.installmentFirstAmount != null && (
+                            <span className="block text-2xl font-bold text-white">
+                              {program.installmentCurrency}{" "}
+                              {formatAmount(program.installmentFirstAmount)}
+                              <span className="block text-sm font-normal text-slate-300">
+                                {program.installmentCount != null
+                                  ? `primera cuota de ${program.installmentCount}`
+                                  : "primera cuota"}
+                              </span>
+                            </span>
+                          )}
+                          {program.installmentAmount != null && (
+                            <>
+                              <span className="block text-2xl font-bold text-white">
+                                {program.installmentCurrency}{" "}
+                                {formatAmount(program.installmentAmount)}
+                              </span>
+                              <span className="block text-sm text-slate-300">
+                                {program.installmentFirstAmount != null
+                                  ? "cada cuota restante"
+                                  : program.installmentCount != null
+                                    ? `en ${program.installmentCount} cuotas`
+                                    : "por cuota"}
+                              </span>
+                            </>
+                          )}
+                          {program.installmentEnrollmentFee != null && (
+                            <span className="block text-sm text-slate-300">
+                              Matrícula: {program.installmentCurrency}{" "}
+                              {formatAmount(
+                                program.installmentEnrollmentFee,
+                              )}
+                            </span>
+                          )}
                         </dd>
                       </div>
                     )}

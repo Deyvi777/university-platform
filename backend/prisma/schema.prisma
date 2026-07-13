@@ -320,12 +320,15 @@ model Program {
   extraFeatures     Json            @default("[]") // "más características": [{ label, value }]
   requirements      String[]
   // Opciones de pago (cada una con su moneda; vacías no se muestran en la landing):
-  // "Pago al contado" = totalCost + currency; "Plan de cuotas" = installment*.
-  enrollmentFee       Decimal?      @db.Decimal(10, 2) // matrícula (moneda = currency)
+  // "Pago al contado" = totalCost + enrollmentFee + currency;
+  // "Plan de cuotas" = installment* (incluye su propia matrícula).
+  enrollmentFee       Decimal?      @db.Decimal(10, 2) // matrícula del contado (moneda = currency)
   totalCost           Decimal?      @db.Decimal(10, 2) // monto del pago al contado
   currency            String        @default("Bs") // moneda del contado y la matrícula
   installmentCount    Int? // nº de cuotas del plan
-  installmentAmount   Decimal?      @db.Decimal(10, 2) // monto por cuota
+  installmentFirstAmount Decimal?   @db.Decimal(10, 2) // monto de la primera cuota cuando difiere
+  installmentAmount   Decimal?      @db.Decimal(10, 2) // monto de las demás cuotas
+  installmentEnrollmentFee Decimal? @db.Decimal(10, 2) // matrícula del plan de cuotas
   installmentCurrency String        @default("Bs")
   paymentFacilities   String?
   // Medios de pago:

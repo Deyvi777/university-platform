@@ -23,6 +23,10 @@ Cada cambio debe incluir una revisión de la documentación para agentes. Antes 
 - No consideres completa una modificación de Prisma hasta revisar las reglas de Prisma 7 y el estado especial de migraciones descritos en `CLAUDE.md`.
 - Para código Next.js, sigue primero `frontend/AGENTS.md`, incluida la obligación de consultar la documentación instalada de Next.js 16.
 
+## Contratos transversales
+
+- Las opciones de inversión de `Program` son independientes: el pago al contado usa `totalCost` + `enrollmentFee` + `currency`, mientras el plan de cuotas usa `installmentCount` + `installmentFirstAmount` (primera cuota distinta, opcional) + `installmentAmount` (monto normal; aplica a las restantes cuando existe una primera distinta) + `installmentEnrollmentFee` + `installmentCurrency`. No compartas matrícula ni moneda entre ambos planes.
+
 ## Seguridad de producción
 
 - **Preserva siempre todos los datos de producción.** Un despliegue no autoriza `prisma db seed`, resets, borrado o recreación de volúmenes/tablas, migraciones destructivas, `db push --accept-data-loss`, backfills destructivos ni ninguna operación que pueda eliminar o sobrescribir datos.

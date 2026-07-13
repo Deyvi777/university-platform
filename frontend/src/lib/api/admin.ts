@@ -81,7 +81,9 @@ export interface AdminProgram {
   totalCost: string | null;
   currency: string;
   installmentCount: number | null;
+  installmentFirstAmount: string | null;
   installmentAmount: string | null;
+  installmentEnrollmentFee: string | null;
   installmentCurrency: string;
   paymentFacilities: string | null;
   bankAccounts: AdminProgramBankAccount[];

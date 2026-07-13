@@ -61,10 +61,12 @@ export interface ProgramDetail extends ProgramSummary {
   // Prisma Decimal se serializa como string en JSON
   enrollmentFee: string | null;
   totalCost: string | null; // monto del pago al contado
-  currency: string; // moneda del contado y la matrícula
+  currency: string; // moneda del contado y su matrícula
   installmentCount: number | null;
+  installmentFirstAmount: string | null;
   installmentAmount: string | null;
-  installmentCurrency: string;
+  installmentEnrollmentFee: string | null;
+  installmentCurrency: string; // moneda de las cuotas y su matrícula
   paymentFacilities: string | null;
   bankAccounts: ProgramBankAccount[];
   qrImageUrl: string | null;
