@@ -2,6 +2,7 @@ import {
   Bell,
   BookOpen,
   Building2,
+  CalendarDays,
   ClipboardList,
   GraduationCap,
   Images,
@@ -40,6 +41,7 @@ export type NavIcon =
   | "professors"
   | "students"
   | "notifications"
+  | "calendar"
   | "send-notification"
   | "student-grades"
   | "kardex"
@@ -59,6 +61,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   professors: Presentation,
   students: GraduationCap,
   notifications: Bell,
+  calendar: CalendarDays,
   "send-notification": Send,
   "student-grades": ClipboardList,
   kardex: ScrollText,
@@ -141,6 +144,13 @@ const NOTIFICATIONS_ITEM: NavItem = {
   icon: "notifications",
 };
 
+/** Calendario académico compartido por docentes y estudiantes. */
+const CALENDAR_ITEM: NavItem = {
+  href: "/dashboard/calendario",
+  label: "Calendario",
+  icon: "calendar",
+};
+
 /** Item de kárdex, solo para estudiantes. */
 const KARDEX_ITEM: NavItem = {
   href: "/dashboard/kardex",
@@ -151,7 +161,7 @@ const KARDEX_ITEM: NavItem = {
 /**
  * Secciones de navegación visibles para cada rol. ADMIN ve grupos con
  * encabezado (igual que la home); PROFESSOR y STUDENT ven "Inicio",
- * "Notificaciones" y (solo STUDENT) "Kárdex". El **árbol de programas** anidado
+ * "Calendario", "Notificaciones" y (solo STUDENT) "Kárdex". El **árbol de programas** anidado
  * (programa → módulos) NO vive aquí: lo renderiza el sidebar a partir de la prop
  * `programs` (ver `dashboard-sidebar.tsx`), porque `NavSection` es plano.
  */
@@ -217,7 +227,11 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
             label: "Categorías",
             icon: "categories",
           },
-          { href: "/dashboard/programas", label: "Programas", icon: "programs" },
+          {
+            href: "/dashboard/programas",
+            label: "Programas",
+            icon: "programs",
+          },
           {
             href: "/dashboard/partners",
             label: "Instituciones",
@@ -247,10 +261,13 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
     // inserta el árbol de "Programas" ENTRE ambos grupos (ver `DashboardSidebar`).
     return [
       { items: [HOME_ITEM] },
-      { items: [KARDEX_ITEM, NOTIFICATIONS_ITEM] },
+      { items: [CALENDAR_ITEM, KARDEX_ITEM, NOTIFICATIONS_ITEM] },
     ];
   }
-  // PROFESSOR: "Inicio" arriba, "Notificaciones" debajo; el árbol de "Programas"
-  // se inserta entre ambos.
-  return [{ items: [HOME_ITEM] }, { items: [NOTIFICATIONS_ITEM] }];
+  // PROFESSOR: "Inicio" arriba, "Calendario" y "Notificaciones" debajo; el
+  // árbol de "Programas" se inserta entre ambos.
+  return [
+    { items: [HOME_ITEM] },
+    { items: [CALENDAR_ITEM, NOTIFICATIONS_ITEM] },
+  ];
 }
