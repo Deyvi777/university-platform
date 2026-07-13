@@ -26,6 +26,10 @@ Env setup: copy `backend/.env.example` → `backend/.env` (set `JWT_SECRET`) and
 
 pnpm 10 blocks postinstall scripts by default; allowed packages live in root `package.json` `pnpm.onlyBuiltDependencies` — extend it if a new native dep (e.g. bcrypt) fails to build.
 
+## Production data safety (mandatory)
+
+Every production deployment must preserve all existing database and file data. Never run seeds, resets, destructive migrations, `db push --accept-data-loss`, volume recreation, or any command that can delete or overwrite production data unless the user gives explicit, specific authorization for that destructive operation. Permission to deploy code alone is not permission to alter or delete data. If a schema change is not demonstrably additive, stop before deployment and request authorization with a concrete backup and impact plan.
+
 ## Architecture
 
 ### Auth flow (the core cross-app contract)
@@ -42,6 +46,7 @@ The **backend is the source of truth for identity and RBAC**. NextAuth does not 
 
 ### Next.js 16 specifics (frontend)
 
+- **Current public gallery UI:** `/galeria` uses responsive CSS masonry columns that preserve every photo's natural aspect ratio without overlays, plus media-type filters and a fullscreen keyboard-navigable viewer (`frontend/src/components/landing/gallery-carousel.tsx`). This replaces the older 3D auto-rotating coverflow description that may still appear in the historical frontend summary below.
 - **Read `frontend/node_modules/next/dist/docs/` before writing Next.js code** — APIs differ from training data (see `frontend/AGENTS.md`).
 - Middleware is `src/proxy.ts` (not `middleware.ts`). It must import only `src/auth.config.ts` (edge-safe, no providers/Node APIs), never `src/auth.ts`. Route protection happens in the `authorized` callback.
 - `trustHost: true` in `auth.config.ts` is required (self-hosted Auth.js); don't remove it.

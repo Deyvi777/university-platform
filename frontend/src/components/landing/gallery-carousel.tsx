@@ -1,232 +1,228 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
-import type { GalleryItem } from "@/lib/api/gallery";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Images,
+  Play,
+  X,
+} from "lucide-react";
+import type {
+  GalleryItem,
+  GalleryMediaType,
+} from "@/lib/api/gallery";
 
-/** Cada cuántos ms avanza solo el carrusel (pausado con el visor abierto). */
-const AUTOPLAY_MS = 3500;
-/** Cuántas tarjetas se ven a cada lado de la central. */
-const SIDE_CARDS = 3;
+type Filter = "ALL" | GalleryMediaType;
 
-/**
- * Distancia circular con signo entre una tarjeta y la activa (camino más
- * corto), para que el carrusel "dé la vuelta" sin saltos en los extremos.
- */
-function circularOffset(index: number, active: number, total: number): number {
-  let off = (index - active) % total;
-  if (off > total / 2) off -= total;
-  if (off < -total / 2) off += total;
-  return off;
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "ALL", label: "Todos" },
+  { value: "IMAGE", label: "Fotografías" },
+  { value: "VIDEO", label: "Videos" },
+];
+
+function Media({ item, index }: { item: GalleryItem; index: number }) {
+  if (item.type === "VIDEO") {
+    return (
+      <>
+        <video
+          src={item.url}
+          preload="metadata"
+          muted
+          playsInline
+          className="block h-auto w-full transition-transform duration-500 group-hover:scale-[1.015]"
+        />
+        <span className="absolute inset-0 flex items-center justify-center bg-slate-950/10">
+          <span className="flex size-14 items-center justify-center rounded-full border border-white/30 bg-slate-950/65 text-white shadow-xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110">
+            <Play className="size-5 fill-current" aria-hidden="true" />
+          </span>
+        </span>
+      </>
+    );
+  }
+
+  return (
+    // Las dimensiones de los archivos administrables son desconocidas; <img>
+    // permite que cada pieza del masonry adopte su proporción natural.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={item.url}
+      alt={item.title ?? `Fotografía institucional ${index + 1}`}
+      loading={index < 4 ? "eager" : "lazy"}
+      className="block h-auto w-full transition-transform duration-500 group-hover:scale-[1.015]"
+    />
+  );
 }
 
-/**
- * Carrusel 3D tipo coverflow de la página Galería: la tarjeta central al
- * frente y las laterales escalonadas en profundidad. Gira solo cada
- * `AUTOPLAY_MS`; al hacer clic en una tarjeta se abre ampliada en un visor
- * (pausando el giro) y el botón de cierre lo reanuda.
- */
+/** Galería editorial con filtros y visor inmersivo para fotos y videos. */
 export function GalleryCarousel({ items }: { items: GalleryItem[] }) {
-  const [active, setActive] = useState(0);
+  const [filter, setFilter] = useState<Filter>("ALL");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [hovered, setHovered] = useState(false);
 
-  const total = items.length;
-  const expanded = expandedId
-    ? (items.find((i) => i.id === expandedId) ?? null)
-    : null;
+  const visibleItems =
+    filter === "ALL" ? items : items.filter((item) => item.type === filter);
+  const expandedIndex = expandedId
+    ? visibleItems.findIndex((item) => item.id === expandedId)
+    : -1;
+  const expanded = expandedIndex >= 0 ? visibleItems[expandedIndex] : null;
 
-  // Giro automático: pausado con el visor abierto, con el puntero encima o si
-  // el usuario prefiere menos movimiento.
+  const closeViewer = () => setExpandedId(null);
+  const showPrevious = () => {
+    if (expandedIndex < 0) return;
+    const previous =
+      (expandedIndex - 1 + visibleItems.length) % visibleItems.length;
+    setExpandedId(visibleItems[previous].id);
+  };
+  const showNext = () => {
+    if (expandedIndex < 0) return;
+    setExpandedId(visibleItems[(expandedIndex + 1) % visibleItems.length].id);
+  };
+
   useEffect(() => {
-    if (total < 2 || expandedId !== null || hovered) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = setInterval(() => {
-      setActive((a) => (a + 1) % total);
-    }, AUTOPLAY_MS);
-    return () => clearInterval(timer);
-  }, [total, expandedId, hovered]);
-
-  // Visor abierto: Escape lo cierra y se bloquea el scroll del fondo.
-  useEffect(() => {
-    if (expandedId === null) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpandedId(null);
+    if (!expanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeViewer();
+      if (event.key === "ArrowLeft") showPrevious();
+      if (event.key === "ArrowRight") showNext();
     };
     window.addEventListener("keydown", onKeyDown);
-    const prevOverflow = document.body.style.overflow;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = prevOverflow;
+      document.body.style.overflow = previousOverflow;
     };
-  }, [expandedId]);
-
-  if (total === 0) return null;
-
-  const goPrev = () => setActive((a) => (a - 1 + total) % total);
-  const goNext = () => setActive((a) => (a + 1) % total);
+  });
 
   return (
     <div>
-      <div
-        className="relative h-[500px] sm:h-[620px] lg:h-[720px] [perspective:2000px]"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
-        {items.map((item, index) => {
-          const offset = circularOffset(index, active, total);
-          const abs = Math.abs(offset);
-          const hidden = abs > SIDE_CARDS;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                setActive(index);
-                setExpandedId(item.id);
-              }}
-              aria-label={
-                item.title ??
-                `Ver ${item.type === "IMAGE" ? "foto" : "video"} ${index + 1} en grande`
-              }
-              tabIndex={hidden ? -1 : 0}
-              className="absolute left-1/2 top-1/2 h-[380px] w-[22rem] overflow-hidden rounded-2xl border-2 border-white/20 bg-slate-950 shadow-2xl shadow-black/60 transition-all duration-700 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 motion-reduce:transition-none sm:h-[480px] sm:w-[30rem] lg:h-[560px] lg:w-[38rem]"
-              style={{
-                transform: `translateX(${-50 + offset * 62}%) translateY(-50%) rotateY(${offset * -8}deg) scale(${1 - abs * 0.09})`,
-                zIndex: 20 - abs,
-                opacity: hidden ? 0 : 1,
-                pointerEvents: hidden ? "none" : "auto",
-                filter: `brightness(${1 - abs * 0.22})`,
-              }}
-            >
-              {item.type === "IMAGE" ? (
-                <Image
-                  src={item.url}
-                  alt={item.title ?? `Foto ${index + 1} de la galería`}
-                  fill
-                  sizes="(min-width: 1024px) 608px, (min-width: 640px) 480px, 352px"
-                  className="object-contain p-1"
-                />
-              ) : (
-                <>
-                  <video
-                    src={item.url}
-                    preload="metadata"
-                    muted
-                    playsInline
-                    className="size-full object-contain"
-                  />
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <span className="flex size-14 items-center justify-center rounded-full bg-slate-950/60 text-white backdrop-blur-sm">
-                      <Play className="size-6 fill-current" aria-hidden="true" />
-                    </span>
-                  </span>
-                </>
-              )}
-              {item.title && offset === 0 && (
-                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 to-transparent px-4 pb-3 pt-10 text-left text-sm font-medium text-white">
-                  {item.title}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <div className="mb-8 flex flex-col gap-5 border-b border-white/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
+            <Images className="size-4" aria-hidden="true" />
+            Archivo visual
+          </p>
+          <p className="mt-2 text-sm text-slate-400">
+            {visibleItems.length} {visibleItems.length === 1 ? "momento" : "momentos"} para explorar
+          </p>
+        </div>
 
-        {total > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={goPrev}
-              aria-label="Anterior"
-              className="absolute left-2 top-1/2 z-30 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-slate-950/70 text-white backdrop-blur-sm transition-colors hover:border-white/40 hover:bg-slate-950/90 sm:left-6"
-            >
-              <ChevronLeft className="size-6" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={goNext}
-              aria-label="Siguiente"
-              className="absolute right-2 top-1/2 z-30 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-slate-950/70 text-white backdrop-blur-sm transition-colors hover:border-white/40 hover:bg-slate-950/90 sm:right-6"
-            >
-              <ChevronRight className="size-6" aria-hidden="true" />
-            </button>
-          </>
-        )}
+        <div
+          className="flex w-fit rounded-full border border-white/10 bg-white/[0.04] p-1"
+          aria-label="Filtrar galería"
+        >
+          {FILTERS.map((option) => {
+            const count =
+              option.value === "ALL"
+                ? items.length
+                : items.filter((item) => item.type === option.value).length;
+            if (option.value !== "ALL" && count === 0) return null;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  setFilter(option.value);
+                  setExpandedId(null);
+                }}
+                aria-pressed={filter === option.value}
+                className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors sm:text-sm ${
+                  filter === option.value
+                    ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/15"
+                    : "text-slate-300 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {total > 1 && (
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-2.5">
-          {items.map((item, index) => (
+      <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
+        {visibleItems.map((item, index) => (
             <button
               key={item.id}
               type="button"
-              onClick={() => setActive(index)}
-              aria-label={`Ir al elemento ${index + 1}`}
-              aria-current={index === active}
-              className={`size-2.5 rounded-full transition-all duration-300 ${
-                index === active
-                  ? "scale-125 bg-amber-400"
-                  : "bg-white/30 hover:bg-white/60"
-              }`}
-            />
+              onClick={() => setExpandedId(item.id)}
+              className="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-2xl border border-white/10 bg-slate-900 text-left shadow-xl shadow-black/10 transition-all duration-500 hover:-translate-y-1 hover:border-amber-300/40 hover:shadow-2xl hover:shadow-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              aria-label={item.title ?? `Abrir elemento ${index + 1}`}
+            >
+              <Media item={item} index={index} />
+            </button>
           ))}
-        </div>
-      )}
+      </div>
 
       {expanded && (
         <div
-          className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-950/95 p-4 backdrop-blur-md sm:p-8"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/95 p-4 backdrop-blur-xl sm:p-8"
           role="dialog"
           aria-modal="true"
           aria-label={expanded.title ?? "Vista ampliada de la galería"}
-          onClick={() => setExpandedId(null)}
+          onClick={closeViewer}
         >
           <div
-            className="flex max-h-full w-full max-w-5xl flex-col items-center"
-            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-full w-full max-w-6xl flex-col items-center"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div className="relative w-full overflow-hidden rounded-2xl border border-white/15 shadow-2xl shadow-black/60">
+            <div className="relative flex max-h-[78vh] min-h-56 w-full items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-black/40 shadow-2xl shadow-black/70">
               {expanded.type === "IMAGE" ? (
+                // El visor necesita conservar la proporción natural de imágenes desconocidas.
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={expanded.url}
-                  alt={expanded.title ?? "Foto de la galería"}
-                  className="max-h-[75vh] w-full object-contain"
+                  alt={expanded.title ?? "Fotografía institucional ampliada"}
+                  className="max-h-[78vh] max-w-full object-contain"
                 />
               ) : (
                 <video
+                  key={expanded.id}
                   src={expanded.url}
                   controls
                   autoPlay
                   playsInline
-                  className="max-h-[75vh] w-full"
+                  className="max-h-[78vh] max-w-full"
                 />
               )}
             </div>
 
-            {expanded.title && (
-              <p className="mt-4 text-center text-base text-slate-200">
-                {expanded.title}
-              </p>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setExpandedId(null)}
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-amber-400/20 transition-colors hover:bg-amber-300"
-            >
-              <X className="size-4" aria-hidden="true" />
-              Volver al carrusel
-            </button>
+            <div className="mt-5 flex w-full items-center justify-between gap-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                  {expanded.type === "IMAGE" ? "Fotografía" : "Video"} · {expandedIndex + 1} de {visibleItems.length}
+                </p>
+                <p className="mt-1 font-heading text-lg font-semibold text-white sm:text-xl">
+                  {expanded.title ?? "Nuestra comunidad Certificate"}
+                </p>
+              </div>
+              {visibleItems.length > 1 && (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={showPrevious}
+                    aria-label="Anterior"
+                    className="flex size-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:border-amber-300/50 hover:bg-white/10"
+                  >
+                    <ChevronLeft className="size-5" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={showNext}
+                    aria-label="Siguiente"
+                    className="flex size-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:border-amber-300/50 hover:bg-white/10"
+                  >
+                    <ChevronRight className="size-5" aria-hidden="true" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <button
             type="button"
-            onClick={() => setExpandedId(null)}
+            onClick={closeViewer}
             aria-label="Cerrar vista ampliada"
-            className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition-colors hover:border-white/60 hover:bg-white/10 sm:right-6 sm:top-6"
+            className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition-colors hover:border-white/50 hover:bg-white/10 sm:right-7 sm:top-7"
           >
             <X className="size-5" aria-hidden="true" />
           </button>
