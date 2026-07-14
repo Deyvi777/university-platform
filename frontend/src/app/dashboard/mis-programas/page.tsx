@@ -2,6 +2,7 @@ import {
   BookOpen,
   CalendarDays,
   ChevronDown,
+  FolderOpen,
   GraduationCap,
   Layers,
   PlayCircle,
@@ -182,6 +183,19 @@ function ProgramAccordion({
 
       {/* Lista de módulos */}
       <div className="border-t p-3 sm:p-4">
+        <Link
+          href={`/dashboard/mis-cursos/${program.id}/portafolio`}
+          className="mb-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 transition-colors hover:border-blue-300 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/15"
+        >
+          <span
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-sky-500/15 dark:text-sky-300"
+            aria-hidden="true"
+          >
+            <FolderOpen className="size-5" />
+          </span>
+          Portafolio del programa
+        </Link>
+
         {modules.length === 0 ? (
           <p className="rounded-xl border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
             Este programa todavía no tiene módulos.

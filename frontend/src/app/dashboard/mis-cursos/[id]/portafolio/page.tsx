@@ -21,8 +21,8 @@ export default async function CoursePortfolioPage({
 
   return (
     <div className="w-full">
-      <BackLink href={`/dashboard/mis-cursos/${course.id}`}>
-        Volver al programa
+      <BackLink href="/dashboard/mis-programas">
+        Volver a mis programas
       </BackLink>
       <header className="mt-4 flex items-start gap-3">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">

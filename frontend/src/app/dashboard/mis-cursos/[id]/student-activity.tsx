@@ -181,7 +181,7 @@ export function StudentActivity({
               href={activity.activityFileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-flex max-w-full items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-accent"
+              className="mt-2 inline-flex max-w-full items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-sky-950/15 transition-colors hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
             >
               <Paperclip className="size-4 shrink-0" aria-hidden="true" />
               <span className="truncate">
