@@ -57,8 +57,7 @@ export function Beneficios() {
           </p>
 
           <h2 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
-            Lo que ganas al estudiar{" "}
-            <span className="text-amber-400">con nosotros</span>
+            Lo que ganas al estudiar con nosotros
           </h2>
         </div>
 

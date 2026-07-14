@@ -5,9 +5,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
   CornerDownRight,
+  Download,
   Loader2,
   MessageSquarePlus,
   MessagesSquare,
+  Paperclip,
   Pencil,
   Send,
   Trash2,
@@ -146,6 +148,20 @@ export function ForumThread({ activityId }: { activityId: string }) {
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             {data.activity.instructions}
           </p>
+        )}
+        {!data.viewer.isTeacher && data.activity.activityFileUrl && (
+          <a
+            href={data.activity.activityFileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex max-w-full items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-muted/40"
+          >
+            <Paperclip className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">
+              {data.activity.activityFileName || "Documento adjunto"}
+            </span>
+            <Download className="size-3.5 shrink-0" aria-hidden="true" />
+          </a>
         )}
         {due && urgency && (
           <p

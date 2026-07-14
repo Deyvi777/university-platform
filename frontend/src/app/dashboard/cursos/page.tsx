@@ -143,8 +143,8 @@ export default async function CursosAdminPage() {
                         nativeButton={false}
                         render={
                           <Link
-                            href={`/dashboard/cursos/${course.id}`}
-                            aria-label={`Gestionar ${course.name}`}
+                            href={`/dashboard/cursos/${course.id}/editar`}
+                            aria-label={`Editar ${course.name}`}
                           />
                         }
                         variant="ghost"

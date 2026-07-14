@@ -872,6 +872,7 @@ function ContentForm({
     content?.activityFileName ?? "",
   );
   const [activityFileUploading, setActivityFileUploading] = useState(false);
+  const [activityFileDragOver, setActivityFileDragOver] = useState(false);
   const activityFileRef = useRef<HTMLInputElement>(null);
   const [dueDate, setDueDate] = useState(toLocalInput(content?.dueDate ?? null));
   const [maxScore, setMaxScore] = useState(String(content?.maxScore ?? 100));
@@ -1057,12 +1058,8 @@ function ContentForm({
       const isQuiz = activityType === "QUIZ" || activityType === "EXAM";
       payload.activityType = activityType;
       payload.instructions = instructions.trim() || null;
-      const supportsAttachment =
-        activityType === "ASSIGNMENT" || activityType === "PROJECT";
-      payload.activityFileUrl =
-        supportsAttachment && activityFileUrl ? activityFileUrl : null;
-      payload.activityFileName =
-        supportsAttachment && activityFileName ? activityFileName : null;
+      payload.activityFileUrl = activityFileUrl || null;
+      payload.activityFileName = activityFileName || null;
       // Campo vacío/inválido → cae al default 100 (el backend rechaza maxScore 0:
       // una actividad "sobre 0" no es calificable).
       payload.maxScore = Number(maxScore) > 0 ? Number(maxScore) : 100;
@@ -1386,8 +1383,7 @@ function ContentForm({
             />
           </div>
 
-          {(activityType === "ASSIGNMENT" || activityType === "PROJECT") && (
-            <div className="space-y-2">
+          <div className="space-y-2">
               <Label>Documento adjunto (opcional)</Label>
               {activityFileUrl ? (
                 <div className="flex items-center gap-2 rounded-xl border bg-muted/20 p-3">
@@ -1418,7 +1414,34 @@ function ContentForm({
                   type="button"
                   disabled={activityFileUploading}
                   onClick={() => activityFileRef.current?.click()}
-                  className="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed p-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.03] disabled:opacity-60"
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    if (!activityFileUploading) setActivityFileDragOver(true);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    if (!activityFileUploading) setActivityFileDragOver(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    if (
+                      !event.currentTarget.contains(event.relatedTarget as Node)
+                    ) {
+                      setActivityFileDragOver(false);
+                    }
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setActivityFileDragOver(false);
+                    if (activityFileUploading) return;
+                    const file = event.dataTransfer.files[0];
+                    if (file) void handleActivityFileUpload(file);
+                  }}
+                  className={cn(
+                    "flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed p-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.03] disabled:opacity-60",
+                    activityFileDragOver &&
+                      "border-primary bg-primary/[0.06] ring-2 ring-primary/20",
+                  )}
                 >
                   {activityFileUploading ? (
                     <Loader2 className="size-5 animate-spin text-primary" />
@@ -1428,7 +1451,9 @@ function ContentForm({
                   <span className="text-sm font-medium">
                     {activityFileUploading
                       ? "Subiendo documento…"
-                      : "Adjuntar PDF o documento de Word"}
+                      : activityFileDragOver
+                        ? "Suelta el documento aquí"
+                        : "Arrastra un PDF o Word aquí, o haz clic para seleccionarlo"}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     PDF, DOC o DOCX · máximo {MAX_DOCUMENT_UPLOAD_MB} MB
@@ -1449,8 +1474,7 @@ function ContentForm({
               <p className="text-xs text-muted-foreground">
                 Puedes incluir instrucciones detalladas o material de apoyo para la actividad.
               </p>
-            </div>
-          )}
+          </div>
 
           {/* Ajustes del motor de preguntas (QUIZ/EXAM) */}
           {(activityType === "QUIZ" || activityType === "EXAM") && (

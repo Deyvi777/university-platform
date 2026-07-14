@@ -70,6 +70,8 @@ export interface ForumThread {
     id: string;
     title: string;
     instructions: string | null;
+    activityFileUrl: string | null;
+    activityFileName: string | null;
     /** Fecha límite de participación (informativa). */
     dueDate: string | null;
     moduleStatus: ModuleStatus;
@@ -137,6 +139,8 @@ export interface QuizRunner {
     title: string;
     type: ActivityType;
     instructions: string | null;
+    activityFileUrl: string | null;
+    activityFileName: string | null;
     maxScore: number;
     questionCount: number;
     /**

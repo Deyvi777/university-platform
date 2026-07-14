@@ -114,6 +114,7 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
   const isEdit = Boolean(course);
   const [formError, setFormError] = useState<string | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [portfolioDragOver, setPortfolioDragOver] = useState(false);
 
   const { register, control, handleSubmit, formState } =
     useForm<CourseFormValues>({
@@ -415,7 +416,35 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
         title="Portafolio del programa"
         description="Documentación general disponible para estudiantes y docentes."
       >
-        <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed p-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.03]">
+        <label
+          onDragEnter={(event) => {
+            event.preventDefault();
+            if (!uploadingFiles) setPortfolioDragOver(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            if (!uploadingFiles) setPortfolioDragOver(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+              setPortfolioDragOver(false);
+            }
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setPortfolioDragOver(false);
+            if (uploadingFiles) return;
+            const selected = Array.from(event.dataTransfer.files);
+            if (selected.length > 0) void uploadPortfolioFiles(selected);
+          }}
+          className={cn(
+            "flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed p-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.03]",
+            portfolioDragOver &&
+              "border-primary bg-primary/[0.06] ring-2 ring-primary/20",
+            uploadingFiles && "cursor-wait opacity-70",
+          )}
+        >
           {uploadingFiles ? (
             <Loader2 className="size-5 animate-spin text-primary" />
           ) : (
@@ -424,7 +453,9 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
           <span className="text-sm font-medium">
             {uploadingFiles
               ? "Subiendo documentos…"
-              : "Adjuntar documentos al portafolio"}
+              : portfolioDragOver
+                ? "Suelta los archivos aquí"
+                : "Arrastra archivos aquí o haz clic para seleccionarlos"}
           </span>
           <span className="text-xs text-muted-foreground">
             Reglamentos, cronogramas, guías y otros archivos · máximo {MAX_DOCUMENT_UPLOAD_MB} MB por archivo

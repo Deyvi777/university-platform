@@ -966,7 +966,7 @@ function FolderFilePanel({
  * el panel central; si no, tarjeta de descarga. Reutilizado por los materiales
  * (kind MATERIAL) y por los archivos dentro de una carpeta.
  */
-function MaterialViewer({ url, title }: { url: string; title: string }) {
+export function MaterialViewer({ url, title }: { url: string; title: string }) {
   const isInternal = url.startsWith("/files");
   const lower = url.split("?")[0].toLowerCase();
   const isImage = /\.(png|jpe?g|gif|webp|avif|svg)$/.test(lower);

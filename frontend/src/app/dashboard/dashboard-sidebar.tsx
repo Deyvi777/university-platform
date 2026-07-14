@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
+  FolderOpen,
   LogOut,
   Menu,
   X,
@@ -694,7 +695,9 @@ function ProgramRow({
   onNavigate: () => void;
 }) {
   const programHref = `/dashboard/mis-cursos/${program.id}`;
-  const programActive = pathname === programHref;
+  const portfolioHref = `${programHref}/portafolio`;
+  const programActive =
+    pathname === programHref || pathname === portfolioHref;
   // Los módulos arrancan visibles (autoOpen = true) al entrar al panel; el
   // `toggle` (autoridad) manda sobre el default, así el usuario puede colapsar
   // cualquier programa y la elección persiste.
@@ -702,7 +705,9 @@ function ProgramRow({
 
   const headerId = `nav-program-${program.id}`;
   const regionId = `nav-program-${program.id}-modules`;
-  const hasModules = program.modules.length > 0;
+  // El Portafolio siempre es un destino hijo, incluso si el estudiante todavía
+  // no tiene módulos visibles (p. ej. todos siguen en borrador).
+  const hasNestedItems = true;
 
   return (
     <div role="group" aria-labelledby={headerId}>
@@ -720,7 +725,7 @@ function ProgramRow({
             : "bg-white/[0.06] hover:bg-white/10",
         )}
       >
-        {hasModules ? (
+        {hasNestedItems ? (
           <button
             type="button"
             id={headerId}
@@ -770,7 +775,7 @@ function ProgramRow({
         )}
       </div>
 
-      {hasModules && (
+      {hasNestedItems && (
         <div
           id={regionId}
           role="region"
@@ -784,6 +789,23 @@ function ProgramRow({
           )}
         >
           <ul className="ml-4 flex flex-col gap-0.5 overflow-hidden border-l border-white/20 pl-2 pt-1">
+            <li>
+              <Link
+                href={portfolioHref}
+                onClick={onNavigate}
+                aria-current={pathname === portfolioHref ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50",
+                  pathname === portfolioHref
+                    ? "bg-white/15 font-semibold text-white ring-1 ring-white/15"
+                    : "text-white/85 hover:bg-white/[0.07] hover:text-white",
+                )}
+              >
+                <FolderOpen className="size-3.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">Portafolio</span>
+              </Link>
+            </li>
             {program.modules.map((mod) => {
               const href = `${moduleHrefBase}/${mod.id}`;
               const active = pathname === href;

@@ -8,8 +8,10 @@ import {
   CalendarPlus,
   CheckCircle2,
   Clock,
+  Download,
   ListChecks,
   Loader2,
+  Paperclip,
   RotateCcw,
   Send,
   Timer,
@@ -199,6 +201,21 @@ export function QuizRunner({ activityId }: { activityId: string }) {
         <p className="mt-3 text-sm text-muted-foreground">
           {data.activity.instructions}
         </p>
+      )}
+
+      {data.activity.activityFileUrl && (
+        <a
+          href={data.activity.activityFileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex max-w-full items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-muted/40"
+        >
+          <Paperclip className="size-4 shrink-0" aria-hidden="true" />
+          <span className="truncate">
+            {data.activity.activityFileName || "Documento adjunto"}
+          </span>
+          <Download className="size-4 shrink-0" aria-hidden="true" />
+        </a>
       )}
 
       {/* Ventana de disponibilidad: desde cuándo se puede rendir y el cierre
