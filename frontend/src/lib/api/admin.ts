@@ -193,6 +193,13 @@ export interface AdminEnrollment {
   student: AdminCourseUser;
 }
 
+export interface AdminCourseFile {
+  id: string;
+  name: string;
+  url: string;
+  size: number | null;
+}
+
 export interface AdminCourse {
   id: string;
   code: string;
@@ -205,6 +212,7 @@ export interface AdminCourse {
   passingScore: string;
   status: CourseStatus;
   modules: AdminCourseModule[];
+  files: AdminCourseFile[];
   enrollments: AdminEnrollment[];
 }
 

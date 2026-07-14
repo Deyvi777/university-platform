@@ -17,6 +17,12 @@ const updateModuleSchema = createModuleSchema.extend({
   id: z.uuid().optional(),
 });
 
+const courseFileSchema = z.object({
+  name: z.string().trim().min(1).max(300),
+  url: z.string().trim().min(1).max(2000),
+  size: z.coerce.number().int().min(0).nullish(),
+});
+
 export const createCourseSchema = z.object({
   name: z.string().trim().min(1, 'El nombre del programa es obligatorio'),
   // Código institucional único (ej. "MBA-2026-I"). Si no se envía, se genera.
@@ -45,6 +51,7 @@ export const createCourseSchema = z.object({
   // la lista es el "Módulo 0"); sin él, empieza en 1. No es una columna: solo
   // define la base del `order` derivado de la posición.
   moduleZero: z.boolean().default(false),
+  files: z.array(courseFileSchema).max(100).default([]),
 });
 
 export const updateCourseSchema = z.object({
@@ -67,6 +74,8 @@ export const updateCourseSchema = z.object({
   modules: z.array(updateModuleSchema).min(1).max(50).optional(),
   // Si no llega, se conserva la base actual (se infiere del primer `order`).
   moduleZero: z.boolean().optional(),
+  // Reemplaza el portafolio completo; el orden se deriva del arreglo.
+  files: z.array(courseFileSchema).max(100).optional(),
 });
 
 // Asignación de docentes (co-docencia) a un módulo: reemplaza la lista completa.

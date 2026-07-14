@@ -4,7 +4,7 @@
  * Recorre los objetos bajo `submissions/` y `materials/` (las carpetas de
  * archivos subidos por estudiantes y docentes) y borra los que ya no están
  * referenciados por ninguna fila de la BD (Submission.fileUrl, SubmissionFile.url,
- * ModuleContent.url, FolderFile.url). NO toca las carpetas de la landing
+ * ModuleContent.url/activityFileUrl, FolderFile.url). NO toca las carpetas de la landing
  * (flyers/logos/fotos), que viven en otros prefijos.
  *
  * Uso (desde backend/):
@@ -51,9 +51,12 @@ async function main() {
   const bucket = process.env.S3_BUCKET!;
 
   // 1. Keys referenciadas en la BD (todas las columnas que guardan /files/...).
-  const [contents, folderFiles, submissions, submissionFiles] =
+  const [contents, courseFiles, folderFiles, submissions, submissionFiles] =
     await Promise.all([
-      prisma.moduleContent.findMany({ select: { url: true } }),
+      prisma.moduleContent.findMany({
+        select: { url: true, activityFileUrl: true },
+      }),
+      prisma.courseFile.findMany({ select: { url: true } }),
       prisma.folderFile.findMany({ select: { url: true } }),
       prisma.submission.findMany({ select: { fileUrl: true } }),
       prisma.submissionFile.findMany({ select: { url: true } }),
@@ -62,6 +65,8 @@ async function main() {
   const referenced = new Set<string>();
   for (const row of [
     ...contents.map((c) => c.url),
+    ...contents.map((c) => c.activityFileUrl),
+    ...courseFiles.map((f) => f.url),
     ...folderFiles.map((f) => f.url),
     ...submissions.map((s) => s.fileUrl),
     ...submissionFiles.map((f) => f.url),

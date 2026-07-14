@@ -76,6 +76,8 @@ export class ModuleContentService {
             url: true,
             activityType: true,
             instructions: true,
+            activityFileUrl: true,
+            activityFileName: true,
             dueDate: true,
             maxScore: true,
             weight: true,
@@ -231,6 +233,7 @@ export class ModuleContentService {
         weight: true,
         maxScore: true,
         recoveryStage: true,
+        activityFileUrl: true,
       },
     });
     if (!existing) throw new NotFoundException('Contenido no encontrado');
@@ -262,6 +265,12 @@ export class ModuleContentService {
     }
     if (dto.instructions !== undefined) {
       data.instructions = dto.instructions ?? null;
+    }
+    if (dto.activityFileUrl !== undefined) {
+      data.activityFileUrl = dto.activityFileUrl ?? null;
+    }
+    if (dto.activityFileName !== undefined) {
+      data.activityFileName = dto.activityFileName ?? null;
     }
     if (dto.dueDate !== undefined) {
       data.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
@@ -312,6 +321,13 @@ export class ModuleContentService {
       data,
       include: { folderFiles: { orderBy: { order: 'asc' } } },
     });
+    if (
+      dto.activityFileUrl !== undefined &&
+      existing.activityFileUrl &&
+      existing.activityFileUrl !== updated.activityFileUrl
+    ) {
+      await this.storage.deleteByUrls([existing.activityFileUrl]);
+    }
     // Notificar solo en la transición borrador → publicado de una actividad.
     if (
       updated.kind === ContentKind.ACTIVITY &&
@@ -375,6 +391,7 @@ export class ModuleContentService {
         kind: true,
         recoveryStage: true,
         url: true, // MATERIAL (FILE) → ruta /files/...
+        activityFileUrl: true, // ACTIVITY → instrucciones/material adjunto
         folderFiles: { select: { url: true } }, // FOLDER
         submissions: {
           select: {
@@ -402,6 +419,7 @@ export class ModuleContentService {
     // Reúne todas las URLs de blobs propios que quedarán sin referencia.
     const blobUrls = [
       content.url,
+      content.activityFileUrl,
       ...content.folderFiles.map((f) => f.url),
       ...content.submissions.flatMap((s) => [
         s.fileUrl,
@@ -531,6 +549,8 @@ export class ModuleContentService {
             url: true,
             activityType: true,
             instructions: true,
+            activityFileUrl: true,
+            activityFileName: true,
             dueDate: true,
             maxScore: true,
             weight: true,
@@ -642,6 +662,8 @@ export class ModuleContentService {
           url: c.url,
           activityType: c.activityType,
           instructions: c.instructions,
+          activityFileUrl: c.activityFileUrl,
+          activityFileName: c.activityFileName,
           dueDate: c.dueDate,
           maxScore: c.maxScore !== null ? Number(c.maxScore) : null,
           weight: c.weight !== null ? Number(c.weight) : null,
@@ -712,6 +734,8 @@ export class ModuleContentService {
       case 'ACTIVITY':
         data.activityType = dto.activityType ?? 'ASSIGNMENT';
         data.instructions = dto.instructions ?? null;
+        data.activityFileUrl = dto.activityFileUrl ?? null;
+        data.activityFileName = dto.activityFileName ?? null;
         data.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
         data.maxScore = new Prisma.Decimal(dto.maxScore ?? 100);
         data.weight = new Prisma.Decimal(dto.weight ?? 0);

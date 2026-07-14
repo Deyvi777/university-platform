@@ -1,4 +1,4 @@
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Download, Paperclip } from "lucide-react";
 import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
@@ -97,6 +97,21 @@ export default async function ActivityGradingPage({
         <p className="mt-4 rounded-2xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
           {activity.instructions}
         </p>
+      )}
+
+      {activity.activityFileUrl && (
+        <a
+          href={activity.activityFileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex max-w-full items-center gap-2 rounded-xl border bg-muted/20 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-muted/40"
+        >
+          <Paperclip className="size-4 shrink-0" aria-hidden="true" />
+          <span className="truncate">
+            {activity.activityFileName || "Documento adjunto"}
+          </span>
+          <Download className="size-4 shrink-0" aria-hidden="true" />
+        </a>
       )}
 
       {/* Foro: el docente lee y participa en el hilo; abajo califica la

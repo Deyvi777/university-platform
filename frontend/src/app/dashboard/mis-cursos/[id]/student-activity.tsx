@@ -176,6 +176,20 @@ export function StudentActivity({
               {activity.instructions}
             </p>
           )}
+          {activity.activityFileUrl && (
+            <a
+              href={activity.activityFileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex max-w-full items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-accent"
+            >
+              <Paperclip className="size-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                {activity.activityFileName || "Documento adjunto"}
+              </span>
+              <Download className="size-3.5 shrink-0" aria-hidden="true" />
+            </a>
+          )}
         </div>
 
         {isGraded && sub?.score !== null && sub?.score !== undefined && (

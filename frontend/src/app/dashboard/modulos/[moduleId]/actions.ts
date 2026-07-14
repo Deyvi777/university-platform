@@ -15,6 +15,8 @@ export interface ContentPayload {
   url?: string | null;
   activityType?: ActivityType | null;
   instructions?: string | null;
+  activityFileUrl?: string | null;
+  activityFileName?: string | null;
   dueDate?: string | null;
   maxScore?: number | null;
   weight?: number | null;

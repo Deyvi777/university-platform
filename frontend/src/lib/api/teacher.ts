@@ -51,6 +51,8 @@ export interface TeacherContent {
   // ACTIVITY
   activityType: ActivityType | null;
   instructions: string | null;
+  activityFileUrl: string | null;
+  activityFileName: string | null;
   dueDate: string | null;
   maxScore: number | null;
   weight: number | null;
@@ -113,6 +115,8 @@ export interface ActivityGrading {
     title: string;
     type: ActivityType;
     instructions: string | null;
+    activityFileUrl: string | null;
+    activityFileName: string | null;
     maxScore: number;
     weight: number;
     dueDate: string | null;

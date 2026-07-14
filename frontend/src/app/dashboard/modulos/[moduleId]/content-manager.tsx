@@ -865,6 +865,14 @@ function ContentForm({
     content?.activityType ?? (isRecovery ? "EXAM" : "ASSIGNMENT"),
   );
   const [instructions, setInstructions] = useState(content?.instructions ?? "");
+  const [activityFileUrl, setActivityFileUrl] = useState(
+    content?.activityFileUrl ?? "",
+  );
+  const [activityFileName, setActivityFileName] = useState(
+    content?.activityFileName ?? "",
+  );
+  const [activityFileUploading, setActivityFileUploading] = useState(false);
+  const activityFileRef = useRef<HTMLInputElement>(null);
   const [dueDate, setDueDate] = useState(toLocalInput(content?.dueDate ?? null));
   const [maxScore, setMaxScore] = useState(String(content?.maxScore ?? 100));
   const [weight, setWeight] = useState(String(content?.weight ?? 100));
@@ -985,6 +993,38 @@ function ContentForm({
     }
   }
 
+  async function handleActivityFileUpload(file: File) {
+    if (!/\.(pdf|doc|docx)$/i.test(file.name)) {
+      toast.error("El adjunto debe ser un archivo PDF o Word (.pdf, .doc o .docx)");
+      return;
+    }
+    const sizeError = fileSizeError(file, MAX_DOCUMENT_UPLOAD_BYTES);
+    if (sizeError) {
+      toast.error(sizeError);
+      return;
+    }
+    setActivityFileUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/teacher/upload", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json()) as { url?: string; message?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.message ?? "Error al subir el archivo");
+      }
+      setActivityFileUrl(data.url);
+      setActivityFileName(file.name);
+      toast.success("Documento adjuntado");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al subir");
+    } finally {
+      setActivityFileUploading(false);
+    }
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
@@ -1017,6 +1057,12 @@ function ContentForm({
       const isQuiz = activityType === "QUIZ" || activityType === "EXAM";
       payload.activityType = activityType;
       payload.instructions = instructions.trim() || null;
+      const supportsAttachment =
+        activityType === "ASSIGNMENT" || activityType === "PROJECT";
+      payload.activityFileUrl =
+        supportsAttachment && activityFileUrl ? activityFileUrl : null;
+      payload.activityFileName =
+        supportsAttachment && activityFileName ? activityFileName : null;
       // Campo vacío/inválido → cae al default 100 (el backend rechaza maxScore 0:
       // una actividad "sobre 0" no es calificable).
       payload.maxScore = Number(maxScore) > 0 ? Number(maxScore) : 100;
@@ -1339,6 +1385,72 @@ function ContentForm({
               className="mt-1.5 min-h-24"
             />
           </div>
+
+          {(activityType === "ASSIGNMENT" || activityType === "PROJECT") && (
+            <div className="space-y-2">
+              <Label>Documento adjunto (opcional)</Label>
+              {activityFileUrl ? (
+                <div className="flex items-center gap-2 rounded-xl border bg-muted/20 p-3">
+                  <FileText className="size-5 shrink-0 text-primary" />
+                  <a
+                    href={activityFileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-w-0 flex-1 truncate text-sm font-medium text-primary hover:underline"
+                  >
+                    {activityFileName || "Documento adjunto"}
+                  </a>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Quitar documento adjunto"
+                    onClick={() => {
+                      setActivityFileUrl("");
+                      setActivityFileName("");
+                    }}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={activityFileUploading}
+                  onClick={() => activityFileRef.current?.click()}
+                  className="flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed p-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.03] disabled:opacity-60"
+                >
+                  {activityFileUploading ? (
+                    <Loader2 className="size-5 animate-spin text-primary" />
+                  ) : (
+                    <Upload className="size-5 text-primary" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {activityFileUploading
+                      ? "Subiendo documento…"
+                      : "Adjuntar PDF o documento de Word"}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    PDF, DOC o DOCX · máximo {MAX_DOCUMENT_UPLOAD_MB} MB
+                  </span>
+                </button>
+              )}
+              <input
+                ref={activityFileRef}
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleActivityFileUpload(file);
+                  event.target.value = "";
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Puedes incluir instrucciones detalladas o material de apoyo para la actividad.
+              </p>
+            </div>
+          )}
 
           {/* Ajustes del motor de preguntas (QUIZ/EXAM) */}
           {(activityType === "QUIZ" || activityType === "EXAM") && (

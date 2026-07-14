@@ -141,6 +141,12 @@ export interface CourseModuleInput {
   credits?: number | null;
 }
 
+export interface CourseFileInput {
+  name: string;
+  url: string;
+  size?: number | null;
+}
+
 export interface CoursePayload {
   name: string;
   code?: string;
@@ -152,6 +158,7 @@ export interface CoursePayload {
   passingScore: number;
   status: CourseStatusValue;
   modules: CourseModuleInput[];
+  files: CourseFileInput[];
   /** La numeración de la malla empieza en 0 (el primero es el "Módulo 0"). */
   moduleZero: boolean;
 }

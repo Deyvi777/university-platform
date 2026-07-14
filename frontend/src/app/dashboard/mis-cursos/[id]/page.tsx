@@ -1,6 +1,8 @@
 import {
   BookOpen,
   CalendarDays,
+  Download,
+  FileText,
   GraduationCap,
   Layers,
   Presentation,
@@ -134,6 +136,46 @@ export default async function MyCourseDetailPage({
           </dl>
         </div>
       </section>
+
+      {course.files.length > 0 && (
+        <section aria-labelledby="portafolio" className="mt-8">
+          <div>
+            <h2 id="portafolio" className="font-heading text-lg font-semibold">
+              Portafolio del programa
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Reglamentos, cronogramas y documentación general del programa.
+            </p>
+          </div>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {course.files.map((file) => (
+              <li key={file.id}>
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex h-full items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/30"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <FileText className="size-5" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium group-hover:text-primary">
+                      {file.name}
+                    </span>
+                    {file.size != null && (
+                      <span className="text-xs text-muted-foreground">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                    )}
+                  </span>
+                  <Download className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" aria-hidden="true" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Módulos */}
       <section aria-labelledby="modulos" className="mt-8">

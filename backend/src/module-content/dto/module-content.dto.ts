@@ -32,6 +32,16 @@ const contentFields = {
   // ACTIVITY
   activityType: activityTypeEnum.nullish(),
   instructions: z.string().max(20000).nullish(),
+  activityFileUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine(
+      (value) => /\.(pdf|doc|docx)(?:[?#].*)?$/i.test(value),
+      'El adjunto debe ser un archivo PDF o Word',
+    )
+    .nullish(),
+  activityFileName: z.string().trim().min(1).max(300).nullish(),
   dueDate: z.string().trim().min(1).nullish(),
   // min 1: una actividad "sobre 0" no es calificable (y dividiría entre cero
   // al ponderar la nota del módulo).
@@ -84,6 +94,13 @@ export const contentCreateSchema = z
         code: z.ZodIssueCode.custom,
         path: ['url'],
         message: 'El material requiere un archivo o enlace',
+      });
+    }
+    if (val.activityFileUrl && !val.activityFileName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['activityFileName'],
+        message: 'El nombre del archivo adjunto es obligatorio',
       });
     }
     if (

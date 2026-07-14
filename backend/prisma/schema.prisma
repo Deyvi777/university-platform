@@ -425,9 +425,28 @@ model Course {
 
   modules     CourseModule[]
   enrollments Enrollment[]
+  files       CourseFile[] // portafolio documental general del curso
 
   @@index([status])
   @@map("courses")
+}
+
+// Documento inicial/general de un curso (reglamento, cronograma, guía, etc.).
+// Es visible para estudiantes inscritos y docentes asignados al curso.
+model CourseFile {
+  id       String @id @default(uuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order    Int
+  name     String // nombre original visible
+  url      String // ruta relativa /files/materials/...
+  size     Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([courseId, order])
+  @@index([courseId])
+  @@map("course_files")
 }
 
 // Módulo académico dentro de un curso, dictado por un docente.
@@ -534,6 +553,8 @@ model ModuleContent {
   // ACTIVITY — actividad evaluable
   activityType ActivityType?
   instructions String?
+  activityFileUrl  String? // PDF/Word adjunto con instrucciones o material de apoyo
+  activityFileName String? // nombre original visible para docente/estudiante
   dueDate      DateTime?
   maxScore     Decimal?      @db.Decimal(5, 2)
   weight       Decimal?      @db.Decimal(5, 2) // peso (%) en la nota del módulo

@@ -69,6 +69,7 @@ export class CoursesService {
     const course = await this.prisma.course.findUnique({
       where: { id },
       include: {
+        files: { orderBy: { order: 'asc' } },
         modules: { include: moduleInclude, orderBy: { order: 'asc' } },
         enrollments: {
           include: { student: { select: userSelect } },
@@ -384,6 +385,10 @@ export class CoursesService {
         startDate: true,
         endDate: true,
         passingScore: true,
+        files: {
+          orderBy: { order: 'asc' },
+          select: { id: true, name: true, url: true, size: true },
+        },
         modules: {
           // El estudiante no ve módulos en borrador; el docente sí (los prepara).
           where:
@@ -450,6 +455,7 @@ export class CoursesService {
       startDate: course.startDate,
       endDate: course.endDate,
       passingScore: Number(course.passingScore),
+      files: course.files,
       modules: course.modules.map((m) => {
         const grade = m.grades[0];
         return {
@@ -484,6 +490,7 @@ export class CoursesService {
       startDate,
       endDate,
       passingScore,
+      files,
       ...scalars
     } = dto;
     const code = await this.buildUniqueCode(providedCode ?? dto.name);
@@ -497,6 +504,14 @@ export class CoursesService {
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         passingScore: new Prisma.Decimal(passingScore),
+        files: {
+          create: files.map((file, order) => ({
+            order,
+            name: file.name,
+            url: file.url,
+            size: file.size ?? null,
+          })),
+        },
         modules: {
           create: modules.map((m, i) => ({
             order: i + orderBase,
@@ -507,6 +522,7 @@ export class CoursesService {
         },
       },
       include: {
+        files: { orderBy: { order: 'asc' } },
         modules: { include: moduleInclude, orderBy: { order: 'asc' } },
         enrollments: { include: { student: { select: userSelect } } },
       },
@@ -523,6 +539,7 @@ export class CoursesService {
       startDate,
       endDate,
       passingScore,
+      files,
       ...rest
     } = dto;
     const data: Prisma.CourseUpdateInput = { ...rest };
@@ -538,6 +555,13 @@ export class CoursesService {
     if (passingScore !== undefined) {
       data.passingScore = new Prisma.Decimal(passingScore);
     }
+
+    const removedCourseFileUrls =
+      files === undefined
+        ? []
+        : existing.files
+            .filter((old) => !files.some((file) => file.url === old.url))
+            .map((file) => file.url);
 
     // Módulos que el admin quitó de la lista → se borran en cascada. Antes de
     // eso: (a) si tienen notas o entregas de estudiantes, se rechaza (409) para
@@ -572,6 +596,21 @@ export class CoursesService {
 
     await this.prisma.$transaction(async (tx) => {
       await tx.course.update({ where: { id }, data });
+
+      if (files !== undefined) {
+        await tx.courseFile.deleteMany({ where: { courseId: id } });
+        if (files.length > 0) {
+          await tx.courseFile.createMany({
+            data: files.map((file, order) => ({
+              courseId: id,
+              order,
+              name: file.name,
+              url: file.url,
+              size: file.size ?? null,
+            })),
+          });
+        }
+      }
 
       if (modules !== undefined) {
         // Borra los módulos que el admin quitó (cascada: docentes/contenidos).
@@ -628,6 +667,9 @@ export class CoursesService {
     if (orphanBlobUrls.length > 0) {
       await this.storage.deleteByUrls(orphanBlobUrls);
     }
+    if (removedCourseFileUrls.length > 0) {
+      await this.storage.deleteByUrls(removedCourseFileUrls);
+    }
 
     return this.findOneAdmin(id);
   }
@@ -640,6 +682,7 @@ export class CoursesService {
     const blobUrls = await this.collectModuleBlobUrls(
       course.modules.map((m) => m.id),
     );
+    blobUrls.push(...course.files.map((file) => file.url));
     await this.prisma.course.delete({ where: { id } });
     await this.storage.deleteByUrls(blobUrls);
     return { success: true };
@@ -647,7 +690,7 @@ export class CoursesService {
 
   /**
    * URLs de blobs propios que el borrado en cascada de estos módulos dejaría
-   * huérfanas: materiales (MATERIAL `url`), archivos de carpetas y las entregas
+   * huérfanas: materiales, adjuntos de actividades, archivos de carpetas y las entregas
    * de estudiantes (Tarea `fileUrl` + archivos de cada `ProjectDelivery`).
    */
   private async collectModuleBlobUrls(
@@ -658,6 +701,7 @@ export class CoursesService {
       where: { moduleId: { in: moduleIds } },
       select: {
         url: true,
+        activityFileUrl: true,
         folderFiles: { select: { url: true } },
         submissions: {
           select: {
@@ -669,6 +713,7 @@ export class CoursesService {
     });
     return contents.flatMap((c) => [
       c.url,
+      c.activityFileUrl,
       ...c.folderFiles.map((f) => f.url),
       ...c.submissions.flatMap((s) => [
         s.fileUrl,

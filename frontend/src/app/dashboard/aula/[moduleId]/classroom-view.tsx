@@ -109,6 +109,8 @@ function toActivity(c: LearnContent): CourseActivity {
     type: c.activityType ?? "ASSIGNMENT",
     title: c.title,
     instructions: c.instructions,
+    activityFileUrl: c.activityFileUrl,
+    activityFileName: c.activityFileName,
     dueDate: c.dueDate,
     maxScore: c.maxScore ?? 100,
     weight: c.weight ?? 0,

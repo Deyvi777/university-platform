@@ -24,9 +24,11 @@ import {
   Info,
   Layers,
   Loader2,
+  Paperclip,
   Plus,
   SlidersHorizontal,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -51,6 +53,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { COURSE_ICON_OPTIONS } from "@/lib/course-icons";
+import {
+  fileSizeError,
+  MAX_DOCUMENT_UPLOAD_BYTES,
+  MAX_DOCUMENT_UPLOAD_MB,
+} from "@/lib/upload-limits";
 import { cn } from "@/lib/utils";
 import type { AdminCourse } from "@/lib/api/admin";
 import {
@@ -106,6 +113,7 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
   const router = useRouter();
   const isEdit = Boolean(course);
   const [formError, setFormError] = useState<string | null>(null);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const { register, control, handleSubmit, formState } =
     useForm<CourseFormValues>({
@@ -114,6 +122,7 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
     });
   const { errors, isSubmitting } = formState;
   const modules = useFieldArray({ control, name: "modules" });
+  const files = useFieldArray({ control, name: "files" });
   // `useWatch`, no `watch()`: compatible con React Compiler (ver AGENTS.md).
   const moduleZero = useWatch({ control, name: "moduleZero" });
   // Con módulo 0 la numeración visible (y el `order` guardado) empieza en 0.
@@ -133,6 +142,36 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
     const newIndex = modules.fields.findIndex((f) => f.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
     modules.move(oldIndex, newIndex);
+  }
+
+  async function uploadPortfolioFiles(selected: File[]) {
+    setUploadingFiles(true);
+    try {
+      for (const file of selected) {
+        const sizeError = fileSizeError(file, MAX_DOCUMENT_UPLOAD_BYTES);
+        if (sizeError) {
+          toast.error(`${file.name}: ${sizeError}`);
+          continue;
+        }
+        const form = new FormData();
+        form.append("file", file);
+        const response = await fetch("/api/teacher/upload", {
+          method: "POST",
+          body: form,
+        });
+        const data = (await response.json()) as {
+          url?: string;
+          message?: string;
+        };
+        if (!response.ok || !data.url) {
+          toast.error(data.message ?? `No se pudo subir ${file.name}`);
+          continue;
+        }
+        files.append({ name: file.name, url: data.url, size: file.size });
+      }
+    } finally {
+      setUploadingFiles(false);
+    }
   }
 
   async function onSubmit(values: CourseFormValues) {
@@ -368,6 +407,75 @@ export function CourseForm({ course }: { course?: AdminCourse }) {
             </p>
           )}
         </div>
+      </FormSection>
+
+      {/* Portafolio -------------------------------------------------------- */}
+      <FormSection
+        icon={Paperclip}
+        title="Portafolio del programa"
+        description="Documentación general disponible para estudiantes y docentes."
+      >
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed p-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.03]">
+          {uploadingFiles ? (
+            <Loader2 className="size-5 animate-spin text-primary" />
+          ) : (
+            <Upload className="size-5 text-primary" />
+          )}
+          <span className="text-sm font-medium">
+            {uploadingFiles
+              ? "Subiendo documentos…"
+              : "Adjuntar documentos al portafolio"}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Reglamentos, cronogramas, guías y otros archivos · máximo {MAX_DOCUMENT_UPLOAD_MB} MB por archivo
+          </span>
+          <input
+            type="file"
+            multiple
+            disabled={uploadingFiles}
+            className="hidden"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+            onChange={(event) => {
+              const selected = Array.from(event.target.files ?? []);
+              if (selected.length > 0) void uploadPortfolioFiles(selected);
+              event.target.value = "";
+            }}
+          />
+        </label>
+
+        {files.fields.length > 0 ? (
+          <ul className="space-y-2">
+            {files.fields.map((file, index) => (
+              <li
+                key={file.id}
+                className="flex items-center gap-3 rounded-xl border bg-muted/20 p-3"
+              >
+                <Paperclip className="size-4 shrink-0 text-primary" />
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 flex-1 truncate text-sm font-medium hover:text-primary hover:underline"
+                >
+                  {file.name}
+                </a>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Quitar ${file.name}`}
+                  onClick={() => files.remove(index)}
+                >
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Todavía no hay documentos en el portafolio.
+          </p>
+        )}
       </FormSection>
 
       {/* Módulos ----------------------------------------------------------- */}

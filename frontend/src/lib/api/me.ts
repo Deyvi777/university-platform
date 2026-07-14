@@ -236,6 +236,8 @@ export interface CourseActivity {
   type: ActivityType;
   title: string;
   instructions: string | null;
+  activityFileUrl: string | null;
+  activityFileName: string | null;
   dueDate: string | null;
   maxScore: number;
   weight: number;
@@ -290,6 +292,7 @@ export interface MyCourseDetail {
   startDate: string | null;
   endDate: string | null;
   passingScore: number;
+  files: { id: string; name: string; url: string; size: number | null }[];
   modules: CourseModuleDetail[];
 }
 
@@ -413,6 +416,8 @@ export interface LearnContent {
   // ACTIVITY
   activityType: ActivityType | null;
   instructions: string | null;
+  activityFileUrl: string | null;
+  activityFileName: string | null;
   dueDate: string | null;
   maxScore: number | null;
   weight: number | null;
