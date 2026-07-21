@@ -159,9 +159,43 @@ export function ClassroomView({
   // Archivo de carpeta abierto en el panel central (se previsualiza como un
   // material). `null` = se muestra el contenido seleccionado normal.
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  // En móvil el temario se muestra antes del visor. Al elegir una entrada,
+  // llevamos al estudiante al panel donde se abre el contenido sin alterar el
+  // scroll de la vista de escritorio (donde ambos paneles están lado a lado).
+  const contentPanelRef = useRef<HTMLDivElement>(null);
   // "Hoy" fijado una vez por montaje (regla react-hooks/purity), para marcar
   // las clases pasadas/próximas del cronograma.
   const today = useMemo(() => localDateKey(new Date()), []);
+
+  function scrollToContentPanel() {
+    window.requestAnimationFrame(() => {
+      if (window.matchMedia("(min-width: 1024px)").matches) return;
+
+      const panel = contentPanelRef.current;
+      if (!panel) return;
+
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      panel.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+      panel.focus({ preventScroll: true });
+    });
+  }
+
+  function selectContent(contentId: string) {
+    setSelectedId(contentId);
+    setSelectedFileId(null);
+    scrollToContentPanel();
+  }
+
+  function selectFolderFile(contentId: string, fileId: string) {
+    setSelectedId(contentId);
+    setSelectedFileId(fileId);
+    scrollToContentPanel();
+  }
 
   function toggleFolder(id: string) {
     setCollapsedFolders((prev) => {
@@ -271,9 +305,14 @@ export function ClassroomView({
     : 0;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
+    <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
       {/* Columna principal */}
-      <div className="min-w-0">
+      <div
+        ref={contentPanelRef}
+        tabIndex={-1}
+        aria-label="Contenido seleccionado del módulo"
+        className="order-last min-w-0 scroll-mt-20 outline-none lg:order-first lg:scroll-mt-24"
+      >
         {selectedFile ? (
           <FolderFilePanel
             file={selectedFile}
@@ -316,7 +355,10 @@ export function ClassroomView({
       {/* Columna lateral. El borde teñido de primario + la franja de pestañas
           diferencian este panel del resto de tarjetas: aquí viven el temario,
           las actividades y las notas del estudiante. */}
-      <aside className="lg:sticky lg:top-20 lg:self-start">
+      <aside
+        aria-label="Navegación y seguimiento del módulo"
+        className="order-first min-w-0 lg:order-last lg:sticky lg:top-20 lg:self-start"
+      >
         <div className="overflow-hidden rounded-2xl border-2 border-primary/25 bg-card shadow-md shadow-blue-950/[0.08] dark:shadow-none">
           {/* Pestañas */}
           <div
@@ -405,7 +447,7 @@ export function ClassroomView({
               )}
 
               {/* Lista de contenidos */}
-              <ol className="max-h-[28rem] overflow-y-auto p-2">
+              <ol className="max-h-[52svh] overflow-y-auto p-2 sm:max-h-[28rem]">
                 {temarioContents.map((c, i) => {
                   const active = c.id === selected?.id;
                   // Una ACTIVITY muestra el icono de su `activityType` (el mismo
@@ -424,10 +466,7 @@ export function ClassroomView({
                       <div className="flex items-stretch gap-1">
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedId(c.id);
-                            setSelectedFileId(null);
-                          }}
+                          onClick={() => selectContent(c.id)}
                           aria-current={
                             active && !selectedFileId ? "true" : undefined
                           }
@@ -527,10 +566,7 @@ export function ClassroomView({
                               <button
                                 key={f.id}
                                 type="button"
-                                onClick={() => {
-                                  setSelectedId(c.id);
-                                  setSelectedFileId(f.id);
-                                }}
+                                onClick={() => selectFolderFile(c.id, f.id)}
                                 aria-current={fileActive ? "true" : undefined}
                                 title="Ver en el panel central"
                                 className={cn(
@@ -744,13 +780,13 @@ function ContentMain({
 }) {
   const header = (
     <div className={content.kind === "VIDEO" ? "mt-5" : ""}>
-      <p className="flex items-center gap-2 text-sm font-medium text-primary">
-        {courseName}
+      <p className="flex flex-wrap items-center gap-2 text-xs font-medium text-primary sm:text-sm">
+        <span>{courseName}</span>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
           {KIND_LABEL[content.kind]}
         </span>
       </p>
-      <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight">
+      <h1 className="mt-1 break-words font-heading text-xl font-bold tracking-tight sm:text-2xl">
         {content.title}
       </h1>
     </div>
@@ -768,7 +804,7 @@ function ContentMain({
       return (
         <>
           {header}
-          <div className="mt-5 rounded-2xl border bg-card p-5 shadow-sm shadow-blue-950/[0.04] sm:p-6 dark:shadow-none">
+          <div className="mt-4 overflow-hidden rounded-2xl border bg-card p-4 shadow-sm shadow-blue-950/[0.04] sm:mt-5 sm:p-6 dark:shadow-none">
             {content.body ? (
               <RichTextContent html={content.body} />
             ) : (
@@ -861,7 +897,7 @@ function FolderViewer({ content }: { content: LearnContent }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-card shadow-sm shadow-blue-950/[0.04] dark:shadow-none">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
+      <div className="flex flex-col items-stretch gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
         <span className="flex items-center gap-2.5 text-sm font-medium">
           <span
             className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
@@ -872,7 +908,13 @@ function FolderViewer({ content }: { content: LearnContent }) {
           {files.length} {files.length === 1 ? "archivo" : "archivos"}
         </span>
         {files.length > 0 && (
-          <Button type="button" size="sm" disabled={zipping} onClick={downloadZip}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={zipping}
+            onClick={downloadZip}
+            className="w-full sm:w-auto"
+          >
             {zipping ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
@@ -891,7 +933,7 @@ function FolderViewer({ content }: { content: LearnContent }) {
           {files.map((f) => (
             <li
               key={f.id}
-              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+              className="flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:flex-nowrap"
             >
               <FileText
                 className="size-4 shrink-0 text-muted-foreground"
@@ -903,7 +945,7 @@ function FolderViewer({ content }: { content: LearnContent }) {
                 target={f.url.startsWith("/files") ? undefined : "_blank"}
                 rel="noopener noreferrer"
                 download={f.url.startsWith("/files") ? "" : undefined}
-                className="inline-flex shrink-0 items-center gap-1.5 text-xs text-sky-600 hover:underline dark:text-sky-400"
+                className="ml-7 inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-sky-600 hover:underline sm:ml-0 dark:text-sky-400"
               >
                 <Download className="size-3.5" />
                 Descargar
@@ -943,14 +985,14 @@ function FolderFilePanel({
         Volver a la carpeta
       </button>
       <div className="mt-3">
-        <p className="flex items-center gap-2 text-sm font-medium text-primary">
-          {courseName}
+        <p className="flex flex-wrap items-center gap-2 text-xs font-medium text-primary sm:text-sm">
+          <span>{courseName}</span>
           <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
             <Folder className="size-3" aria-hidden="true" />
             {folderTitle}
           </span>
         </p>
-        <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight">
+        <h1 className="mt-1 break-words font-heading text-xl font-bold tracking-tight sm:text-2xl">
           {file.name}
         </h1>
       </div>
@@ -986,13 +1028,13 @@ export function MaterialViewer({ url, title }: { url: string; title: string }) {
         <img
           src={url}
           alt={title}
-          className="max-h-[34rem] w-full bg-muted/30 object-contain"
+          className="max-h-[62svh] w-full bg-muted/30 object-contain sm:max-h-[34rem]"
         />
       ) : isPdf ? (
         <iframe
           src={url}
           title={title}
-          className="h-[36rem] w-full bg-muted/30"
+          className="h-[62svh] min-h-80 w-full bg-muted/30 sm:h-[36rem]"
         />
       ) : isDocx ? (
         <DocxViewer url={url} title={title} />
@@ -1001,7 +1043,7 @@ export function MaterialViewer({ url, title }: { url: string; title: string }) {
       ) : isOffice ? (
         <OfficeViewer url={url} title={title} />
       ) : null}
-      <div className="flex items-center justify-between gap-3 p-4">
+      <div className="flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <span className="flex min-w-0 items-center gap-2.5">
           <span
             className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
@@ -1015,6 +1057,7 @@ export function MaterialViewer({ url, title }: { url: string; title: string }) {
           type="button"
           variant="outline"
           size="sm"
+          className="w-full sm:w-auto"
           render={
             <a
               href={url}
@@ -1076,7 +1119,7 @@ function DocxViewer({ url, title }: { url: string; title: string }) {
   }, [url]);
 
   return (
-    <div className="relative h-[36rem] w-full overflow-auto bg-muted/30">
+    <div className="relative h-[62svh] min-h-80 w-full overflow-auto bg-muted/30 sm:h-[36rem]">
       {state === "loading" && (
         <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -1141,7 +1184,7 @@ function ExcelViewer({ url, title }: { url: string; title: string }) {
   }, [url]);
 
   return (
-    <div className="relative h-[36rem] w-full overflow-hidden bg-muted/30">
+    <div className="relative h-[62svh] min-h-80 w-full overflow-hidden bg-muted/30 sm:h-[36rem]">
       {state === "loading" && (
         <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -1210,7 +1253,7 @@ function OfficeViewer({ url, title }: { url: string; title: string }) {
 
   if (!mounted) {
     return (
-      <div className="flex h-[36rem] w-full items-center justify-center gap-2 bg-muted/30 text-sm text-muted-foreground">
+      <div className="flex h-[62svh] min-h-80 w-full items-center justify-center gap-2 bg-muted/30 text-sm text-muted-foreground sm:h-[36rem]">
         <Loader2 className="size-4 animate-spin" aria-hidden="true" />
         Cargando vista previa…
       </div>
@@ -1223,7 +1266,7 @@ function OfficeViewer({ url, title }: { url: string; title: string }) {
 
   if (isLocal) {
     return (
-      <div className="flex h-[36rem] w-full flex-col items-center justify-center gap-1 bg-muted/30 px-6 text-center text-sm text-muted-foreground">
+      <div className="flex h-[62svh] min-h-80 w-full flex-col items-center justify-center gap-1 bg-muted/30 px-6 text-center text-sm text-muted-foreground sm:h-[36rem]">
         <p className="font-medium text-foreground">
           Vista previa no disponible en entorno local
         </p>
@@ -1241,7 +1284,11 @@ function OfficeViewer({ url, title }: { url: string; title: string }) {
   const src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(abs)}`;
 
   return (
-    <iframe src={src} title={title} className="h-[36rem] w-full bg-muted/30" />
+    <iframe
+      src={src}
+      title={title}
+      className="h-[62svh] min-h-80 w-full bg-muted/30 sm:h-[36rem]"
+    />
   );
 }
 

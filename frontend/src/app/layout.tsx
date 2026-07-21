@@ -3,6 +3,7 @@ import { Geist_Mono, Merriweather, Open_Sans } from "next/font/google";
 import Script from "next/script";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { FloatingWhatsAppButton } from "@/components/landing/floating-whatsapp-button";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -50,6 +51,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <QueryProvider>{children}</QueryProvider>
+          <FloatingWhatsAppButton />
           <Toaster richColors position="top-right" />
         </ThemeProvider>
         {UMAMI_SRC && UMAMI_WEBSITE_ID && (
