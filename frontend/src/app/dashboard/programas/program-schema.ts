@@ -30,8 +30,10 @@ export const programFormSchema = z.object({
   duration: z.string(),
   hourlyLoad: z.string(),
   schedule: z.string(),
-  // Video promocional: enlace YouTube/Vimeo o ruta /files/... de un archivo subido.
-  videoUrl: z.string(),
+  // Videos promocionales ordenados. El objeto permite administrarlos con useFieldArray.
+  videos: z.array(
+    z.object({ value: z.string().min(1, "Agrega un enlace o sube un video") }),
+  ),
   extraFeatures: z.array(
     z.object({
       label: z.string().min(1, "Requerido"),
@@ -99,7 +101,7 @@ export function toFormValues(program?: AdminProgram): ProgramFormValues {
       duration: "",
       hourlyLoad: "",
       schedule: "",
-      videoUrl: "",
+      videos: [],
       extraFeatures: [],
       currency: "Bs",
       enrollmentFee: "",
@@ -133,7 +135,12 @@ export function toFormValues(program?: AdminProgram): ProgramFormValues {
     duration: program.duration ?? "",
     hourlyLoad: program.hourlyLoad ?? "",
     schedule: program.schedule ?? "",
-    videoUrl: program.videoUrl ?? "",
+    videos: (program.videoUrls?.length > 0
+      ? program.videoUrls
+      : program.videoUrl
+        ? [program.videoUrl]
+        : []
+    ).map((value) => ({ value })),
     extraFeatures: program.extraFeatures.map((f) => ({
       label: f.label,
       value: f.value,
@@ -205,7 +212,10 @@ export function toPayload(values: ProgramFormValues): ProgramPayload {
     duration: emptyToNull(values.duration),
     hourlyLoad: emptyToNull(values.hourlyLoad),
     schedule: emptyToNull(values.schedule),
-    videoUrl: emptyToNull(values.videoUrl),
+    // Todo guardado nuevo usa la lista; null retira el valor legado sin perderlo,
+    // porque toFormValues lo incorpora a videos antes de enviar el formulario.
+    videoUrl: null,
+    videoUrls: values.videos.map((video) => video.value.trim()).filter(Boolean),
     extraFeatures: values.extraFeatures.map((f) => ({
       label: f.label.trim(),
       value: f.value.trim(),

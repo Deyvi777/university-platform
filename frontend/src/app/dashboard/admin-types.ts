@@ -40,7 +40,9 @@ export interface ProgramPayload {
   duration?: string | null;
   hourlyLoad?: string | null;
   schedule?: string | null;
+  /** Se envía null para retirar el campo legado al guardar desde el formulario nuevo. */
   videoUrl?: string | null;
+  videoUrls: string[];
   extraFeatures: ProgramExtraFeaturePayload[];
   requirements: string[];
   enrollmentFee?: number | null;

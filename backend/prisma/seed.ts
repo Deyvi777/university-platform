@@ -343,25 +343,25 @@ const teamMembers: Prisma.TeamMemberCreateInput[] = [
   {
     name: 'MS.C. Veronica Montoya',
     role: 'Gerente General / Representante Legal',
-    photoUrl: '/landing/abaout/1-veronica.webp',
+    photoUrl: '/landing/about/1-veronica.webp',
     displayOrder: 1,
   },
   {
     name: 'Lic. Karen Ugarte',
     role: 'Directora Academica',
-    photoUrl: '/landing/abaout/2-karen.webp',
+    photoUrl: '/landing/about/2-karen.webp',
     displayOrder: 2,
   },
   {
     name: 'Ing. Guisela Lia Zubieta',
     role: 'Directora de Marketing y Ventas',
-    photoUrl: '/landing/abaout/3-guisela.webp',
+    photoUrl: '/landing/about/3-guisela.webp',
     displayOrder: 3,
   },
   {
     name: 'Ing. Laura Judith Claros',
     role: 'Jefa de Ventas',
-    photoUrl: '/landing/abaout/4-laura.webp',
+    photoUrl: '/landing/about/4-laura.webp',
     displayOrder: 4,
   },
 ];

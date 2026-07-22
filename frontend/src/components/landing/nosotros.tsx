@@ -12,6 +12,7 @@ import {
   Headset,
   type LucideIcon,
   Monitor,
+  Play,
   Rocket,
   ScrollText,
   Users,
@@ -86,194 +87,244 @@ export async function Nosotros() {
   return (
     <section id="nosotros" className="bg-slate-950 pb-24 pt-32 sm:pb-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        {/* ── Encabezado ────────────────────────────────────────── */}
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="inline-flex items-center gap-2 border-b-2 border-amber-400 pb-1 text-sm font-bold uppercase tracking-[0.25em] text-amber-400">
-            <BookOpen className="h-5 w-5" />
-            ¿QUIÉNES SOMOS?
-          </p>
-          <h2 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">
-            CERTIFICATE BOLIVIA, Escuela Multidisciplinaria de Postgrado y Formación Continua S.R.L.
-          </h2>
-        </div>
-
-        {/* ── Bloque principal: collage + texto ────────────────────── */}
-        <div className="mt-16 grid items-start gap-12 lg:grid-cols-5 lg:items-center lg:gap-14">
-          {/* Collage de imágenes — 3 columnas de 5 */}
-          <div className="relative lg:col-span-3">
-            <div
-              aria-hidden="true"
-              className="animate-pulse-glow pointer-events-none absolute -left-10 top-1/4 -z-10 h-72 w-72 rounded-full bg-amber-400/[0.12] blur-[120px]"
-            />
-            {/* Las tres fotos son horizontales (~3:2): about-3 va grande arriba
-                con su proporción exacta (se ve completa, sin recorte) y las
-                otras dos comparten la fila de abajo, también en 3:2. */}
-            <div className="space-y-4 sm:space-y-5">
-              <div className="group relative aspect-[3/2] overflow-hidden rounded-[2rem] border border-white/10 shadow-xl shadow-black/40 ring-1 ring-inset ring-white/10">
-                <Image
-                  src="/landing/abaout/about-3.webp"
-                  alt="Equipo de Certificate atendiendo en la oficina central"
-                  fill
-                  sizes="(max-width: 1024px) 90vw, 55vw"
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                {/* Velo interior para realzar el marco recortado */}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-black/10"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 sm:gap-5">
-                <div className="group relative aspect-[3/2] overflow-hidden rounded-[2rem] border border-white/10 shadow-xl shadow-black/40 ring-1 ring-inset ring-white/10">
-                  <Image
-                    src="/landing/abaout/about-1.webp"
-                    alt="Equipo de profesionales en sesión de trabajo"
-                    fill
-                    sizes="(max-width: 1024px) 45vw, 27vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-black/10"
-                  />
-                </div>
-
-                <div className="group relative aspect-[3/2] overflow-hidden rounded-[2rem] border border-white/10 shadow-xl shadow-black/40 ring-1 ring-inset ring-white/10">
-                  <Image
-                    src="/landing/abaout/about-2.webp"
-                    alt="Docente acompañando a una estudiante"
-                    fill
-                    sizes="(max-width: 1024px) 45vw, 27vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-black/10"
-                  />
-                </div>
-              </div>
+        {/* ── Presentación institucional ─────────────────────────── */}
+        <div className="relative grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+          <div
+            aria-hidden="true"
+            className="animate-pulse-glow pointer-events-none absolute -left-32 top-24 size-80 rounded-full bg-amber-400/[0.1] blur-[130px]"
+          />
+          <div className="relative">
+            <p className="inline-flex items-center gap-2 border-b-2 border-amber-400 pb-1 text-sm font-bold uppercase tracking-[0.25em] text-amber-400">
+              <BookOpen className="size-5" aria-hidden="true" />
+              ¿Quiénes somos?
+            </p>
+            <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+              Educación que transforma profesionales e instituciones
+            </h1>
+            <p className="mt-6 text-lg leading-8 text-slate-200">
+              Certificate Bolivia es una Escuela Multidisciplinaria de
+              Postgrado y Formación Continua comprometida con el crecimiento
+              académico, profesional e institucional de Bolivia.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <Link
+                href="/#programas"
+                className="group inline-flex items-center gap-2 rounded-full bg-amber-400 px-7 py-3.5 font-semibold text-slate-950 shadow-lg shadow-amber-400/20 transition-all hover:-translate-y-0.5 hover:bg-amber-300"
+              >
+                Conoce nuestros programas
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              <a
+                href="https://wa.me/59177933003"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-3.5 font-medium text-white transition-colors hover:border-white/50 hover:bg-white/10"
+              >
+                <Headset className="size-4" aria-hidden="true" />
+                Hablar con un asesor
+              </a>
             </div>
           </div>
 
-          {/* Texto descriptivo — 2 columnas de 5 */}
-          <div className="space-y-6 text-lg leading-8 text-slate-200 lg:col-span-2">
-            <p>
-              Es una institución boliviana dedicada a la formación académica, la investigación, la consultoría y el desarrollo profesional, orientada a fortalecer las competencias de profesionales, instituciones públicas, empresas privadas y organizaciones de la sociedad civil.
+          <figure className="relative overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl shadow-black/40">
+            <div className="relative aspect-[3/2]">
+              <Image
+                src="/landing/about/about-2.webp"
+                alt="Dirección de Certificate Bolivia junto a su equipo de trabajo"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 55vw"
+                className="object-cover"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-transparent"
+              />
+            </div>
+            <figcaption className="absolute bottom-5 left-5 right-5 flex items-center gap-3 text-sm font-medium text-white">
+              <span className="size-2 rounded-full bg-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.8)]" />
+              Liderazgo con vocación de servicio
+            </figcaption>
+          </figure>
+        </div>
+
+        {/* ── Identidad y trayectoria ────────────────────────────── */}
+        <div className="mt-24 grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          <figure className="relative overflow-hidden rounded-[2rem] border border-white/10 shadow-xl shadow-black/30">
+            <div className="relative aspect-[3/2]">
+              <Image
+                src="/landing/about/about-1.webp"
+                alt="Dirección de Certificate Bolivia en la oficina central"
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
+              />
+            </div>
+          </figure>
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.22em] text-amber-400">
+              Nuestra identidad
             </p>
-            <p>
-              A través de alianzas estratégicas con universidades e instituciones nacionales e internacionales, desarrollamos programas de doctorado, maestría, especialidad, diplomado, cursos de experto, educación continua, congresos, seminarios y certificaciones, garantizando una formación de excelencia con reconocimiento académico.
-            </p>
-            <p>
-              Nuestra institución promueve la innovación, la investigación científica, la transformación digital y el uso de tecnologías emergentes, incluyendo la inteligencia artificial, como pilares para impulsar el desarrollo del talento humano y el fortalecimiento institucional.
-            </p>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Formación, investigación e innovación con propósito
+            </h2>
+            <div className="mt-6 space-y-5 text-lg leading-8 text-slate-200">
+              <p>
+                Somos una institución boliviana dedicada a la formación
+                académica, la investigación, la consultoría y el desarrollo
+                profesional de personas y organizaciones.
+              </p>
+              <p>
+                Mediante alianzas con universidades e instituciones nacionales
+                e internacionales desarrollamos doctorados, maestrías,
+                especialidades, diplomados, educación continua y
+                certificaciones con reconocimiento académico.
+              </p>
+              <p>
+                La transformación digital, la investigación científica y las
+                tecnologías emergentes son pilares de nuestra propuesta
+                educativa.
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* ── Highlights + cita + CTA ──────────────────────────────── */}
-        <div className="mt-16 grid items-start gap-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-10">
-          {/* Features */}
-          <div className="space-y-6">
-            {features.map((feature) => (
-              <div key={feature.title} className="flex gap-4">
-                <span
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ring-1 ${feature.badge}`}
-                >
-                  <feature.icon className="h-6 w-6" />
-                </span>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-1 text-sm leading-6 text-slate-300">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-            ))}
+        {/* ── Video institucional ────────────────────────────────── */}
+        <section className="mt-24" aria-labelledby="video-institucional-title">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.22em] text-amber-400">
+              <Play className="size-4 fill-current" aria-hidden="true" />
+              Conoce Certificate
+            </p>
+            <h2
+              id="video-institucional-title"
+              className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl"
+            >
+              Nuestra institución en acción
+            </h2>
+            <p className="mt-4 text-lg leading-8 text-slate-300">
+              Descubre el compromiso, las personas y la visión que impulsan
+              cada experiencia de formación.
+            </p>
           </div>
+          <div className="mx-auto mt-10 aspect-video max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl shadow-black/40">
+            <iframe
+              src="https://www.youtube-nocookie.com/embed/CMndpTd1Lx0?rel=0&modestbranding=1"
+              title="Video institucional de Certificate Bolivia"
+              className="size-full"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          </div>
+        </section>
 
-          {/* Cita */}
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+        {/* ── Trabajo colaborativo ───────────────────────────────── */}
+        <div className="mt-24 grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.22em] text-amber-400">
+              Cómo trabajamos
+            </p>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Acompañamiento cercano y alianzas que generan oportunidades
+            </h2>
+            <div className="mt-8 space-y-6">
+              {features.map((feature) => (
+                <div key={feature.title} className="flex gap-4">
+                  <span
+                    className={`flex size-12 shrink-0 items-center justify-center rounded-full ring-1 ${feature.badge}`}
+                  >
+                    <feature.icon className="size-6" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-300">
+                      {feature.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <figure className="relative overflow-hidden rounded-[2rem] border border-white/10 shadow-xl shadow-black/30">
+            <div className="relative aspect-[3/2]">
+              <Image
+                src="/landing/about/about-4.webp"
+                alt="Equipo de Certificate Bolivia planificando proyectos académicos"
+                fill
+                sizes="(max-width: 1024px) 100vw, 55vw"
+                className="object-cover"
+              />
+            </div>
+          </figure>
+        </div>
+
+        {/* ── Resultado de la formación ──────────────────────────── */}
+        <div className="mt-28 grid items-center gap-12 lg:grid-cols-[0.75fr_1.25fr] lg:gap-16">
+          <figure className="mx-auto w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl shadow-black/40 lg:mx-0">
+            <Image
+              src="/landing/about/about-3.webp"
+              alt="Graduada de Certificate Bolivia celebrando su logro académico"
+              width={1066}
+              height={1600}
+              sizes="(max-width: 1024px) 90vw, 35vw"
+              className="h-auto w-full"
+            />
+          </figure>
+          <div className="relative overflow-hidden rounded-[2rem] border border-amber-400/20 bg-gradient-to-br from-amber-400/10 via-white/5 to-transparent p-7 sm:p-10">
             <span
               aria-hidden="true"
-              className="absolute -left-2 -top-2 font-serif text-7xl leading-none text-amber-400/15"
+              className="absolute -left-2 -top-4 font-serif text-8xl leading-none text-amber-400/15"
             >
               &ldquo;
             </span>
-            <p className="relative text-base leading-7 text-slate-200">
-              Creemos firmemente en la educación como el gran motor de
-              transformación, por lo que trabajamos cada día con el
-              compromiso de impulsar el crecimiento profesional,
-              institucional y social de toda Bolivia.
+            <p className="relative text-xl leading-9 text-white sm:text-2xl">
+              Creemos en la educación como motor de transformación. Cada logro
+              de nuestros participantes representa una nueva oportunidad para
+              sus organizaciones, sus comunidades y el país.
             </p>
-            <span
-              aria-hidden="true"
-              className="mt-1 block text-right font-serif text-7xl leading-none text-amber-400/15"
-            >
-              &rdquo;
-            </span>
-          </div>
-
-          {/* CTA + contacto */}
-          <div className="flex flex-col justify-center gap-6 sm:col-span-2 lg:col-span-1">
-            <Link
-              href="/#programas"
-              className="group inline-flex w-fit items-center gap-2 rounded-full bg-amber-400 px-7 py-3 text-sm font-semibold uppercase tracking-wide text-slate-950 shadow-lg shadow-amber-400/20 transition-all hover:-translate-y-0.5 hover:bg-amber-300"
-            >
-              Conoce nuestros programas
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-
-            <a
-              href="https://wa.me/+59177933003"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center gap-3"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/15 ring-1 ring-blue-400/20 transition-colors group-hover:bg-blue-500/25">
-                <Headset className="h-5 w-5 text-blue-400" />
-              </span>
-              <span>
-                <span className="block text-xs font-medium text-amber-300">
-                  Escríbenos
-                </span>
-                <span className="block font-semibold text-white">
-                  +591 77933003
-                </span>
-              </span>
-            </a>
+            <p className="mt-6 text-sm font-semibold uppercase tracking-[0.2em] text-amber-300">
+              El saber te da poder
+            </p>
           </div>
         </div>
 
-        {/* ── Misión · Visión · Valores ────────────────────────────── */}
-        <div className="mt-24">
+        {/* ── Misión · Visión · Valores ──────────────────────────── */}
+        <div className="mt-28">
           <div className="mx-auto max-w-2xl text-center">
-            <h3 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
               Misión, visión y valores
-            </h3>
+            </h2>
             <p className="mt-4 text-lg leading-8 text-slate-300">
               La esencia que guía cada programa, cada decisión y cada persona
               que formamos.
             </p>
           </div>
 
-          {/* Misión + Visión — lado a lado */}
           <div className="mt-20 grid grid-cols-1 gap-x-8 gap-y-24 md:grid-cols-2">
             <PillarCard icon={Rocket} title="Misión">
               <p className="leading-7 text-slate-200">
-                Brindar servicios de educación superior, postgrado, formación continua, investigación, consultoría y fortalecimiento institucional, mediante programas académicos innovadores, alianzas estratégicas nacionales e internacionales y el uso de tecnologías de vanguardia, formando profesionales altamente competentes, éticos y comprometidos con el desarrollo científico, tecnológico, empresarial y social de Bolivia.
+                Brindar servicios de educación superior, postgrado, formación
+                continua, investigación, consultoría y fortalecimiento
+                institucional mediante programas innovadores, alianzas
+                estratégicas y tecnologías de vanguardia, formando
+                profesionales competentes, éticos y comprometidos con Bolivia.
               </p>
             </PillarCard>
 
             <PillarCard icon={Eye} title="Visión">
               <p className="leading-7 text-slate-200">
-                Ser la institución líder en Bolivia y un referente internacional en educación de postgrado, formación continua, investigación, innovación y consultoría multidisciplinaria, reconocida por la excelencia de sus programas, la calidad de sus alianzas estratégicas y su contribución al desarrollo sostenible, la transformación digital y la formación de profesionales capaces de liderar los desafíos del futuro.
+                Ser la institución líder en Bolivia y un referente
+                internacional en postgrado, formación continua, investigación
+                e innovación, reconocida por la excelencia de sus programas y
+                su contribución al desarrollo sostenible y la transformación
+                digital.
               </p>
             </PillarCard>
           </div>
 
-          {/* Valores — mismo diseño PillarCard envolviendo el grid */}
           <div className="mt-24">
             <PillarCard icon={Gem} title="Valores">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -282,7 +333,7 @@ export async function Nosotros() {
                     key={value.title}
                     className="rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-amber-400/40"
                   >
-                    <h5 className="font-semibold text-white">{value.title}</h5>
+                    <h3 className="font-semibold text-white">{value.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
                       {value.description}
                     </p>
@@ -292,7 +343,6 @@ export async function Nosotros() {
             </PillarCard>
           </div>
         </div>
-
 
         {/* ── Equipo ───────────────────────────────────────────────── */}
         {team.length > 0 && (

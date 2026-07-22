@@ -315,8 +315,10 @@ model Program {
   duration          String?
   hourlyLoad        String? // carga horaria, ej. "1200 horas académicas"
   schedule          String?
-  // Video promocional: enlace YouTube/Vimeo o ruta /files/... de un archivo subido.
+  // Videos promocionales ordenados: enlaces YouTube/Vimeo o rutas /files/... subidas.
+  // videoUrl se conserva temporalmente para leer programas creados antes de la lista.
   videoUrl          String?
+  videoUrls         String[]        @default([])
   extraFeatures     Json            @default("[]") // "más características": [{ label, value }]
   requirements      String[]
   // Opciones de pago (cada una con su moneda; vacías no se muestran en la landing):

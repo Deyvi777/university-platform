@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Navbar } from "@/components/landing/navbar";
-import { ProgramVideoModal } from "@/components/landing/program-video-modal";
+import { ProgramVideoPlayer } from "@/components/landing/program-video-player";
 import { BackToPrograms } from "./back-to-programs";
 import {
   formatAmount,
@@ -85,6 +85,13 @@ export default async function ProgramPage({ params }: Props) {
   const hasRequirements = program.requirements.length > 0;
   const hasBankAccounts = program.bankAccounts.length > 0;
   const hasPaymentChannels = hasBankAccounts || Boolean(program.qrImageUrl);
+  // Compatibilidad: los programas anteriores guardaban un único videoUrl.
+  const programVideos =
+    program.videoUrls?.length > 0
+      ? program.videoUrls
+      : program.videoUrl
+        ? [program.videoUrl]
+        : [];
 
   return (
     <>
@@ -154,12 +161,6 @@ export default async function ProgramPage({ params }: Props) {
                 >
                   Inscríbete ahora
                 </Link>
-                {program.videoUrl && (
-                  <ProgramVideoModal
-                    videoUrl={program.videoUrl}
-                    title={program.title}
-                  />
-                )}
                 <Link
                   href="/contacto"
                   className="rounded-full border border-white/30 px-8 py-3.5 text-base font-medium text-white backdrop-blur-sm transition-colors hover:border-white/60 hover:bg-white/10"
@@ -169,19 +170,30 @@ export default async function ProgramPage({ params }: Props) {
               </div>
             </div>
 
-            <ViewTransition name={`program-image-${program.slug}`}>
-              <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/10 lg:mx-0">
-                <Image
-                  src={program.flyerUrl}
-                  alt={`Flyer de ${program.title}`}
-                  width={840}
-                  height={1050}
-                  priority
-                  sizes="(min-width: 1024px) 420px, 100vw"
-                  className="h-auto w-full"
+            <div className="mx-auto w-full max-w-md lg:mx-0">
+              <ViewTransition name={`program-image-${program.slug}`}>
+                <div className="relative overflow-hidden rounded-2xl border border-white/10">
+                  <Image
+                    src={program.flyerUrl}
+                    alt={`Flyer de ${program.title}`}
+                    width={840}
+                    height={1050}
+                    priority
+                    sizes="(min-width: 1024px) 420px, 100vw"
+                    className="h-auto w-full"
+                  />
+                </div>
+              </ViewTransition>
+              {programVideos.map((videoUrl, index) => (
+                <ProgramVideoPlayer
+                  key={`${videoUrl}-${index}`}
+                  videoUrl={videoUrl}
+                  title={program.title}
+                  position={index + 1}
+                  total={programVideos.length}
                 />
-              </div>
-            </ViewTransition>
+              ))}
+            </div>
           </div>
 
           {/* Ficha rápida (incluye carga horaria y características extra) */}

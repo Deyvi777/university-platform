@@ -125,6 +125,8 @@ Gestión completa vía `/admin/categories` (CRUD) + **`PUT /admin/categories/reo
 | `startDate`                | `DateTime`         | inicio de clases (UTC)                                                                                                    |
 | `duration`                 | `String`           | ej. "18 meses (4 semestres)"                                                                                              |
 | `schedule`                 | `String`           | ej. "Viernes 19:00–22:00 y sábados 09:00–12:00"                                                                           |
+| `videoUrl`                 | `String?`          | video promocional legado; respaldo para programas creados antes de admitir una lista                                      |
+| `videoUrls`                | `String[]`         | videos promocionales ordenados (YouTube/Vimeo o `/files/programs-videos/...`); default `[]`                               |
 | `requirements`             | `String[]`         | lista de requisitos                                                                                                       |
 | `enrollmentFee`            | `Decimal(10,2)?`   | matrícula del pago al contado; usa `currency`                                                                             |
 | `totalCost`                | `Decimal(10,2)?`   | monto del pago al contado                                                                                                 |

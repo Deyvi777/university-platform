@@ -54,8 +54,10 @@ export interface ProgramDetail extends ProgramSummary {
   targetAudience: string | null;
   hourlyLoad: string | null;
   schedule: string | null;
-  /** Video promocional: enlace YouTube/Vimeo o ruta /files/... subida. */
+  /** Video promocional legado, usado como respaldo durante la transición. */
   videoUrl: string | null;
+  /** Videos promocionales ordenados: enlaces o rutas /files/... subidas. */
+  videoUrls: string[];
   extraFeatures: ProgramExtraFeature[];
   requirements: string[];
   // Prisma Decimal se serializa como string en JSON

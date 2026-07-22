@@ -157,18 +157,7 @@ export function ProgramForm({
           </div>
 
           <div className="sm:col-span-2">
-            <Label>
-              Video del programa
-              <OptionalTag />
-            </Label>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Pega un enlace de YouTube/Vimeo o sube un archivo de video. En la
-              landing aparece un botón para verlo; si lo dejas vacío, el botón
-              no se muestra.
-            </p>
-            <div className="mt-2">
-              <VideoField control={control} />
-            </div>
+            <ProgramVideosField control={control} />
           </div>
 
           <div className="sm:col-span-2">
@@ -898,20 +887,75 @@ export function ProgramForm({
   );
 }
 
-/**
- * Campo del video del programa: elige entre pegar un enlace (YouTube/Vimeo) o
- * subir un archivo, guardando ambos en el mismo `videoUrl`. Al cambiar de modo
- * se limpia el valor para no mezclar un enlace con un archivo subido.
- */
-function VideoField({ control }: { control: Control<ProgramFormValues> }) {
+/** Lista ordenada de videos promocionales; cada nuevo elemento se agrega al final. */
+function ProgramVideosField({
+  control,
+}: {
+  control: Control<ProgramFormValues>;
+}) {
+  const videos = useFieldArray({ control, name: "videos" });
+
   return (
-    <Controller
-      control={control}
-      name="videoUrl"
-      render={({ field }) => (
-        <VideoFieldInput value={field.value} onChange={field.onChange} />
+    <div className="rounded-xl border bg-background p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Label className="font-semibold">
+            Videos del programa
+            <OptionalTag />
+          </Label>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Agrega enlaces de YouTube/Vimeo o archivos. En la landing se
+            mostrarán en este mismo orden, uno debajo del otro.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => videos.append({ value: "" })}
+        >
+          <Plus className="size-4" /> Agregar video
+        </Button>
+      </div>
+
+      {videos.fields.length === 0 ? (
+        <div className="mt-4 rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
+          Este programa todavía no tiene videos promocionales.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4">
+          {videos.fields.map((video, index) => (
+            <div key={video.id} className="rounded-lg border bg-card p-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold">Video {index + 1}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Quitar video ${index + 1}`}
+                  onClick={() => videos.remove(index)}
+                >
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
+              </div>
+              <Controller
+                control={control}
+                name={`videos.${index}.value`}
+                render={({ field, fieldState }) => (
+                  <>
+                    <VideoFieldInput
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                    <FieldError message={fieldState.error?.message} />
+                  </>
+                )}
+              />
+            </div>
+          ))}
+        </div>
       )}
-    />
+    </div>
   );
 }
 

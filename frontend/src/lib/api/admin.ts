@@ -75,6 +75,7 @@ export interface AdminProgram {
   hourlyLoad: string | null;
   schedule: string | null;
   videoUrl: string | null;
+  videoUrls: string[];
   extraFeatures: AdminProgramExtraFeature[];
   requirements: string[];
   enrollmentFee: string | null;

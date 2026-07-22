@@ -53,8 +53,10 @@ export const createProgramSchema = z.object({
   duration: z.string().min(1).nullish(),
   hourlyLoad: z.string().min(1).nullish(),
   schedule: z.string().min(1).nullish(),
-  // Video promocional: enlace YouTube/Vimeo o ruta /files/... de un archivo subido.
+  // Compatibilidad con programas creados antes de admitir varios videos.
   videoUrl: z.string().min(1).nullish(),
+  // Videos promocionales en el orden en que aparecerán debajo del flyer.
+  videoUrls: z.array(z.string().min(1)).default([]),
   extraFeatures: z.array(extraFeatureSchema).default([]),
   requirements: z.array(z.string().min(1)).default([]),
   enrollmentFee: z.coerce.number().nonnegative().nullish(),
