@@ -82,7 +82,7 @@ El ámbar se usa con moderación: un highlight en el titular, el CTA primario y 
 
 ## Estructura de archivos
 
-- Componentes de la landing en `src/components/landing/` (un archivo por sección: `navbar.tsx`, `hero.tsx`, `programs.tsx`, `programs-grid.tsx`, `partners.tsx`, `cta.tsx`, `footer.tsx`). Orden en `page.tsx`: Navbar → Hero → Programs → Partners → Cta → Footer.
+- Componentes de la landing en `src/components/landing/` (un archivo por sección: `navbar.tsx`, `hero.tsx`, `programs.tsx`, `programs-grid.tsx`, `partners.tsx`, `beneficios.tsx`, `cta.tsx`, `footer.tsx`). Orden en `page.tsx`: Navbar → Hero → Partners → Programs → Beneficios → Cta → Footer, para presentar el respaldo institucional antes de la oferta académica.
 - `page.tsx` solo compone secciones; el contenido vive en los componentes.
 - shadcn/ui está disponible (`src/components/ui/`) para piezas interactivas; para la landing se prefieren elementos nativos estilizados con las reglas de arriba.
 - Secciones con datos de la API (`programs.tsx`, `partners.tsx`) son server components `async` que hacen `fetch` con manejo de errores en `try/catch` — si el backend no responde, la sección se renderiza vacía/oculta en vez de romper la landing.

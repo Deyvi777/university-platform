@@ -4,6 +4,7 @@ import {
   BookOpen,
   ClipboardList,
   GraduationCap,
+  Globe2,
   Images,
   Send,
   Share2,
@@ -27,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { requireUser } from "@/lib/auth-guard";
 import { listMyCourses } from "@/lib/api/me";
+import { Button } from "@/components/ui/button";
 import { MyCoursesHome } from "./my-courses-home";
 
 export default async function DashboardPage() {
@@ -254,17 +256,36 @@ async function AdminHome({ firstName }: { firstName?: string | null }) {
 
   return (
     <div>
-      <header>
-        <p className="text-sm font-medium text-muted-foreground">
-          {firstName ? `Hola, ${firstName}` : "Panel de gestión"}
-        </p>
-        <h1 className="mt-1 font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-          Gestiona tu plataforma
-        </h1>
-        <p className="mt-2 max-w-xl text-muted-foreground">
-          Administra el contenido y las personas de Certificate desde un solo
-          lugar.
-        </p>
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">
+            {firstName ? `Hola, ${firstName}` : "Panel de gestión"}
+          </p>
+          <h1 className="mt-1 font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+            Gestiona tu plataforma
+          </h1>
+          <p className="mt-2 max-w-xl text-muted-foreground">
+            Administra el contenido y las personas de Certificate desde un solo
+            lugar.
+          </p>
+        </div>
+
+        <Button
+          size="lg"
+          className="w-full rounded-full border-amber-400 bg-amber-500 px-5 font-semibold text-slate-950 shadow-lg shadow-amber-500/25 ring-1 ring-amber-300/30 transition-all hover:bg-amber-400 hover:shadow-xl hover:shadow-amber-500/30 focus-visible:ring-amber-400/50 motion-safe:hover:-translate-y-0.5 sm:w-auto dark:bg-amber-400 dark:hover:bg-amber-300"
+          render={
+            <Link
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Abrir el landing de Certificate en una pestaña nueva"
+            />
+          }
+        >
+          <Globe2 className="size-4" aria-hidden="true" />
+          Ver landing
+          <ArrowUpRight className="size-4" aria-hidden="true" />
+        </Button>
       </header>
 
       <HomeSection

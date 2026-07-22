@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { getTeam } from "@/lib/api/team";
 import { getPartners } from "@/lib/api/partners";
+import { CleanYoutubePlayer } from "./clean-youtube-player";
 
 const features = [
   {
@@ -126,26 +127,12 @@ export async function Nosotros() {
             </div>
           </div>
 
-          <figure className="relative overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl shadow-black/40">
-            <div className="relative aspect-[3/2]">
-              <Image
-                src="/landing/about/about-2.webp"
-                alt="Dirección de Certificate Bolivia junto a su equipo de trabajo"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 55vw"
-                className="object-cover"
-              />
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-transparent"
-              />
-            </div>
-            <figcaption className="absolute bottom-5 left-5 right-5 flex items-center gap-3 text-sm font-medium text-white">
-              <span className="size-2 rounded-full bg-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.8)]" />
-              Liderazgo con vocación de servicio
-            </figcaption>
-          </figure>
+          <div className="mx-auto w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl shadow-black/40 lg:mx-0 lg:justify-self-center">
+            <CleanYoutubePlayer
+              videoId="22fofXtXUhE"
+              title="Certificate Bolivia: liderazgo con vocación de servicio"
+            />
+          </div>
         </div>
 
         {/* ── Identidad y trayectoria ────────────────────────────── */}
