@@ -302,6 +302,7 @@ model Program {
   id                String          @id @default(uuid())
   slug              String          @unique
   title             String
+  resolution        String? // resolución del programa, ej. "R. N.º 123/2026"
   categoryId        String
   category          ProgramCategory @relation(fields: [categoryId], references: [id])
   flyerUrl          String // ruta pública servida por el frontend, ej. /landing/program/programa1.webp

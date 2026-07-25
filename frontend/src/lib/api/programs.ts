@@ -49,6 +49,7 @@ export interface ProgramBankAccount {
 }
 
 export interface ProgramDetail extends ProgramSummary {
+  resolution: string | null;
   objective: string | null;
   specificObjectives: string[];
   targetAudience: string | null;

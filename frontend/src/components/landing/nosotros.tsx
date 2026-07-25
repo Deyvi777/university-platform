@@ -131,6 +131,7 @@ export async function Nosotros() {
             <CleanYoutubePlayer
               videoId="22fofXtXUhE"
               title="Certificate Bolivia: liderazgo con vocación de servicio"
+              pauseWhenOutOfView
             />
           </div>
         </div>
@@ -249,15 +250,12 @@ export async function Nosotros() {
         </div>
 
         {/* ── Resultado de la formación ──────────────────────────── */}
-        <div className="mt-28 grid items-center gap-12 lg:grid-cols-[0.75fr_1.25fr] lg:gap-16">
+        <div className="mt-28 grid items-center gap-10 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.1fr)_minmax(0,1.3fr)] lg:gap-8">
           <figure className="mx-auto w-full max-w-sm overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl shadow-black/40 lg:mx-0">
-            <Image
-              src="/landing/about/about-3.webp"
-              alt="Graduada de Certificate Bolivia celebrando su logro académico"
-              width={1066}
-              height={1600}
-              sizes="(max-width: 1024px) 90vw, 35vw"
-              className="h-auto w-full"
+            <CleanYoutubePlayer
+              videoId="NLjIcNlcqGo"
+              title="Experiencia de formación en Certificate Bolivia"
+              autoplay={false}
             />
           </figure>
           <div className="relative overflow-hidden rounded-[2rem] border border-amber-400/20 bg-gradient-to-br from-amber-400/10 via-white/5 to-transparent p-7 sm:p-10">
@@ -276,6 +274,16 @@ export async function Nosotros() {
               El saber te da poder
             </p>
           </div>
+          <figure className="mx-auto w-full max-w-xl overflow-hidden rounded-[2rem] border border-white/10 shadow-xl shadow-black/30 lg:mx-0 lg:max-w-none lg:justify-self-end">
+            <Image
+              src="/landing/about/about-2.webp"
+              alt="Graduados de la Maestría en Psicología Jurídica Forense de Certificate Bolivia"
+              width={1070}
+              height={1340}
+              sizes="(max-width: 1024px) 90vw, 42vw"
+              className="h-auto w-full"
+            />
+          </figure>
         </div>
 
         {/* ── Misión · Visión · Valores ──────────────────────────── */}

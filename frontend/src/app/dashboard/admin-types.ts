@@ -29,6 +29,7 @@ export interface ProgramBankAccountPayload {
 
 export interface ProgramPayload {
   title: string;
+  resolution?: string | null;
   slug?: string;
   categoryId: string;
   flyerUrl: string;

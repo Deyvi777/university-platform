@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 type YoutubePlayer = {
   destroy: () => void;
   mute: () => void;
+  pauseVideo: () => void;
   playVideo: () => void;
   setVolume: (volume: number) => void;
   unMute: () => void;
@@ -59,10 +60,15 @@ function loadYoutubeApi(): Promise<YoutubeApi> {
 export function CleanYoutubePlayer({
   videoId,
   title,
+  autoplay = true,
+  pauseWhenOutOfView = false,
 }: {
   videoId: string;
   title: string;
+  autoplay?: boolean;
+  pauseWhenOutOfView?: boolean;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YoutubePlayer | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -78,7 +84,7 @@ export function CleanYoutubePlayer({
         videoId,
         host: "https://www.youtube-nocookie.com",
         playerVars: {
-          autoplay: 1,
+          autoplay: autoplay ? 1 : 0,
           controls: 0,
           disablekb: 1,
           fs: 0,
@@ -93,7 +99,9 @@ export function CleanYoutubePlayer({
           onReady: ({ target }) => {
             target.setVolume(100);
             target.unMute();
-            target.playVideo();
+            if (autoplay) {
+              target.playVideo();
+            }
             setIsReady(true);
           },
         },
@@ -105,7 +113,28 @@ export function CleanYoutubePlayer({
       playerRef.current?.destroy();
       playerRef.current = null;
     };
-  }, [videoId]);
+  }, [autoplay, videoId]);
+
+  useEffect(() => {
+    const playerContainer = containerRef.current;
+    if (!pauseWhenOutOfView || !isReady || !playerContainer) return;
+    const observedContainer = playerContainer;
+
+    function pauseIfOutOfView() {
+      const rect = observedContainer.getBoundingClientRect();
+      const isOutOfView = rect.bottom <= 0 || rect.top >= window.innerHeight;
+      if (isOutOfView) playerRef.current?.pauseVideo();
+    }
+
+    window.addEventListener("scroll", pauseIfOutOfView, { passive: true });
+    window.addEventListener("resize", pauseIfOutOfView);
+    pauseIfOutOfView();
+
+    return () => {
+      window.removeEventListener("scroll", pauseIfOutOfView);
+      window.removeEventListener("resize", pauseIfOutOfView);
+    };
+  }, [isReady, pauseWhenOutOfView]);
 
   function toggleVolume() {
     const player = playerRef.current;
@@ -122,7 +151,7 @@ export function CleanYoutubePlayer({
   }
 
   return (
-    <div className="relative aspect-[9/16]" aria-label={title}>
+    <div ref={containerRef} className="relative aspect-[9/16]" aria-label={title}>
       <div ref={mountRef} className="size-full" />
       <button
         type="button"

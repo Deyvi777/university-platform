@@ -35,6 +35,7 @@ import {
   type UserFormRole,
   type UserFormValues,
 } from "@/app/dashboard/usuarios/user-schema";
+import { uniqueUserFieldFromMessage } from "@/app/dashboard/usuarios/unique-user-field";
 
 const GENDER_OPTIONS = GENDERS.map((value) => ({
   value,
@@ -67,7 +68,7 @@ export function UserForm({
       ? "Crear estudiante"
       : "Crear docente";
   const [showPassword, setShowPassword] = useState(false);
-  // Error a nivel de formulario (p. ej. 409 correo duplicado del backend).
+  // Error a nivel de formulario (p. ej. 409 por un campo único duplicado).
   const [formError, setFormError] = useState<string | null>(null);
 
   // En edición la contraseña es opcional; ambas formas comparten todos los demás
@@ -77,7 +78,7 @@ export function UserForm({
     isEdit ? editUserFormSchema : createUserFormSchema,
   ) as Resolver<UserFormValues>;
 
-  const { register, control, handleSubmit, setError, formState } =
+  const { register, control, handleSubmit, setError, clearErrors, formState } =
     useForm<UserFormValues>({
       resolver,
       defaultValues: toUserFormValues(user, defaultRole),
@@ -109,6 +110,7 @@ export function UserForm({
 
   async function onSubmit(values: UserFormValues) {
     setFormError(null);
+    clearErrors(["email", "idDocument"]);
     const result =
       isEdit && user
         ? await updateUserAction(user.id, toEditUserPayload(values))
@@ -122,10 +124,15 @@ export function UserForm({
       return;
     }
 
-    // El backend devuelve 409 con un mensaje cuando el correo ya está en uso.
-    // Lo anclamos al campo de correo y también lo mostramos como banner + toast.
-    if (/correo|email|registrad|uso|exist/i.test(result.error)) {
-      setError("email", { type: "server", message: result.error });
+    // El backend identifica en el mensaje cuál campo único está repetido.
+    // Anclamos el error al campo correspondiente y conservamos banner + toast.
+    const uniqueField = uniqueUserFieldFromMessage(result.error);
+    if (uniqueField) {
+      setError(
+        uniqueField,
+        { type: "server", message: result.error },
+        { shouldFocus: true },
+      );
     }
     setFormError(result.error);
     toast.error(result.error);

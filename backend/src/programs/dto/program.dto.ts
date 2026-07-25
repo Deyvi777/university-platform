@@ -38,6 +38,7 @@ const bankAccountSchema = z.object({
 // landing oculta los campos vacíos.
 export const createProgramSchema = z.object({
   title: z.string().min(1),
+  resolution: z.string().trim().min(1).max(200).nullish(),
   slug: z
     .string()
     .regex(/^[a-z0-9-]+$/, 'Slug inválido')

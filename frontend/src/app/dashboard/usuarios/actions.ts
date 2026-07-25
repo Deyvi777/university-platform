@@ -81,8 +81,8 @@ export async function deleteUserAction(id: string): Promise<ActionResult> {
 
 /**
  * Mensaje de error orientado al usuario. El backend devuelve 409 con un mensaje
- * para correo duplicado; `AdminApiError` ya conserva ese texto, así que lo
- * mostramos tal cual en el formulario / toast en vez de un crash.
+ * para correo o documento duplicado; `AdminApiError` ya conserva ese texto, así
+ * que lo mostramos tal cual en el formulario / toast en vez de un crash.
  */
 function errorMessage(error: unknown): string {
   if (error instanceof AdminApiError) return error.message;

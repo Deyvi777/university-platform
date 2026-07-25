@@ -113,6 +113,12 @@ export default async function ProgramPage({ params }: Props) {
                 </h1>
               </ViewTransition>
 
+              {program.resolution && (
+                <p className="mt-4 text-base font-semibold tracking-wide text-amber-300 sm:text-lg">
+                  {program.resolution}
+                </p>
+              )}
+
               {program.objective && (
                 <>
                   <h2 className="mt-10 text-sm font-semibold uppercase tracking-widest text-amber-400">

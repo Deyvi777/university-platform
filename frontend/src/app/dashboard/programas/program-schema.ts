@@ -14,6 +14,7 @@ const optionalAmount = z
 // landing oculta cada campo vacío.
 export const programFormSchema = z.object({
   title: z.string().min(1, "Requerido"),
+  resolution: z.string().max(200, "Máximo 200 caracteres"),
   slug: z
     .string()
     .regex(/^[a-z0-9-]*$/, "Solo minúsculas, números y guiones")
@@ -90,6 +91,7 @@ export function toFormValues(program?: AdminProgram): ProgramFormValues {
   if (!program) {
     return {
       title: "",
+      resolution: "",
       slug: "",
       categoryId: "",
       flyerUrl: "",
@@ -124,6 +126,7 @@ export function toFormValues(program?: AdminProgram): ProgramFormValues {
 
   return {
     title: program.title,
+    resolution: program.resolution ?? "",
     slug: program.slug,
     categoryId: program.categoryId,
     flyerUrl: program.flyerUrl,
@@ -199,6 +202,7 @@ export function toPayload(values: ProgramFormValues): ProgramPayload {
   const moduleBase = values.moduleZero ? 0 : 1;
   return {
     title: values.title.trim(),
+    resolution: emptyToNull(values.resolution),
     slug: values.slug?.trim() || undefined,
     categoryId: values.categoryId,
     flyerUrl: values.flyerUrl,

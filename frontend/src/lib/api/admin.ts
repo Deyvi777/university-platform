@@ -63,6 +63,7 @@ export interface AdminProgram {
   id: string;
   slug: string;
   title: string;
+  resolution: string | null;
   categoryId: string;
   category: ProgramCategory;
   flyerUrl: string;

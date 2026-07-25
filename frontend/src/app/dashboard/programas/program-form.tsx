@@ -106,6 +106,23 @@ export function ProgramForm({
             <FieldError message={errors.title?.message} />
           </div>
 
+          <div className="sm:col-span-2">
+            <Label htmlFor="resolution">
+              Resolución
+              <OptionalTag />
+            </Label>
+            <Input
+              id="resolution"
+              placeholder="Ej. Resolución N.º 123/2026"
+              {...register("resolution")}
+              className="mt-1.5"
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Número o identificador de la resolución del programa.
+            </p>
+            <FieldError message={errors.resolution?.message} />
+          </div>
+
           <div>
             <Label htmlFor="categoryId">Categoría</Label>
             <select

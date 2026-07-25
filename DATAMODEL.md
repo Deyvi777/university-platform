@@ -116,6 +116,7 @@ Gestión completa vía `/admin/categories` (CRUD) + **`PUT /admin/categories/reo
 | `id`                       | `String` (uuid)    | PK                                                                                                                        |
 | `slug`                     | `String`           | `@unique`, auto-generado desde `title` vía `slugify` con reintento numérico                                               |
 | `title`                    | `String`           |                                                                                                                           |
+| `resolution`               | `String?`          | resolución del programa; se muestra debajo del título en el detalle público                                               |
 | `categoryId`               | `String`           | FK → `ProgramCategory.id`                                                                                                 |
 | `category`                 | `ProgramCategory`  | relación N:1                                                                                                              |
 | `flyerUrl`                 | `String`           | path de imagen (ver convenciones)                                                                                         |
