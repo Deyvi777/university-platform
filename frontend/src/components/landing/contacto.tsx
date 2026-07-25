@@ -1,6 +1,9 @@
-import { MapPin, Phone, Clock, Headset } from "lucide-react";
+import { MapPin, Phone, Clock, Headset, Share2 } from "lucide-react";
 import { ContactForm } from "./contact-form";
-import { SOCIAL_DEFS } from "./social-defs";
+import {
+  hasConfiguredSocialLinks,
+  SocialLinks,
+} from "./social-links";
 import { getSiteSettings } from "@/lib/api/settings";
 
 const ADDRESS =
@@ -12,7 +15,7 @@ const MAPS_LINK =
 
 export async function Contacto() {
   const settings = await getSiteSettings();
-  const socials = SOCIAL_DEFS.filter((s) => settings[s.key]);
+  const hasSocials = hasConfiguredSocialLinks(settings);
 
   return (
     <section
@@ -113,30 +116,26 @@ export async function Contacto() {
             </InfoCard>
 
             {/* Redes sociales */}
-            {socials.length > 0 && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                <h3 className="text-sm font-semibold text-white">Síguenos</h3>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {socials.map((social) => (
-                    <a
-                      key={social.key}
-                      href={settings[social.key] as string}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={social.label}
-                      className="group flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-400/50 hover:bg-amber-400/10 hover:text-amber-300"
-                    >
-                      <svg
-                        className="h-6 w-6"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path d={social.path} />
-                      </svg>
-                    </a>
-                  ))}
+            {hasSocials && (
+              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/[0.035] to-amber-400/[0.06] p-6 shadow-xl shadow-black/20">
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-amber-400/10 blur-3xl"
+                />
+                <div className="relative mb-5 flex items-start gap-3">
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-300 ring-1 ring-inset ring-amber-300/20">
+                    <Share2 className="size-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="font-semibold text-white">
+                      Encuéntranos en redes
+                    </h3>
+                    <p className="mt-1 text-sm leading-5 text-slate-400">
+                      Conoce nuestras actividades y novedades académicas.
+                    </p>
+                  </div>
                 </div>
+                <SocialLinks settings={settings} variant="contact" />
               </div>
             )}
           </div>

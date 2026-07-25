@@ -2,7 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { ScrollLink } from "./scroll-link";
-import { SOCIAL_DEFS } from "./social-defs";
+import {
+  hasConfiguredSocialLinks,
+  SocialLinks,
+} from "./social-links";
 import { getSiteSettings } from "@/lib/api/settings";
 
 const MAPS_LINK =
@@ -29,7 +32,7 @@ const navColumns = [
 
 export async function Footer() {
   const settings = await getSiteSettings();
-  const socials = SOCIAL_DEFS.filter((s) => settings[s.key]);
+  const hasSocials = hasConfiguredSocialLinks(settings);
 
   return (
     <footer className="relative overflow-hidden border-t border-white/10 bg-slate-950">
@@ -44,6 +47,26 @@ export async function Footer() {
       />
 
       <div className="relative mx-auto max-w-7xl px-6 py-8 lg:px-8">
+        {hasSocials && (
+          <div className="mb-12 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/[0.035] to-amber-400/[0.06] p-5 shadow-2xl shadow-black/20 sm:p-7">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+              <div className="max-w-md">
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-300">
+                  Nuestra comunidad
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-white sm:text-2xl">
+                  Conecta con Certificate
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Sigue nuestras novedades, actividades y experiencias
+                  académicas.
+                </p>
+              </div>
+              <SocialLinks settings={settings} variant="footer" />
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-12 lg:grid-cols-[1.5fr_1fr_1fr]">
           {/* Marca */}
           <div className="max-w-sm">
@@ -72,29 +95,6 @@ export async function Footer() {
               </span>
             </a>
 
-            {socials.length > 0 && (
-              <div className="mt-6 flex flex-wrap gap-3">
-                {socials.map((social) => (
-                  <a
-                    key={social.key}
-                    href={settings[social.key] as string}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={social.label}
-                    className="group flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-400/50 hover:bg-amber-400/10 hover:text-amber-300"
-                  >
-                    <svg
-                      className="h-6 w-6"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path d={social.path} />
-                    </svg>
-                  </a>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Columnas de navegación */}

@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-const SECTION_IDS = ["inicio", "programas", "nosotros", "contacto"];
+// En la portada solo estas opciones representan secciones de la misma página.
+// "Nosotros" y "Contacto" son rutas independientes, aunque el CTA final
+// conserve `id="contacto"` como ancla histórica.
+const HOME_SECTION_IDS = ["inicio", "programas"];
 
 /**
  * Sección activa según la ruta. Cada página del landing monta su propio
@@ -28,56 +31,54 @@ export function useActiveSection() {
   const [prevPathname, setPrevPathname] = useState(pathname);
 
   // Sync URL-derived state during render (not in an effect) — see AGENTS.md
-  // (react-hooks/set-state-in-effect). En "/" no se toca: lo refina el
-  // IntersectionObserver según la sección visible al hacer scroll.
+  // (react-hooks/set-state-in-effect). En "/" parte de Inicio y luego lo
+  // refina el IntersectionObserver según la sección visible al hacer scroll.
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
-    if (pathname !== "/") {
-      setActiveSection(sectionForPathname(pathname));
-    }
+    setActiveSection(sectionForPathname(pathname));
   }
 
   useEffect(() => {
     // Only observe scroll-based sections on the landing page.
     if (pathname !== "/") return;
 
-    const observers: IntersectionObserver[] = [];
     const visibleSections = new Map<string, number>();
 
-    SECTION_IDS.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const id = entry.target.id;
+          if (entry.isIntersecting) {
+            visibleSections.set(id, entry.intersectionRatio);
+          } else {
+            visibleSections.delete(id);
+          }
+        });
 
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              visibleSections.set(id, entry.intersectionRatio);
-            } else {
-              visibleSections.delete(id);
-            }
-          });
+        let best = "";
+        let bestRatio = 0;
+        visibleSections.forEach((ratio, sectionId) => {
+          if (ratio > bestRatio) {
+            bestRatio = ratio;
+            best = sectionId;
+          }
+        });
 
-          // Pick the section with the highest visibility ratio
-          let best = "";
-          let bestRatio = 0;
-          visibleSections.forEach((ratio, sectionId) => {
-            if (ratio > bestRatio) {
-              bestRatio = ratio;
-              best = sectionId;
-            }
-          });
+        // Beneficios, CTA y footer siguen perteneciendo a la página Inicio.
+        setActiveSection(best || "inicio");
+      },
+      {
+        threshold: [0, 0.25, 0.5, 0.75, 1],
+        rootMargin: "-80px 0px 0px 0px",
+      },
+    );
 
-          if (best) setActiveSection(best);
-        },
-        { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: "-80px 0px 0px 0px" }
-      );
-
-      observer.observe(el);
-      observers.push(observer);
+    HOME_SECTION_IDS.forEach((id) => {
+      const element = document.getElementById(id);
+      if (element) observer.observe(element);
     });
 
-    return () => observers.forEach((o) => o.disconnect());
+    return () => observer.disconnect();
   }, [pathname]);
 
   return activeSection;

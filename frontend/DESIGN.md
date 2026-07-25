@@ -104,8 +104,8 @@ El ámbar se usa con moderación: un highlight en el titular, el CTA primario y 
 ## Footer (`footer.tsx`)
 
 - Server component sobre `bg-slate-950` con `border-t border-white/10` y acento ámbar superior sutil (hairline `via-amber-400/50` + glow tenue). Contenedor estándar `max-w-7xl`.
-- Layout: grid `lg:grid-cols-[1.5fr_1fr_1fr]` — columna de marca (logo blanco + tagline + iconos de redes) y columnas de navegación; barra inferior con copyright separada por `border-t border-white/10 pt-8`.
-- **Iconos de redes sociales**: provienen de `GET /settings`; se renderiza **solo** el icono de cada red con enlace no vacío. Botón circular glass (`h-10 w-10 rounded-full border-white/10 bg-white/5`), hover `border-amber-400/50 bg-amber-400/10 text-amber-300` + `-translate-y-0.5`. `lucide-react` **no** trae iconos de marcas: usar paths inline de simple-icons (viewBox 24×24), igual que el icono de WhatsApp del CTA. Cada `<a>` decorativo lleva `aria-label`.
+- Layout: bloque destacado de comunidad y redes seguido del grid `lg:grid-cols-[1.5fr_1fr_1fr]` — columna de marca (logo blanco + dirección) y columnas de navegación; barra inferior con copyright separada por `border-t border-white/10 pt-8`.
+- **Redes sociales**: provienen de `GET /settings` y se comparten mediante `social-links.tsx` entre Footer y Contacto. Cada enlace configurado muestra **icono + nombre visible**, superficie glass, color propio de la marca y foco accesible; Contacto usa tarjetas en cuadrícula con flecha externa y el Footer píldoras compactas dentro de un panel destacado. `lucide-react` no trae iconos de marcas: sus paths viven centralizados en `social-defs.ts`.
 
 ## Animaciones (`globals.css`, `@theme`)
 
