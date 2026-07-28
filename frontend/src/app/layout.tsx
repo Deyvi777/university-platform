@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Merriweather, Open_Sans } from "next/font/google";
+import { Geist, Geist_Mono, Open_Sans } from "next/font/google";
 import Script from "next/script";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -17,9 +17,8 @@ const openSans = Open_Sans({
   subsets: ["latin"],
 });
 
-const merriweather = Merriweather({
+const geist = Geist({
   variable: "--font-heading",
-  weight: ["300", "400", "700", "900"],
   subsets: ["latin"],
 });
 
@@ -46,7 +45,7 @@ export default function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${openSans.variable} ${merriweather.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${openSans.variable} ${geist.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>

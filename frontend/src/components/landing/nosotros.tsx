@@ -261,7 +261,7 @@ export async function Nosotros() {
           <div className="relative overflow-hidden rounded-[2rem] border border-amber-400/20 bg-gradient-to-br from-amber-400/10 via-white/5 to-transparent p-7 sm:p-10">
             <span
               aria-hidden="true"
-              className="absolute -left-2 -top-4 font-serif text-8xl leading-none text-amber-400/15"
+              className="absolute -left-2 -top-4 font-heading text-8xl leading-none text-amber-400/15"
             >
               &ldquo;
             </span>

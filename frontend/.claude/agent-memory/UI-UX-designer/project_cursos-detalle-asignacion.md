@@ -18,6 +18,6 @@ The course detail page (`/dashboard/cursos/[id]`) is where ADMIN assigns docente
 - **Module cards** (`[id]/page.tsx`): `rounded-2xl border bg-card shadow-xs hover:border-amber-200`, numbered amber square badge (`size-9 rounded-xl bg-amber-100 text-amber-700`) + "MÓDULO n" eyebrow + name, control area below a `border-t pt-4` divider.
 - **Section headers** get a `size-9 rounded-xl bg-amber-100` icon (`BookOpen` for módulos, `GraduationCap` for estudiantes) next to title+subtitle.
 - **Empty states added:** course with 0 módulos (dashed card → "Edita el programa"); 0 estudiantes inscritos (dashed card). Enrolled list itself is `rounded-xl border bg-card divide-y` with avatar + name/email + ghost destructive remove (still `window.confirm`).
-- Headings use `font-heading` (Merriweather, see [[dashboard-shell-layout]]); avatar initials also use `font-heading`.
+- Headings use `font-heading` (Geist Sans, see [[dashboard-shell-layout]]); avatar initials also use `font-heading`.
 
 Verified: eslint clean + `pnpm build` pass. `size-4.5` is a valid Tailwind v4 class.

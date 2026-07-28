@@ -30,4 +30,4 @@ The internal dashboard (`src/app/dashboard/`) was redesigned from a top-horizont
 - **Profile panel hide:** `profileOpen` false → wrapper `div` gets `xl:hidden` and grid drops the `20rem` column so `main` absorbs the space. Panel stays mounted (Server Component) — hidden via CSS, not unmounted.
 - **Persistence:** localStorage keys `dashboard:sidebar-collapsed` / `dashboard:profile-open` (values `"1"`/`"0"`), read in the `useState` initializer (`readStored`, SSR-safe) and written in toggle callbacks. No `useEffect` for state. Grid animates with `transition-[grid-template-columns]` so the post-mount correction isn't jarring.
 
-Fonts: headings auto-apply **Merriweather** via `globals.css` base rule (`h1..h6 { font-heading }`); body **Open Sans** (`font-sans`). Add `font-heading` explicitly only on non-heading display elements (e.g. brand wordmark, avatar initials).
+Fonts: headings auto-apply **Geist Sans** via `globals.css` base rule (`h1..h6 { font-heading }`); body **Open Sans** (`font-sans`). Add `font-heading` explicitly only on non-heading display elements (e.g. brand wordmark, avatar initials).

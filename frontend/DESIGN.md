@@ -2,19 +2,19 @@
 
 Guía de diseño de **Certificate** (escuela de postgrado en Bolivia; todo el copy en **español / es-BO**). El proyecto tiene **dos lenguajes de diseño deliberadamente distintos**, según la audiencia y el propósito de cada superficie:
 
-|                      | **Parte 1 · Landing** (público / marketing)            | **Parte 2 · Plataforma educativa** (autenticado / operativo) |
-| -------------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
-| Propósito            | Persuadir, comunicar prestigio, captar interesados     | Operar: gestionar contenido, cursos, módulos, kardex         |
-| Tema                 | **Oscuro** (`slate-950`/`slate-900`)                   | **Claro** (tema shadcn `neutral`)                            |
-| Tono                 | Dramático, editorial, espacioso                        | Funcional, sobrio, denso en datos pero legible               |
-| Acento institucional | `amber-400`                                            | `amber-500`                                                  |
-| Tema por defecto     | —                                                      | **Oscuro (navy)** vía `next-themes` + toggle claro/oscuro    |
-| Tipografía           | Open Sans (cuerpo) + Merriweather (titulares), grandes | Open Sans + Merriweather, jerarquía compacta                 |
-| Componentes          | Elementos nativos estilizados a mano                   | **shadcn/ui**                                                |
-| Rutas                | `/`, `/programas/[slug]`                               | `/login`, `/dashboard/*`                                     |
-| Rige                 | Esta guía (Parte 1)                                    | Esta guía (Parte 2) **+ skill `ui-educativa`**               |
+|                      | **Parte 1 · Landing** (público / marketing)          | **Parte 2 · Plataforma educativa** (autenticado / operativo) |
+| -------------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| Propósito            | Persuadir, comunicar prestigio, captar interesados   | Operar: gestionar contenido, cursos, módulos, kardex         |
+| Tema                 | **Oscuro** (`slate-950`/`slate-900`)                 | **Claro** (tema shadcn `neutral`)                            |
+| Tono                 | Dramático, editorial, espacioso                      | Funcional, sobrio, denso en datos pero legible               |
+| Acento institucional | `amber-400`                                          | `amber-500`                                                  |
+| Tema por defecto     | —                                                    | **Oscuro (navy)** vía `next-themes` + toggle claro/oscuro    |
+| Tipografía           | Open Sans (cuerpo) + Geist Sans (titulares), grandes | Open Sans + Geist Sans, jerarquía compacta                   |
+| Componentes          | Elementos nativos estilizados a mano                 | **shadcn/ui**                                                |
+| Rutas                | `/`, `/programas/[slug]`                             | `/login`, `/dashboard/*`                                     |
+| Rige                 | Esta guía (Parte 1)                                  | Esta guía (Parte 2) **+ skill `ui-educativa`**               |
 
-**Lo compartido por ambos mundos:** la marca (Certificate), el idioma (es-BO), la familia tipográfica (**Open Sans** para el cuerpo vía `--font-sans` y **Merriweather** para los titulares vía `--font-heading`; `Geist Mono` solo para datos/código — ver `layout.tsx`) y el **acento ámbar institucional** usado con moderación. El **logo blanco** (`public/landing/logo.webp`) solo funciona sobre fondo oscuro en los dos — nunca sobre claro. **No mezclar los dos temas dentro de una misma pantalla.** El login (`/login`) es la pantalla puente y usa elementos de ambos (ver Parte 2).
+**Lo compartido por ambos mundos:** la marca (Certificate), el idioma (es-BO), la familia tipográfica sans serif (**Open Sans** para el cuerpo vía `--font-sans` y **Geist Sans** para los titulares vía `--font-heading`; `Geist Mono` solo para datos/código — ver `layout.tsx`) y el **acento ámbar institucional** usado con moderación. El **logo blanco** (`public/landing/logo.webp`) solo funciona sobre fondo oscuro en los dos — nunca sobre claro. **No mezclar los dos temas dentro de una misma pantalla.** El login (`/login`) es la pantalla puente y usa elementos de ambos (ver Parte 2).
 
 ---
 
@@ -43,7 +43,7 @@ El ámbar se usa con moderación: un highlight en el titular, el CTA primario y 
 
 ## Tipografía
 
-- Fuentes (configuradas en `layout.tsx`): **Open Sans** para el cuerpo (variable `--font-sans`) y **Merriweather** para los titulares (variable `--font-heading`, aplicada a `h1`–`h6` en `globals.css`); `Geist Mono` (`--font-geist-mono`) solo para código/datos si hiciera falta.
+- Fuentes (configuradas en `layout.tsx`): **Open Sans** para el cuerpo (variable `--font-sans`) y **Geist Sans** para los titulares (variable `--font-heading`, aplicada a `h1`–`h6` en `globals.css`); `Geist Mono` (`--font-geist-mono`) solo para código/datos si hiciera falta.
 - Titulares: `font-bold tracking-tight leading-tight`, escala responsiva `text-4xl sm:text-5xl lg:text-6xl`.
 - Párrafos: `text-lg leading-8`, ancho máximo de lectura `max-w-xl`.
 - Labels/metadata: `text-sm` (o `text-xs sm:text-sm` en grids angostos).
@@ -180,8 +180,8 @@ Mismo principio de moderación con el ámbar: CTA primario, highlights de marca 
 
 ## Tipografía
 
-- Mismas **Open Sans** (cuerpo) + **Merriweather** (titulares) compartidas con la landing, pero con **jerarquía compacta** (no titulares gigantes):
-  - Título de página: `text-2xl font-bold tracking-tight` (usa `font-heading` = Merriweather).
+- Mismas **Open Sans** (cuerpo) + **Geist Sans** (titulares) compartidas con la landing, pero con **jerarquía compacta** (no titulares gigantes):
+  - Título de página: `text-2xl font-bold tracking-tight` (usa `font-heading` = Geist Sans).
   - Subtítulo/descripción: `text-muted-foreground` (`text-sm`/`text-base`).
   - Labels y metadata: `text-sm`.
 - Números (notas, montos, conteos, créditos): `tabular-nums`, alineados a la derecha en tablas.
