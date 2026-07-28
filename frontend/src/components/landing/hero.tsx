@@ -37,29 +37,31 @@ export function Hero() {
   return (
     <section id="inicio" className="relative flex min-h-svh flex-col justify-center overflow-hidden">
       <video
-        className="absolute inset-0 h-full w-full object-cover"
+        className="absolute inset-0 h-full w-full object-cover object-[35%_center] sm:object-center"
         src="/landing/hero-video.mp4"
         autoPlay
         muted
         loop
         playsInline
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/70 to-slate-950/40" />
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/75 to-slate-950/20 lg:via-slate-950/65 lg:to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/90 to-transparent" />
 
       <div className="relative mx-auto w-full max-w-7xl px-6 pt-32 pb-20 lg:px-8">
-        <div className="max-w-2xl">
+        <div className="max-w-xl lg:max-w-2xl">
           <p className="mb-6 text-lg font-medium tracking-wide text-amber-300">
             Escuela Multidisciplinaria de Postgrado
           </p>
 
-          <h1 className="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Impulsa tu carrera con{" "}
-            <span className="text-white">maestrías y diplomados</span> de
-            excelencia
+          <h1 className="max-w-[32rem] text-[2.5rem] leading-[1.02] font-semibold tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.35)] sm:text-5xl lg:max-w-xl lg:text-[3.5rem]">
+            <span className="block">Impulsa tu carrera</span>
+            <span className="mt-2 block text-[0.72em] leading-[1.12] font-medium tracking-[-0.02em] text-slate-100 sm:text-[0.74em]">
+              con maestrías y diplomados
+            </span>
+            <span className="mt-1 block">de excelencia</span>
           </h1>
 
-          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-200">
+          <p className="mt-6 max-w-lg text-lg leading-8 text-slate-200">
             Formación continua para profesionales que buscan liderar. Programas
             acreditados, docentes expertos y modalidades flexibles diseñadas
             para tu crecimiento académico y laboral.
