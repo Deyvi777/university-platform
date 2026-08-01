@@ -22,6 +22,13 @@ export const updateSettingsSchema = z.object({
     .max(320)
     .transform((v) => v.toLowerCase())
     .optional(),
+  // Buzón del aviso de postulaciones a convocatorias. Es independiente del
+  // usado para solicitudes de inscripción y también es opcional en el PATCH.
+  callApplicationNotifyEmail: z
+    .email('Debe ser un correo válido')
+    .max(320)
+    .transform((v) => v.toLowerCase())
+    .optional(),
 });
 
 export class UpdateSettingsDto extends createZodDto(updateSettingsSchema) {}

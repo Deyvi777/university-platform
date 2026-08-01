@@ -6,7 +6,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:4000";
 
-const FOLDERS = ["programs", "partners", "team", "gallery"] as const;
+const FOLDERS = ["programs", "partners", "team", "gallery", "calls"] as const;
 type Folder = (typeof FOLDERS)[number];
 
 export async function POST(request: Request) {
@@ -23,16 +23,10 @@ export async function POST(request: Request) {
   const folder = form.get("folder");
 
   if (!(file instanceof File)) {
-    return NextResponse.json(
-      { message: "Archivo requerido" },
-      { status: 400 },
-    );
+    return NextResponse.json({ message: "Archivo requerido" }, { status: 400 });
   }
   if (typeof folder !== "string" || !FOLDERS.includes(folder as Folder)) {
-    return NextResponse.json(
-      { message: "Carpeta inválida" },
-      { status: 400 },
-    );
+    return NextResponse.json({ message: "Carpeta inválida" }, { status: 400 });
   }
 
   // Reenvía el archivo al backend con el token del usuario.

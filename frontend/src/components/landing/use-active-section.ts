@@ -17,6 +17,7 @@ const HOME_SECTION_IDS = ["inicio", "programas"];
 function sectionForPathname(pathname: string): string {
   if (pathname === "/nosotros") return "nosotros";
   if (pathname === "/galeria") return "galeria";
+  if (pathname.startsWith("/convocatorias")) return "convocatorias";
   if (pathname === "/contacto") return "contacto";
   if (pathname === "/") return "inicio";
   // Rutas sin sección propia (p. ej. /programas/[slug]): nada marcado.

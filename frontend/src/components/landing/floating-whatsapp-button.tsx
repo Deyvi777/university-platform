@@ -13,6 +13,7 @@ function isLandingRoute(pathname: string) {
     pathname === "/nosotros" ||
     pathname === "/contacto" ||
     pathname === "/galeria" ||
+    pathname.startsWith("/convocatorias") ||
     pathname.startsWith("/programas/")
   );
 }

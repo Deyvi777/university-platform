@@ -117,62 +117,65 @@ enum NotificationType {
 // Configuración global de la landing (fila única / singleton). Guarda los
 // enlaces a las redes sociales; un valor null/ausente oculta su icono.
 model SiteSettings {
-  id        String   @id @default("singleton")
-  facebook  String?
-  instagram String?
-  linkedin  String?
-  youtube   String?
-  tiktok    String?
-  whatsapp  String?
+  id                         String   @id @default("singleton")
+  facebook                   String?
+  instagram                  String?
+  linkedin                   String?
+  youtube                    String?
+  tiktok                     String?
+  whatsapp                   String?
   // Buzón que recibe el aviso por correo de cada solicitud de inscripción
   // (editable desde /dashboard/solicitudes). No se expone en el GET público.
-  enrollmentNotifyEmail String @default("certificatebolivia@gmail.com")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  enrollmentNotifyEmail      String   @default("certificatebolivia@gmail.com")
+  // Buzón que recibe el aviso por correo de cada postulación a convocatorias
+  // (editable desde /dashboard/convocatorias). No se expone en el GET público.
+  callApplicationNotifyEmail String   @default("certificatebolivia@gmail.com")
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   @@map("site_settings")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  firstName  String
-  lastName   String
-  phone      String // teléfono de contacto (obligatorio)
-  idDocument String @unique // documento de identidad / carnet (obligatorio y único)
-  issuedIn   String? // "expedido en": departamento/estado de emisión del documento (opcional)
+  id               String   @id @default(uuid())
+  email            String   @unique
+  password         String
+  firstName        String
+  lastName         String
+  phone            String // teléfono de contacto (obligatorio)
+  idDocument       String   @unique // documento de identidad / carnet (obligatorio y único)
+  issuedIn         String? // "expedido en": departamento/estado de emisión del documento (opcional)
   // Género (obligatorio). @default(MALE) permite añadir la columna con `db push`
   // sin perder datos: las filas existentes quedan en MALE, como se pidió.
-  gender           Gender  @default(MALE)
+  gender           Gender   @default(MALE)
   originUniversity String? // universidad de origen (opcional)
   profession       String? // profesión (opcional)
-  role       Role     @default(STUDENT)
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  role             Role     @default(STUDENT)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relaciones académicas (rol PROFESSOR / STUDENT). Un User puede tener
   // varias de estas según su rol; todas son opcionales para ADMIN.
   taughtModules     ModuleTeacher[] // co-docencia: módulos que dicta (vía join)
   enrollments       Enrollment[]
   submissions       Submission[]
-  gradedSubmissions Submission[]   @relation("SubmissionGrader")
-  moduleGrades      ModuleGrade[]  @relation("StudentGrades")
-  gradedModules     ModuleGrade[]  @relation("ModuleGrader")
+  gradedSubmissions Submission[]       @relation("SubmissionGrader")
+  moduleGrades      ModuleGrade[]      @relation("StudentGrades")
+  gradedModules     ModuleGrade[]      @relation("ModuleGrader")
   notifications     Notification[]
-  sentAnnouncements Announcement[]    @relation("AnnouncementSender")
+  sentAnnouncements Announcement[]     @relation("AnnouncementSender")
   contentProgress   ContentProgress[]
   // Chat docente↔estudiante por módulo (mensajería directa).
-  chatAsStudent ChatMessage[] @relation("ChatStudent")
-  chatAsTeacher ChatMessage[] @relation("ChatTeacher")
-  sentMessages  ChatMessage[] @relation("ChatSender")
+  chatAsStudent     ChatMessage[]      @relation("ChatStudent")
+  chatAsTeacher     ChatMessage[]      @relation("ChatTeacher")
+  sentMessages      ChatMessage[]      @relation("ChatSender")
   // Apuntes/recordatorios que el usuario marca en su calendario.
   calendarReminders CalendarReminder[]
   // Mensajes que el usuario publicó en foros de actividades.
-  forumPosts ForumPost[]
+  forumPosts        ForumPost[]
   // Intentos de cuestionarios/exámenes del estudiante.
-  quizAttempts QuizAttempt[]
+  quizAttempts      QuizAttempt[]
 
   @@map("users")
 }
@@ -299,48 +302,48 @@ model TeamMember {
 }
 
 model Program {
-  id                String          @id @default(uuid())
-  slug              String          @unique
-  title             String
-  resolution        String? // resolución del programa, ej. "R. N.º 123/2026"
-  categoryId        String
-  category          ProgramCategory @relation(fields: [categoryId], references: [id])
-  flyerUrl          String // ruta pública servida por el frontend, ej. /landing/program/programa1.webp
+  id                       String          @id @default(uuid())
+  slug                     String          @unique
+  title                    String
+  resolution               String? // resolución del programa, ej. "R. N.º 123/2026"
+  categoryId               String
+  category                 ProgramCategory @relation(fields: [categoryId], references: [id])
+  flyerUrl                 String // ruta pública servida por el frontend, ej. /landing/program/programa1.webp
   // Solo title/categoría/flyer son obligatorios: lo demás es opcional y la
   // landing oculta cada campo vacío.
-  objective         String?
-  specificObjectives String[]       @default([]) // objetivos específicos (viñetas en la landing)
-  targetAudience    String?
-  modality          String?
-  startDate         DateTime?
-  duration          String?
-  hourlyLoad        String? // carga horaria, ej. "1200 horas académicas"
-  schedule          String?
+  objective                String?
+  specificObjectives       String[]        @default([]) // objetivos específicos (viñetas en la landing)
+  targetAudience           String?
+  modality                 String?
+  startDate                DateTime?
+  duration                 String?
+  hourlyLoad               String? // carga horaria, ej. "1200 horas académicas"
+  schedule                 String?
   // Videos promocionales ordenados: enlaces YouTube/Vimeo o rutas /files/... subidas.
   // videoUrl se conserva temporalmente para leer programas creados antes de la lista.
-  videoUrl          String?
-  videoUrls         String[]        @default([])
-  extraFeatures     Json            @default("[]") // "más características": [{ label, value }]
-  requirements      String[]
+  videoUrl                 String?
+  videoUrls                String[]        @default([])
+  extraFeatures            Json            @default("[]") // "más características": [{ label, value }]
+  requirements             String[]
   // Opciones de pago (cada una con su moneda; vacías no se muestran en la landing):
   // "Pago al contado" = totalCost + enrollmentFee + currency;
   // "Plan de cuotas" = installment* (incluye su propia matrícula).
-  enrollmentFee       Decimal?      @db.Decimal(10, 2) // matrícula del contado (moneda = currency)
-  totalCost           Decimal?      @db.Decimal(10, 2) // monto del pago al contado
-  currency            String        @default("Bs") // moneda del contado y la matrícula
-  installmentCount    Int? // nº de cuotas del plan
-  installmentFirstAmount Decimal?   @db.Decimal(10, 2) // monto de la primera cuota cuando difiere
-  installmentAmount   Decimal?      @db.Decimal(10, 2) // monto de las demás cuotas
-  installmentEnrollmentFee Decimal? @db.Decimal(10, 2) // matrícula del plan de cuotas
-  installmentCurrency String        @default("Bs")
-  paymentFacilities   String?
+  enrollmentFee            Decimal?        @db.Decimal(10, 2) // matrícula del contado (moneda = currency)
+  totalCost                Decimal?        @db.Decimal(10, 2) // monto del pago al contado
+  currency                 String          @default("Bs") // moneda del contado y la matrícula
+  installmentCount         Int? // nº de cuotas del plan
+  installmentFirstAmount   Decimal?        @db.Decimal(10, 2) // monto de la primera cuota cuando difiere
+  installmentAmount        Decimal?        @db.Decimal(10, 2) // monto de las demás cuotas
+  installmentEnrollmentFee Decimal?        @db.Decimal(10, 2) // matrícula del plan de cuotas
+  installmentCurrency      String          @default("Bs")
+  paymentFacilities        String?
   // Medios de pago:
-  bankAccounts        Json          @default("[]") // [{ bank, accountNumber, holder }]
-  qrImageUrl          String? // imagen QR de pago (ruta /files/...)
-  isPublished       Boolean         @default(true)
-  displayOrder      Int             @default(0) // orden manual (drag-and-drop del panel); también rige el orden en la landing
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  bankAccounts             Json            @default("[]") // [{ bank, accountNumber, holder }]
+  qrImageUrl               String? // imagen QR de pago (ruta /files/...)
+  isPublished              Boolean         @default(true)
+  displayOrder             Int             @default(0) // orden manual (drag-and-drop del panel); también rige el orden en la landing
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
 
   modules  ProgramModule[]
   teachers ProgramTeacher[]
@@ -389,6 +392,91 @@ model EnrollmentRequest {
 enum EnrollmentRequestStatus {
   PENDING
   ENROLLED
+}
+
+// ── Convocatorias públicas ──────────────────────────────────────────────────
+// El ADMIN publica convocatorias y construye su formulario dinámico. Las
+// postulaciones son públicas y conservan un snapshot textual de cada respuesta.
+enum CallQuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TEXT
+  FILE
+}
+
+model Call {
+  id           String    @id @default(uuid())
+  title        String
+  slug         String    @unique
+  summary      String
+  description  String?
+  coverUrl     String?
+  opensAt      DateTime?
+  closesAt     DateTime?
+  isPublished  Boolean   @default(false)
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  questions    CallQuestion[]
+  applications CallApplication[]
+
+  @@index([isPublished, displayOrder])
+  @@map("calls")
+}
+
+model CallQuestion {
+  id          String           @id @default(uuid())
+  callId      String
+  call        Call             @relation(fields: [callId], references: [id], onDelete: Cascade)
+  order       Int
+  type        CallQuestionType
+  prompt      String
+  description String?
+  required    Boolean          @default(true)
+  options     String[]         @default([])
+  // Las preguntas retiradas dejan de aparecer en nuevas postulaciones, pero
+  // permanecen para conservar la relación con respuestas históricas.
+  isActive    Boolean          @default(true)
+
+  answers CallApplicationAnswer[]
+
+  @@unique([callId, order])
+  @@index([callId])
+  @@map("call_questions")
+}
+
+model CallApplication {
+  id          String   @id @default(uuid())
+  callId      String
+  call        Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  submittedAt DateTime @default(now())
+
+  answers CallApplicationAnswer[]
+
+  @@index([callId, submittedAt])
+  @@map("call_applications")
+}
+
+model CallApplicationAnswer {
+  id                     String            @id @default(uuid())
+  applicationId          String
+  application            CallApplication   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  questionId             String
+  question               CallQuestion      @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  textValue              String?
+  selectedOptions        String[]          @default([])
+  // Snapshot del formulario tal como lo vio el postulante. Permite editar o
+  // retirar preguntas sin cambiar la lectura de respuestas anteriores.
+  questionPromptSnapshot String?
+  questionTypeSnapshot   CallQuestionType?
+  questionOrderSnapshot  Int?
+  // [{ name, url, size, mimeType }]. Las rutas son /files/call-applications/...
+  files                  Json              @default("[]")
+
+  @@unique([applicationId, questionId])
+  @@index([questionId])
+  @@map("call_application_answers")
 }
 
 model ProgramTeacher {
@@ -467,10 +555,10 @@ model CourseModule {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  teachers ModuleTeacher[] // co-docencia: varios docentes por módulo
-  contents ModuleContent[] // contenidos ordenados (temario): tema/video/material/actividad
-  grades   ModuleGrade[]
-  messages ChatMessage[] // chat docente↔estudiante dentro del módulo
+  teachers      ModuleTeacher[] // co-docencia: varios docentes por módulo
+  contents      ModuleContent[] // contenidos ordenados (temario): tema/video/material/actividad
+  grades        ModuleGrade[]
+  messages      ChatMessage[] // chat docente↔estudiante dentro del módulo
   classSessions ClassSession[] // cronograma de clases del módulo
 
   @@unique([courseId, order])
@@ -554,39 +642,39 @@ model ModuleContent {
   url          String? // ruta /files/... (subida) o enlace externo
 
   // ACTIVITY — actividad evaluable
-  activityType ActivityType?
-  instructions String?
+  activityType     ActivityType?
+  instructions     String?
   activityFileUrl  String? // PDF/Word adjunto con instrucciones o material de apoyo
   activityFileName String? // nombre original visible para docente/estudiante
-  dueDate      DateTime?
-  maxScore     Decimal?      @db.Decimal(5, 2)
-  weight       Decimal?      @db.Decimal(5, 2) // peso (%) en la nota del módulo
+  dueDate          DateTime?
+  maxScore         Decimal?      @db.Decimal(5, 2)
+  weight           Decimal?      @db.Decimal(5, 2) // peso (%) en la nota del módulo
   // Actividad "presencial": la califica el docente a mano en la libreta (sin
   // entrega digital del estudiante). No aparece en el temario del aula; sí
   // pondera en la nota del módulo y se muestra en las notas del estudiante.
-  isOffline    Boolean       @default(false)
+  isOffline        Boolean       @default(false)
 
   // ACTIVITY de tipo QUIZ/EXAM — configuración del motor de preguntas. Todos
   // nullable (solo aplican a cuestionarios/exámenes).
-  timeLimitMin  Int? // duración límite en minutos (cronómetro); null = sin límite
-  availableFrom DateTime? // ventana: no se puede rendir antes
+  timeLimitMin   Int? // duración límite en minutos (cronómetro); null = sin límite
+  availableFrom  DateTime? // ventana: no se puede rendir antes
   availableUntil DateTime? // ventana: no se puede rendir después
-  singleAttempt Boolean? // true = un solo intento
-  shuffle       Boolean? // barajar preguntas y opciones por estudiante
-  revealAnswers Boolean? // resultados: true = corrección completa, false/null = solo nota
+  singleAttempt  Boolean? // true = un solo intento
+  shuffle        Boolean? // barajar preguntas y opciones por estudiante
+  revealAnswers  Boolean? // resultados: true = corrección completa, false/null = solo nota
   // Examen de recuperación (solo QUIZ/EXAM, en módulo CONCLUIDO): su nota
   // reemplaza la nota final del módulo del estudiante que lo rinde. Máx. uno
   // por etapa por módulo. null = actividad normal (pondera por peso).
-  recoveryStage RecoveryStage?
+  recoveryStage  RecoveryStage?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  submissions Submission[]
-  progress    ContentProgress[]
-  folderFiles FolderFile[] // archivos contenidos (solo kind = FOLDER)
-  forumPosts  ForumPost[] // mensajes del foro (solo activityType = FORUM)
-  questions   Question[] // preguntas (solo QUIZ/EXAM)
+  submissions  Submission[]
+  progress     ContentProgress[]
+  folderFiles  FolderFile[] // archivos contenidos (solo kind = FOLDER)
+  forumPosts   ForumPost[] // mensajes del foro (solo activityType = FORUM)
+  questions    Question[] // preguntas (solo QUIZ/EXAM)
   quizAttempts QuizAttempt[] // intentos de los estudiantes (solo QUIZ/EXAM)
 
   @@unique([moduleId, order])
@@ -605,7 +693,7 @@ model FolderFile {
   name      String // nombre visible (nombre original del archivo)
   url       String // ruta /files/...
   size      Int? // tamaño en bytes (opcional)
-  createdAt DateTime @default(now())
+  createdAt DateTime      @default(now())
 
   @@index([contentId])
   @@map("folder_files")
@@ -802,16 +890,16 @@ model QuizAttempt {
 
 // Respuesta de un estudiante a una pregunta dentro de un intento.
 model QuizAnswer {
-  id          String      @id @default(uuid())
-  attemptId   String
-  attempt     QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  questionId  String
-  question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  selectedOptionIds String[] @default([]) // SINGLE/MULTIPLE_CHOICE
-  boolValue   Boolean? // TRUE_FALSE
-  textValue   String? // SHORT_TEXT / ESSAY
-  isCorrect   Boolean? // null para ESSAY hasta corregir
-  pointsAwarded Decimal? @db.Decimal(6, 2)
+  id                String      @id @default(uuid())
+  attemptId         String
+  attempt           QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId        String
+  question          Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionIds String[]    @default([]) // SINGLE/MULTIPLE_CHOICE
+  boolValue         Boolean? // TRUE_FALSE
+  textValue         String? // SHORT_TEXT / ESSAY
+  isCorrect         Boolean? // null para ESSAY hasta corregir
+  pointsAwarded     Decimal?    @db.Decimal(6, 2)
 
   @@unique([attemptId, questionId])
   @@index([questionId])

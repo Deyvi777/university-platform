@@ -174,3 +174,30 @@ export interface SettingsPayload {
   tiktok: string | null;
   whatsapp: string | null;
 }
+
+export type CallQuestionTypeValue =
+  | "SINGLE_CHOICE"
+  | "MULTIPLE_CHOICE"
+  | "TEXT"
+  | "FILE";
+
+export interface CallQuestionPayload {
+  id?: string;
+  type: CallQuestionTypeValue;
+  prompt: string;
+  description: string | null;
+  required: boolean;
+  options: string[];
+}
+
+export interface CallPayload {
+  title: string;
+  slug?: string;
+  summary: string;
+  description: string | null;
+  coverUrl: string | null;
+  opensAt: string | null;
+  closesAt: string | null;
+  isPublished: boolean;
+  questions: CallQuestionPayload[];
+}

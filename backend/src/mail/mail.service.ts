@@ -8,6 +8,7 @@ import * as nodemailer from 'nodemailer';
 export const MAIL_QUEUE = 'mail';
 export const CREDENTIALS_JOB = 'credentials';
 export const ENROLLMENT_NOTICE_JOB = 'enrollment-notice';
+export const CALL_APPLICATION_NOTICE_JOB = 'call-application-notice';
 
 /** Datos para el correo de bienvenida con credenciales de acceso. */
 export interface CredentialsMailPayload {
@@ -37,6 +38,27 @@ export interface EnrollmentNoticeMailPayload {
   programTitle: string;
 }
 
+/** Datos para el aviso de una nueva postulación a una convocatoria. */
+export interface CallApplicationNoticeMailPayload {
+  /** Buzón destino (configurable desde /dashboard/convocatorias). */
+  to: string;
+  callId: string;
+  callTitle: string;
+  applicationId: string;
+  submittedAt: string;
+  answers: Array<{
+    prompt: string;
+    textValue: string | null;
+    selectedOptions: string[];
+    files: Array<{
+      name: string;
+      url: string;
+      size: number;
+      mimeType: string;
+    }>;
+  }>;
+}
+
 /**
  * Envío de correo transaccional vía SMTP (agnóstico al proveedor: Brevo,
  * Resend, Gmail, etc. — se configura con las variables `SMTP_*`). El envío real
@@ -62,7 +84,7 @@ export class MailService implements OnModuleInit {
     const pass = this.config.get<string>('SMTP_PASS');
     if (!host || !user || !pass) {
       this.logger.warn(
-        'SMTP no configurado (SMTP_HOST/SMTP_USER/SMTP_PASS): no se enviarán correos de credenciales.',
+        'SMTP no configurado (SMTP_HOST/SMTP_USER/SMTP_PASS): no se enviarán correos.',
       );
       return;
     }
@@ -103,6 +125,11 @@ export class MailService implements OnModuleInit {
   /** URL de la sección de solicitudes del panel (para el aviso por correo). */
   requestsPanelUrl(): string {
     return `${this.frontendBase()}/dashboard/solicitudes`;
+  }
+
+  /** URL de las postulaciones de una convocatoria en el panel. */
+  callApplicationsPanelUrl(callId: string): string {
+    return `${this.frontendBase()}/dashboard/convocatorias/${encodeURIComponent(callId)}/postulaciones`;
   }
 
   /** Primer origen de `FRONTEND_URL` (puede listar varios separados por coma). */
@@ -171,6 +198,32 @@ export class MailService implements OnModuleInit {
     }
   }
 
+  /** Encola el aviso de una nueva postulación sin bloquear el formulario. */
+  async enqueueCallApplicationNotice(
+    payload: CallApplicationNoticeMailPayload,
+  ): Promise<void> {
+    if (!this.isEnabled) {
+      this.logger.warn(
+        `SMTP deshabilitado; no se encola el aviso de postulación ${payload.applicationId}.`,
+      );
+      return;
+    }
+    try {
+      await this.queue.add(CALL_APPLICATION_NOTICE_JOB, payload, {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5_000 },
+        removeOnComplete: true,
+        removeOnFail: 100,
+      });
+    } catch (e) {
+      this.logger.error(
+        `No se pudo encolar el aviso de postulación ${payload.applicationId}: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
+  }
+
   /** Envío real del aviso de solicitud (lo llama el procesador de la cola). */
   async sendEnrollmentNotice(
     payload: EnrollmentNoticeMailPayload,
@@ -194,6 +247,32 @@ export class MailService implements OnModuleInit {
     });
     this.logger.log(
       `Aviso de solicitud de inscripción enviado a ${payload.to}.`,
+    );
+  }
+
+  /** Envío real del aviso de postulación (lo llama el procesador de la cola). */
+  async sendCallApplicationNotice(
+    payload: CallApplicationNoticeMailPayload,
+  ): Promise<void> {
+    if (!this.transporter) {
+      this.logger.warn(
+        `SMTP deshabilitado; se omite el aviso de postulación ${payload.applicationId}.`,
+      );
+      return;
+    }
+    const { subject, html, text } = buildCallApplicationNoticeEmail({
+      ...payload,
+      panelUrl: this.callApplicationsPanelUrl(payload.callId),
+    });
+    await this.transporter.sendMail({
+      from: this.from,
+      to: payload.to,
+      subject,
+      text,
+      html,
+    });
+    this.logger.log(
+      `Aviso de postulación ${payload.applicationId} enviado a ${payload.to}.`,
     );
   }
 
@@ -381,4 +460,97 @@ ${htmlRows}
 </div>`;
 
   return { subject, html, text };
+}
+
+/** Arma el correo con todas las respuestas y referencias a sus adjuntos. */
+export function buildCallApplicationNoticeEmail(
+  data: CallApplicationNoticeMailPayload & { panelUrl: string },
+): { subject: string; html: string; text: string } {
+  const subject = `Nueva postulación · ${data.callTitle}`;
+  const submittedAt = new Intl.DateTimeFormat('es-BO', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'America/La_Paz',
+  }).format(new Date(data.submittedAt));
+
+  const answerText = (
+    answer: CallApplicationNoticeMailPayload['answers'][number],
+  ) => {
+    if (answer.textValue) return answer.textValue;
+    if (answer.selectedOptions.length) return answer.selectedOptions.join(', ');
+    if (answer.files.length) {
+      return answer.files
+        .map((file) => `${file.name} (${formatFileSize(file.size)})`)
+        .join(', ');
+    }
+    return 'Sin respuesta';
+  };
+
+  const text = [
+    `Llegó una nueva postulación para la convocatoria “${data.callTitle}”.`,
+    '',
+    `Código: ${data.applicationId}`,
+    `Fecha: ${submittedAt}`,
+    '',
+    ...data.answers.flatMap((answer, index) => [
+      `${index + 1}. ${answer.prompt}`,
+      `   ${answerText(answer)}`,
+      '',
+    ]),
+    `Revisar postulación y descargar adjuntos: ${data.panelUrl}`,
+    '',
+    'Certificate — Escuela de Posgrado',
+  ].join('\n');
+
+  const htmlAnswers = data.answers
+    .map((answer, index) => {
+      const value = escapeHtml(answerText(answer)).replace(/\n/g, '<br>');
+      return `<div style="padding:14px 0;${index > 0 ? 'border-top:1px solid #e2e8f0;' : ''}">
+        <p style="margin:0 0 6px;font-size:13px;font-weight:bold;color:#0f172a;">${index + 1}. ${escapeHtml(answer.prompt)}</p>
+        <p style="margin:0;font-size:14px;line-height:1.6;color:#475569;">${value}</p>
+      </div>`;
+    })
+    .join('\n');
+
+  const html = `<!-- nueva postulación a convocatoria -->
+<div style="margin:0;padding:24px;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+  <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
+    <div style="background:#1e3a8a;padding:20px 24px;">
+      <span style="color:#ffffff;font-size:18px;font-weight:bold;letter-spacing:0.3px;">Certificate</span>
+    </div>
+    <div style="padding:24px;">
+      <p style="margin:0 0 8px;font-size:15px;">Llegó una <strong>nueva postulación</strong> para:</p>
+      <h1 style="margin:0 0 18px;font-size:20px;line-height:1.35;color:#0f172a;">${escapeHtml(data.callTitle)}</h1>
+      <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:10px;margin:0 0 20px;">
+        <tr>
+          <td style="padding:10px 14px;font-size:13px;color:#64748b;width:100px;">Código</td>
+          <td style="padding:10px 14px;font-size:13px;font-weight:bold;font-family:'Courier New',monospace;">${escapeHtml(data.applicationId)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">Fecha</td>
+          <td style="padding:10px 14px;font-size:14px;font-weight:bold;border-top:1px solid #e2e8f0;">${escapeHtml(submittedAt)}</td>
+        </tr>
+      </table>
+      <div style="margin:0 0 22px;">${htmlAnswers}</div>
+      <a href="${escapeHtml(data.panelUrl)}" style="display:inline-block;background:#1e3a8a;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-size:14px;font-weight:bold;">
+        Ver postulación y adjuntos
+      </a>
+      <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#94a3b8;">
+        Los archivos permanecen protegidos y se descargan desde el panel de administración.<br>
+        <span style="color:#1e3a8a;">${escapeHtml(data.panelUrl)}</span>
+      </p>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;">
+      Certificate — Escuela de Posgrado
+    </div>
+  </div>
+</div>`;
+
+  return { subject, html, text };
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

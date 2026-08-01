@@ -14,6 +14,7 @@ function sectionFromHref(href: string): string {
   if (href.startsWith("/#")) return href.slice(2);
   if (href === "/nosotros") return "nosotros";
   if (href === "/galeria") return "galeria";
+  if (href === "/convocatorias") return "convocatorias";
   if (href === "/contacto") return "contacto";
   return "";
 }
@@ -31,6 +32,7 @@ function isLinkActive(activeSection: string, href: string): boolean {
 const navLinks = [
   { href: "/nosotros", label: "Nosotros" },
   { href: "/galeria", label: "Galería" },
+  { href: "/convocatorias", label: "Convocatorias" },
   { href: "/contacto", label: "Contacto" },
 ];
 
@@ -102,7 +104,7 @@ export function Navbar() {
                 <span className="absolute -bottom-1.5 left-0 h-0.5 w-full rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
               )}
             </ScrollLink>
-            
+
             <div className="absolute left-0 top-full mt-4 w-56 origin-top-left rounded-xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-lg transition-all duration-300 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0">
               <div className="absolute -top-4 left-0 h-4 w-full" />
               {categories.map((category) => (
@@ -192,11 +194,13 @@ export function Navbar() {
               </ScrollLink>
             </li>
             <li>
-              <div className={`block rounded-md px-3 py-2 text-base font-medium transition-colors ${
-                activeSection === "programas"
-                  ? "text-amber-300"
-                  : "text-white"
-              }`}>
+              <div
+                className={`block rounded-md px-3 py-2 text-base font-medium transition-colors ${
+                  activeSection === "programas"
+                    ? "text-amber-300"
+                    : "text-white"
+                }`}
+              >
                 Programas
               </div>
               <ul className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-4">
@@ -225,9 +229,7 @@ export function Navbar() {
                         : "text-white/80 hover:bg-white/10 hover:text-white"
                     }`}
                   >
-                    <div onClick={() => setMenuOpen(false)}>
-                      {link.label}
-                    </div>
+                    <div onClick={() => setMenuOpen(false)}>{link.label}</div>
                   </ScrollLink>
                 </li>
               );
@@ -243,9 +245,7 @@ export function Navbar() {
                 href="/#programas"
                 className="flex-1 rounded-full bg-amber-400 px-5 py-2 text-center text-sm font-semibold text-slate-950"
               >
-                <div onClick={() => setMenuOpen(false)}>
-                  Inscríbete
-                </div>
+                <div onClick={() => setMenuOpen(false)}>Inscríbete</div>
               </ScrollLink>
             </li>
           </ul>

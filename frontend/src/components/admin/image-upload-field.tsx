@@ -13,9 +13,9 @@ import {
 interface ImageUploadFieldProps {
   value: string;
   onChange: (url: string) => void;
-  folder: "programs" | "partners" | "team";
+  folder: "programs" | "partners" | "team" | "calls";
   /** Relación de aspecto del recuadro de previsualización. */
-  variant?: "flyer" | "logo" | "portrait";
+  variant?: "flyer" | "logo" | "portrait" | "landscape";
   disabled?: boolean;
 }
 
@@ -83,9 +83,11 @@ export function ImageUploadField({
   const boxClasses =
     variant === "flyer"
       ? "aspect-[4/5] w-40"
-      : variant === "portrait"
-        ? "aspect-[3/4] w-36"
-        : "aspect-square w-32";
+      : variant === "landscape"
+        ? "aspect-video w-64"
+        : variant === "portrait"
+          ? "aspect-[3/4] w-36"
+          : "aspect-square w-32";
 
   return (
     <div className="flex items-start gap-4">

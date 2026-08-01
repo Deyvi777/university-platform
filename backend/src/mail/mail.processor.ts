@@ -5,6 +5,8 @@ import { Job } from 'bullmq';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  CALL_APPLICATION_NOTICE_JOB,
+  CallApplicationNoticeMailPayload,
   CREDENTIALS_JOB,
   CredentialsMailPayload,
   ENROLLMENT_NOTICE_JOB,
@@ -13,7 +15,11 @@ import {
   MailService,
 } from './mail.service';
 
-type MailJob = Job<CredentialsMailPayload | EnrollmentNoticeMailPayload>;
+type MailJob = Job<
+  | CredentialsMailPayload
+  | EnrollmentNoticeMailPayload
+  | CallApplicationNoticeMailPayload
+>;
 
 /**
  * Procesa la cola `mail` fuera de la petición HTTP (con reintentos y
@@ -37,6 +43,10 @@ export class MailProcessor extends WorkerHost {
     } else if (job.name === ENROLLMENT_NOTICE_JOB) {
       await this.mail.sendEnrollmentNotice(
         job.data as EnrollmentNoticeMailPayload,
+      );
+    } else if (job.name === CALL_APPLICATION_NOTICE_JOB) {
+      await this.mail.sendCallApplicationNotice(
+        job.data as CallApplicationNoticeMailPayload,
       );
     } else {
       this.logger.warn(`Job de correo desconocido: ${job.name}`);
@@ -63,6 +73,15 @@ export class MailProcessor extends WorkerHost {
       const n = job.data as EnrollmentNoticeMailPayload;
       this.logger.error(
         `El aviso por correo de la solicitud de ${n.email} agotó sus reintentos: ${
+          error?.message || 'Error desconocido'
+        }`,
+      );
+      return;
+    }
+    if (job.name === CALL_APPLICATION_NOTICE_JOB) {
+      const notice = job.data as CallApplicationNoticeMailPayload;
+      this.logger.error(
+        `El aviso por correo de la postulación ${notice.applicationId} agotó sus reintentos: ${
           error?.message || 'Error desconocido'
         }`,
       );

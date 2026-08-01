@@ -186,18 +186,20 @@ Endpoints públicos: `GET /programs` (filtrable por `?category=<slug>`, ordenado
 
 ### `SiteSettings` → tabla `site_settings`
 
-Configuración global de la landing. Es un **singleton**: una única fila con id fijo `"singleton"` (no uuid). Guarda los enlaces a redes sociales que se muestran en el footer; un campo `null` (o vacío al guardar) **oculta** su icono.
+Configuración global de la landing y de sus avisos administrativos. Es un **singleton**: una única fila con id fijo `"singleton"` (no uuid). Guarda los enlaces a redes sociales que se muestran en el footer y los buzones privados que reciben formularios públicos; un enlace `null` (o vacío al guardar) **oculta** su icono.
 
-| Campo                     | Tipo       | Notas                                         |
-| ------------------------- | ---------- | --------------------------------------------- |
-| `id`                      | `String`   | PK fija `@default("singleton")`               |
-| `facebook`                | `String?`  | URL del perfil; `null` oculta el icono        |
-| `instagram`               | `String?`  |                                               |
-| `linkedin`                | `String?`  |                                               |
-| `youtube`                 | `String?`  |                                               |
-| `tiktok`                  | `String?`  |                                               |
-| `whatsapp`                | `String?`  | URL completa, ej. `https://wa.me/59170000000` |
-| `createdAt` / `updatedAt` | `DateTime` |                                               |
+| Campo                        | Tipo       | Notas                                         |
+| ---------------------------- | ---------- | --------------------------------------------- |
+| `id`                         | `String`   | PK fija `@default("singleton")`               |
+| `facebook`                   | `String?`  | URL del perfil; `null` oculta el icono        |
+| `instagram`                  | `String?`  |                                               |
+| `linkedin`                   | `String?`  |                                               |
+| `youtube`                    | `String?`  |                                               |
+| `tiktok`                     | `String?`  |                                               |
+| `whatsapp`                   | `String?`  | URL completa, ej. `https://wa.me/59170000000` |
+| `enrollmentNotifyEmail`      | `String`   | aviso de solicitudes; default institucional   |
+| `callApplicationNotifyEmail` | `String`   | aviso de postulaciones; default institucional |
+| `createdAt` / `updatedAt`    | `DateTime` |                                               |
 
 Endpoint público: `GET /settings` (solo los 6 campos de redes). Admin: `GET /admin/settings` y `PATCH /admin/settings` (módulo `backend/src/settings/`). El service usa `upsert` por id `"singleton"`, así la fila se crea sola la primera vez. El DTO Zod normaliza cadena vacía → `null` y valida que un valor no vacío sea URL. Pensada para crecer con más "datos de la landing" (textos, contacto, etc.).
 
@@ -575,6 +577,12 @@ Apunte/recordatorio que un usuario marca en una fecha de su calendario.
 
 Índice: `@@index([userId, date])`. CRUD (cada usuario solo los suyos): `GET/POST /me/calendar/reminders`, `PATCH/DELETE /me/calendar/reminders/:id` (valida pertenencia → 403/404).
 
+## Convocatorias públicas
+
+`Call` representa una convocatoria publicable con vigencia opcional (`opensAt`/`closesAt`). Tiene preguntas ordenadas `CallQuestion` de tipo `SINGLE_CHOICE`, `MULTIPLE_CHOICE`, `TEXT` o `FILE`. Cada envío crea una `CallApplication` y una `CallApplicationAnswer` por respuesta; selección múltiple usa `selectedOptions String[]` y los metadatos de archivos se guardan en `files Json` como `[{name,url,size,mimeType}]`.
+
+El formulario sigue siendo editable con postulaciones: las preguntas mantenidas conservan su id, las retiradas quedan `isActive=false` (ya no se exponen a nuevas postulaciones) y cada respuesta persiste `questionPromptSnapshot`, `questionTypeSnapshot` y `questionOrderSnapshot`. Así, editar texto/tipo/opciones/orden o agregar/retirar preguntas no reinterpreta respuestas históricas. La eliminación de la convocatoria completa continúa bloqueada con 409 mientras tenga postulaciones. Un ADMIN sí puede eliminar una `CallApplication` individual: sus `CallApplicationAnswer` se borran por cascada y, después de confirmar el borrado en PostgreSQL, se eliminan los objetos referenciados por `files`. Los objetos adjuntos se guardan con UUID bajo `call-applications/`; `GET /files/:folder/:filename` rechaza esa carpeta y la descarga se realiza únicamente por la ruta ADMIN protegida. Tras persistir cada `CallApplication`, el backend encola un correo al buzón `SiteSettings.callApplicationNotifyEmail`; incluye respuestas y metadatos de archivos, mientras los binarios permanecen accesibles solo desde el panel.
+
 ## Diagrama de relaciones
 
 ```
@@ -583,6 +591,8 @@ ProgramCategory 1───N Program 1───N ProgramModule
                                  1───N ProgramTeacher
 Partner       (independiente)
 SiteSettings  (independiente — singleton, fila única "singleton")
+Call 1───N CallQuestion
+     1───N CallApplication 1───N CallApplicationAnswer N───1 CallQuestion
 
 ── Identidad / RBAC ─────────────────────────────────────────────────
 User (ADMIN | PROFESSOR | STUDENT)

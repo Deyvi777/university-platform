@@ -6,6 +6,7 @@ export const uploadFolders = [
   'partners',
   'team',
   'gallery',
+  'calls',
 ] as const;
 
 export const uploadQuerySchema = z.object({

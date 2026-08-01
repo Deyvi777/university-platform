@@ -2,10 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { ScrollLink } from "./scroll-link";
-import {
-  hasConfiguredSocialLinks,
-  SocialLinks,
-} from "./social-links";
+import { hasConfiguredSocialLinks, SocialLinks } from "./social-links";
 import { getSiteSettings } from "@/lib/api/settings";
 
 const MAPS_LINK =
@@ -18,6 +15,7 @@ const navColumns = [
       { label: "Programas", href: "/#programas" },
       { label: "Nosotros", href: "/nosotros" },
       { label: "Instituciones", href: "/#instituciones-aliadas" },
+      { label: "Convocatorias", href: "/convocatorias" },
       { label: "Contacto", href: "/contacto" },
     ],
   },
@@ -70,7 +68,11 @@ export async function Footer() {
         <div className="grid gap-12 lg:grid-cols-[1.5fr_1fr_1fr]">
           {/* Marca */}
           <div className="max-w-sm">
-            <Link href="/" aria-label="Certificate — Inicio" className="inline-block">
+            <Link
+              href="/"
+              aria-label="Certificate — Inicio"
+              className="inline-block"
+            >
               <Image
                 src="/landing/logo.webp"
                 alt="Certificate — Escuela Multidisciplinaria de Postgrado"
@@ -87,14 +89,16 @@ export async function Footer() {
             >
               <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
               <span>
-                <span className="block font-semibold text-white">OFICINA CENTRAL</span>
-                Calle Jordán N°333 entre 25 de mayo y Esteban Arce. Edificio COSCENTER, 1° piso / Of. 7B
+                <span className="block font-semibold text-white">
+                  OFICINA CENTRAL
+                </span>
+                Calle Jordán N°333 entre 25 de mayo y Esteban Arce. Edificio
+                COSCENTER, 1° piso / Of. 7B
                 <span className="mt-1 block font-medium text-slate-300">
                   Cochabamba - Bolivia
                 </span>
               </span>
             </a>
-
           </div>
 
           {/* Columnas de navegación */}
@@ -122,8 +126,8 @@ export async function Footer() {
         {/* Barra inferior */}
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 sm:flex-row">
           <p className="text-sm text-slate-500">
-            © {new Date().getFullYear()} Certificate · Escuela Multidisciplinaria
-            de Postgrado.
+            © {new Date().getFullYear()} Certificate · Escuela
+            Multidisciplinaria de Postgrado.
           </p>
           <p className="text-sm text-slate-500">
             Todos los derechos reservados.

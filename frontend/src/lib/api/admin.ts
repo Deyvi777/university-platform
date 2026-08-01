@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import type { ProgramCategory } from "@/lib/api/programs";
 import type { KardexCourse } from "@/lib/api/me";
+import type { CallQuestionType } from "@/lib/api/calls";
 
 export interface AdminCategory {
   id: string;
@@ -158,6 +159,8 @@ export interface AdminSettings {
   whatsapp: string | null;
   /** Buzón que recibe el aviso por correo de cada solicitud de inscripción. */
   enrollmentNotifyEmail: string;
+  /** Buzón que recibe el aviso por correo de cada postulación. */
+  callApplicationNotifyEmail: string;
 }
 
 // ---- Programas académicos (capa Course/LMS) ----
@@ -226,6 +229,67 @@ export interface AdminCourseListItem {
   startDate: string | null;
   updatedAt: string;
   _count: { modules: number; enrollments: number };
+}
+
+export interface AdminCallQuestion {
+  id: string;
+  order: number;
+  type: CallQuestionType;
+  prompt: string;
+  description: string | null;
+  required: boolean;
+  options: string[];
+}
+
+export interface AdminCallListItem {
+  id: string;
+  slug: string;
+  title: string;
+  opensAt: string | null;
+  closesAt: string | null;
+  isPublished: boolean;
+  displayOrder: number;
+  updatedAt: string;
+  _count: { questions: number; applications: number };
+}
+
+export interface AdminCall {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  description: string | null;
+  coverUrl: string | null;
+  opensAt: string | null;
+  closesAt: string | null;
+  isPublished: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  questions: AdminCallQuestion[];
+  _count: { applications: number };
+}
+
+export interface AdminCallApplicationFile {
+  name: string;
+  url: string;
+  size: number;
+  mimeType: string;
+}
+
+export interface AdminCallApplication {
+  id: string;
+  submittedAt: string;
+  answers: Array<{
+    id: string;
+    questionPromptSnapshot: string | null;
+    questionTypeSnapshot: CallQuestionType | null;
+    questionOrderSnapshot: number | null;
+    textValue: string | null;
+    selectedOptions: string[];
+    files: AdminCallApplicationFile[];
+    question: AdminCallQuestion;
+  }>;
 }
 
 // ---- Cliente con token ----
@@ -298,6 +362,20 @@ export async function listAdminPrograms(): Promise<AdminProgramListItem[]> {
 
 export async function getAdminProgram(id: string): Promise<AdminProgram> {
   return parse(await adminFetch(`/admin/programs/${id}`));
+}
+
+export async function listAdminCalls(): Promise<AdminCallListItem[]> {
+  return parse(await adminFetch("/admin/calls"));
+}
+
+export async function getAdminCall(id: string): Promise<AdminCall> {
+  return parse(await adminFetch(`/admin/calls/${id}`));
+}
+
+export async function listAdminCallApplications(
+  id: string,
+): Promise<AdminCallApplication[]> {
+  return parse(await adminFetch(`/admin/calls/${id}/applications`));
 }
 
 export async function listAdminPartners(): Promise<AdminPartner[]> {

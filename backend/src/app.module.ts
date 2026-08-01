@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { AuthModule } from './auth/auth.module';
 import { CalendarModule } from './calendar/calendar.module';
+import { CallsModule } from './calls/calls.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ChatModule } from './chat/chat.module';
 import { CleanupModule } from './cleanup/cleanup.module';
@@ -51,6 +52,7 @@ import { UsersModule } from './users/users.module';
     NotificationsModule,
     ChatModule,
     CalendarModule,
+    CallsModule,
     ScheduleModule,
     ForumModule,
     QuizModule,

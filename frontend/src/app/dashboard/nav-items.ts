@@ -6,6 +6,7 @@ import {
   ClipboardList,
   GraduationCap,
   Images,
+  Megaphone,
   LayoutDashboard,
   Presentation,
   ScrollText,
@@ -45,7 +46,8 @@ export type NavIcon =
   | "send-notification"
   | "student-grades"
   | "kardex"
-  | "enrollment-requests";
+  | "enrollment-requests"
+  | "calls";
 
 export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   home: LayoutDashboard,
@@ -66,6 +68,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   "student-grades": ClipboardList,
   kardex: ScrollText,
   "enrollment-requests": UserPlus,
+  calls: Megaphone,
 };
 
 export type NavItem = {
@@ -246,6 +249,11 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
             href: "/dashboard/galeria",
             label: "Galería",
             icon: "gallery",
+          },
+          {
+            href: "/dashboard/convocatorias",
+            label: "Convocatorias",
+            icon: "calls",
           },
           {
             href: "/dashboard/configuracion",
