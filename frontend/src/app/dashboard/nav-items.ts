@@ -3,6 +3,7 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
+  CirclePlay,
   ClipboardList,
   GraduationCap,
   Images,
@@ -46,6 +47,7 @@ export type NavIcon =
   | "send-notification"
   | "student-grades"
   | "kardex"
+  | "tutorials"
   | "enrollment-requests"
   | "calls";
 
@@ -67,6 +69,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   "send-notification": Send,
   "student-grades": ClipboardList,
   kardex: ScrollText,
+  tutorials: CirclePlay,
   "enrollment-requests": UserPlus,
   calls: Megaphone,
 };
@@ -161,10 +164,18 @@ const KARDEX_ITEM: NavItem = {
   icon: "kardex",
 };
 
+/** Biblioteca de videos de ayuda con contenido específico por rol. */
+const TUTORIALS_ITEM: NavItem = {
+  href: "/dashboard/tutoriales",
+  label: "Tutoriales",
+  icon: "tutorials",
+};
+
 /**
  * Secciones de navegación visibles para cada rol. ADMIN ve grupos con
  * encabezado (igual que la home); PROFESSOR y STUDENT ven "Inicio",
- * "Calendario", "Notificaciones" y (solo STUDENT) "Kárdex". El **árbol de programas** anidado
+ * "Calendario", "Tutoriales", "Notificaciones" y (solo STUDENT) "Kárdex".
+ * El **árbol de programas** anidado
  * (programa → módulos) NO vive aquí: lo renderiza el sidebar a partir de la prop
  * `programs` (ver `dashboard-sidebar.tsx`), porque `NavSection` es plano.
  */
@@ -269,13 +280,20 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
     // inserta el árbol de "Programas" ENTRE ambos grupos (ver `DashboardSidebar`).
     return [
       { items: [HOME_ITEM] },
-      { items: [CALENDAR_ITEM, KARDEX_ITEM, NOTIFICATIONS_ITEM] },
+      {
+        items: [
+          CALENDAR_ITEM,
+          KARDEX_ITEM,
+          TUTORIALS_ITEM,
+          NOTIFICATIONS_ITEM,
+        ],
+      },
     ];
   }
-  // PROFESSOR: "Inicio" arriba, "Calendario" y "Notificaciones" debajo; el
-  // árbol de "Programas" se inserta entre ambos.
+  // PROFESSOR: "Inicio" arriba, "Calendario", "Tutoriales" y
+  // "Notificaciones" debajo; el árbol de "Programas" se inserta entre ambos.
   return [
     { items: [HOME_ITEM] },
-    { items: [CALENDAR_ITEM, NOTIFICATIONS_ITEM] },
+    { items: [CALENDAR_ITEM, TUTORIALS_ITEM, NOTIFICATIONS_ITEM] },
   ];
 }

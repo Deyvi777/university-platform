@@ -77,7 +77,27 @@ export default async function LoginPage({
 
           <LoginForm sessionExpired={sessionExpired} />
 
-          <p className="mt-8 border-t border-white/15 pt-6 text-center text-xs text-white/65">
+          <div className="mt-8 border-t border-white/15 pt-6 text-center text-xs leading-5 text-white/65">
+            <p>
+              Al utilizar los sistemas digitales de Certificate, declaras haber
+              tenido acceso a nuestra{" "}
+              <Link
+                href="/privacidad"
+                className="font-semibold text-amber-300 underline decoration-amber-300/40 underline-offset-2 transition-colors hover:text-amber-200 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+              >
+                Política de privacidad
+              </Link>
+              .
+            </p>
+            <Link
+              href="/privacidad#responsabilidad-del-usuario"
+              className="mt-2 inline-flex font-semibold text-white/80 underline decoration-white/30 underline-offset-2 transition-colors hover:text-white focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
+            >
+              Seguridad de la cuenta y credenciales
+            </Link>
+          </div>
+
+          <p className="mt-5 text-center text-xs text-white/65">
             ¿Problemas para ingresar? Contacta a la administración de
             Certificate.
           </p>

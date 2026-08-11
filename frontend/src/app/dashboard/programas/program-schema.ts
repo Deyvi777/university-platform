@@ -87,6 +87,15 @@ export const programFormSchema = z.object({
 
 export type ProgramFormValues = z.infer<typeof programFormSchema>;
 
+export const DEFAULT_PROGRAM_REQUIREMENTS = [
+  "FORMULARIO DE INSCRIPCIÓN DEBIDAMENTE LLENADO",
+  "COMPROBANTE DE PAGO DE SU MATRÍCULA Y PRIMERA CUOTA",
+  "CARNET DE IDENTIDAD (ANVERSO Y REVERSO EN DOCUMENTO PDF)",
+  "CERTIFICADO DE NACIMIENTO EMITIDO ENTRE LAS GESTIONES 2024 A 2026 (PDF)",
+  "TITULO EN PROVISIÓN NACIONAL (ANVERSO Y REVERSO EN DOCUMENTO PDF)",
+  "DIPLOMA ACADÉMICO (ANVERSO Y REVERSO EN DOCUMENTO PDF)",
+] as const;
+
 export function toFormValues(program?: AdminProgram): ProgramFormValues {
   if (!program) {
     return {
@@ -117,7 +126,7 @@ export function toFormValues(program?: AdminProgram): ProgramFormValues {
       bankAccounts: [],
       qrImageUrl: "",
       isPublished: true,
-      requirements: [],
+      requirements: DEFAULT_PROGRAM_REQUIREMENTS.map((value) => ({ value })),
       moduleZero: false,
       modules: [{ name: "", contents: [{ value: "" }] }],
       teachers: [],
