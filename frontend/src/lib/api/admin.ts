@@ -188,7 +188,45 @@ export interface AdminCourseModule {
   description: string | null;
   credits: number | null;
   status: string;
+  teacherEvaluationEnabled: boolean;
   teachers: AdminModuleTeacher[];
+}
+
+export type TeacherEvaluationQuestionType =
+  | "SCALE_1_5"
+  | "SINGLE_CHOICE"
+  | "MULTIPLE_CHOICE"
+  | "TEXT";
+
+export interface TeacherEvaluationQuestion {
+  id: string;
+  type: TeacherEvaluationQuestionType;
+  prompt: string;
+  required: boolean;
+  options: string[];
+  order: number;
+}
+
+export interface TeacherEvaluationResult {
+  id: string;
+  createdAt: string;
+  module: {
+    id: string;
+    order: number;
+    name: string;
+    course: { id: string; code: string; name: string };
+  };
+  teacher: { id: string; firstName: string; lastName: string; email: string };
+  student: { id: string; firstName: string; lastName: string; email: string };
+  answers: Array<{
+    id: string;
+    questionPromptSnapshot: string;
+    questionTypeSnapshot: TeacherEvaluationQuestionType;
+    questionOrderSnapshot: number;
+    scaleValue: number | null;
+    selectedOptions: string[];
+    textValue: string | null;
+  }>;
 }
 
 export interface AdminEnrollment {
@@ -551,6 +589,18 @@ export async function listAdminCourses(): Promise<AdminCourseListItem[]> {
 
 export async function getAdminCourse(id: string): Promise<AdminCourse> {
   return parse(await adminFetch(`/admin/courses/${id}`));
+}
+
+export async function getTeacherEvaluationQuestionnaire(): Promise<
+  TeacherEvaluationQuestion[]
+> {
+  return parse(await adminFetch("/admin/teacher-evaluations/questionnaire"));
+}
+
+export async function listTeacherEvaluationResults(): Promise<
+  TeacherEvaluationResult[]
+> {
+  return parse(await adminFetch("/admin/teacher-evaluations/results"));
 }
 
 // ---- Escrituras (server actions) ----

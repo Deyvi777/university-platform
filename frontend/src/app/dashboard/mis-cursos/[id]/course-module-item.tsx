@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   LayoutList,
+  MessageSquareMore,
   PlayCircle,
   Settings2,
   Users,
@@ -20,7 +21,8 @@ const MODULE_STATUS: Record<ModuleStatus, { label: string; badge: string }> = {
   },
   ACTIVE: {
     label: "En curso",
-    badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+    badge:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
   },
   FINISHED: {
     label: "Concluido",
@@ -28,23 +30,25 @@ const MODULE_STATUS: Record<ModuleStatus, { label: string; badge: string }> = {
   },
 };
 
-const GRADE_STATUS: Record<ModuleGradeStatus, { label: string; badge: string }> =
-  {
-    IN_PROGRESS: {
-      label: "En curso",
-      badge:
-        "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-    },
-    PASSED: {
-      label: "Aprobado",
-      badge:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-    },
-    FAILED: {
-      label: "Reprobado",
-      badge: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
-    },
-  };
+const GRADE_STATUS: Record<
+  ModuleGradeStatus,
+  { label: string; badge: string }
+> = {
+  IN_PROGRESS: {
+    label: "En curso",
+    badge:
+      "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  },
+  PASSED: {
+    label: "Aprobado",
+    badge:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  },
+  FAILED: {
+    label: "Reprobado",
+    badge: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+  },
+};
 
 /**
  * Un módulo del curso como acordeón nativo (`<details>`, sin JS). El resumen
@@ -54,10 +58,11 @@ const GRADE_STATUS: Record<ModuleGradeStatus, { label: string; badge: string }> 
  */
 export function CourseModuleItem({
   module,
+  isStudent,
   defaultOpen,
 }: {
   module: CourseModuleDetail;
-  courseId: string;
+  isStudent: boolean;
   defaultOpen?: boolean;
 }) {
   const status = MODULE_STATUS[module.status];
@@ -68,6 +73,14 @@ export function CourseModuleItem({
       : "IN_PROGRESS"
     : null;
   const grade = effectiveStatus ? GRADE_STATUS[effectiveStatus] : null;
+  const pendingTeacherEvaluations = module.teachers.filter(
+    (teacher) => !module.evaluatedTeacherIds.includes(teacher.id),
+  ).length;
+  const canEvaluateTeachers =
+    isStudent &&
+    module.status === "FINISHED" &&
+    module.teacherEvaluationEnabled &&
+    module.teachers.length > 0;
 
   return (
     <details
@@ -176,16 +189,16 @@ export function CourseModuleItem({
             {module.contentCount}{" "}
             {module.contentCount === 1 ? "contenido" : "contenidos"}
           </span>
-          {module.mine ? (
-            <Link
-              href={`/dashboard/modulos/${module.id}`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-blue-950 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 dark:bg-sky-600 dark:hover:bg-sky-500"
-            >
-              <Settings2 className="size-3.5" aria-hidden="true" />
-              Gestionar contenido
-            </Link>
-          ) : (
-            module.contentCount > 0 && (
+          <div className="flex flex-wrap justify-end gap-2">
+            {module.mine ? (
+              <Link
+                href={`/dashboard/modulos/${module.id}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-blue-950 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 dark:bg-sky-600 dark:hover:bg-sky-500"
+              >
+                <Settings2 className="size-3.5" aria-hidden="true" />
+                Gestionar contenido
+              </Link>
+            ) : isStudent && module.contentCount > 0 ? (
               <Link
                 href={`/dashboard/aula/${module.id}`}
                 className="inline-flex items-center gap-1.5 rounded-full bg-blue-950 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 dark:bg-sky-600 dark:hover:bg-sky-500"
@@ -193,8 +206,24 @@ export function CourseModuleItem({
                 <PlayCircle className="size-3.5" aria-hidden="true" />
                 Entrar al aula
               </Link>
-            )
-          )}
+            ) : null}
+            {canEvaluateTeachers && (
+              <Link
+                href={`/dashboard/aula/${module.id}/evaluacion`}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50",
+                  pendingTeacherEvaluations > 0
+                    ? "bg-violet-600 text-white hover:bg-violet-500"
+                    : "border border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+                )}
+              >
+                <MessageSquareMore className="size-3.5" aria-hidden="true" />
+                {pendingTeacherEvaluations > 0
+                  ? `Evaluar docente${pendingTeacherEvaluations > 1 ? "s" : ""}`
+                  : "Evaluación completada"}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </details>

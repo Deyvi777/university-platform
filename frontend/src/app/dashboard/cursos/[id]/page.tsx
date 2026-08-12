@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { CourseStatusBadge } from "@/app/dashboard/cursos/course-badges";
 import { ModuleTeachersControl } from "@/app/dashboard/cursos/module-teachers-control";
 import { ModuleStatusControl } from "@/app/dashboard/cursos/module-status-control";
+import { ModuleTeacherEvaluationControl } from "@/app/dashboard/cursos/module-teacher-evaluation-control";
 import { EnrollmentControl } from "@/app/dashboard/cursos/enrollment-control";
 import { CourseDetailTabs } from "./course-detail-tabs";
 
@@ -146,6 +147,11 @@ export default async function CursoDetallePage({
                       assignedIds={m.teachers.map((t) => t.teacher.id)}
                     />
                   </div>
+                  <ModuleTeacherEvaluationControl
+                    courseId={course.id}
+                    moduleId={m.id}
+                    enabled={m.teacherEvaluationEnabled}
+                  />
                 </li>
               ))}
             </ol>

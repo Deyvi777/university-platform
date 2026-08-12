@@ -28,6 +28,7 @@ import { ScheduleModule } from './schedule/schedule.module';
 import { SettingsModule } from './settings/settings.module';
 import { StorageModule } from './storage/storage.module';
 import { TeamModule } from './team/team.module';
+import { TeacherEvaluationsModule } from './teacher-evaluations/teacher-evaluations.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -56,6 +57,7 @@ import { UsersModule } from './users/users.module';
     ScheduleModule,
     ForumModule,
     QuizModule,
+    TeacherEvaluationsModule,
     CleanupModule,
   ],
   controllers: [AppController],

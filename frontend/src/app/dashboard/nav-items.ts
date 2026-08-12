@@ -8,6 +8,7 @@ import {
   GraduationCap,
   Images,
   Megaphone,
+  MessageSquareMore,
   LayoutDashboard,
   Presentation,
   ScrollText,
@@ -49,7 +50,8 @@ export type NavIcon =
   | "kardex"
   | "tutorials"
   | "enrollment-requests"
-  | "calls";
+  | "calls"
+  | "teacher-evaluations";
 
 export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   home: LayoutDashboard,
@@ -72,6 +74,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon> = {
   tutorials: CirclePlay,
   "enrollment-requests": UserPlus,
   calls: Megaphone,
+  "teacher-evaluations": MessageSquareMore,
 };
 
 export type NavItem = {
@@ -198,6 +201,11 @@ export function navSectionsForRole(role: string | undefined): NavSection[] {
             href: "/dashboard/notas-estudiantes",
             label: "Notas de estudiantes",
             icon: "student-grades",
+          },
+          {
+            href: "/dashboard/evaluaciones-docentes",
+            label: "Evaluaciones docentes",
+            icon: "teacher-evaluations",
           },
         ],
       },

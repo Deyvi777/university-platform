@@ -401,6 +401,7 @@ export class CoursesService {
             description: true,
             credits: true,
             status: true,
+            teacherEvaluationEnabled: true,
             teachers: {
               orderBy: { assignedAt: 'asc' },
               select: { teacher: { select: userSelect } },
@@ -418,6 +419,10 @@ export class CoursesService {
             grades: {
               where: { studentId: userId },
               select: { finalScore: true, status: true },
+            },
+            teacherEvaluations: {
+              where: { studentId: userId },
+              select: { teacherId: true },
             },
           },
         },
@@ -465,11 +470,15 @@ export class CoursesService {
           description: m.description,
           credits: m.credits,
           status: m.status,
+          teacherEvaluationEnabled: m.teacherEvaluationEnabled,
           mine:
             role === Role.PROFESSOR &&
             m.teachers.some((t) => t.teacher.id === userId),
           teachers: m.teachers.map((t) => t.teacher),
           contentCount: m._count.contents,
+          evaluatedTeacherIds: m.teacherEvaluations.map(
+            (evaluation) => evaluation.teacherId,
+          ),
           grade: grade
             ? {
                 finalScore:

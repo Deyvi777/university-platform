@@ -1,4 +1,5 @@
-import { Layers, Lock, UsersRound } from "lucide-react";
+import { Layers, Lock, MessageSquareMore, UsersRound } from "lucide-react";
+import Link from "next/link";
 import { BackLink } from "@/components/dashboard/back-link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
@@ -70,11 +71,22 @@ export default async function ClassroomPage({
       </header>
 
       {mod.status === "FINISHED" && (
-        <p className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-          <Lock className="size-4 shrink-0" aria-hidden="true" />
-          Este módulo está concluido. Puedes revisar todo el contenido y tus
-          notas, pero no enviar actividades ni hacer cambios.
-        </p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <p className="flex items-center gap-2">
+            <Lock className="size-4 shrink-0" aria-hidden="true" />
+            Este módulo está concluido. Puedes revisar todo el contenido y tus
+            notas, pero no enviar actividades ni hacer cambios.
+          </p>
+          {mod.teacherEvaluationEnabled && (
+            <Link
+              href={`/dashboard/aula/${moduleId}/evaluacion`}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-violet-600 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+            >
+              <MessageSquareMore className="size-3.5" aria-hidden="true" />
+              Evaluar docentes
+            </Link>
+          )}
+        </div>
       )}
 
       <div className="mt-6">

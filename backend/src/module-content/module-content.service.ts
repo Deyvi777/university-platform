@@ -60,6 +60,7 @@ export class ModuleContentService {
         name: true,
         description: true,
         status: true,
+        teacherEvaluationEnabled: true,
         credits: true,
         course: { select: { id: true, name: true, code: true } },
         contents: {
@@ -517,6 +518,7 @@ export class ModuleContentService {
         name: true,
         description: true,
         status: true,
+        teacherEvaluationEnabled: true,
         courseId: true,
         course: {
           select: {
@@ -635,6 +637,7 @@ export class ModuleContentService {
       name: module.name,
       description: module.description,
       status: module.status,
+      teacherEvaluationEnabled: module.teacherEvaluationEnabled,
       course: {
         id: module.course.id,
         name: module.course.name,

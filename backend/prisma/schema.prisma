@@ -34,6 +34,13 @@ enum ModuleStatus {
   FINISHED
 }
 
+enum TeacherEvaluationQuestionType {
+  SCALE_1_5
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TEXT
+}
+
 enum EnrollmentStatus {
   ACTIVE // cursando
   WITHDRAWN // retirado
@@ -157,25 +164,27 @@ model User {
 
   // Relaciones académicas (rol PROFESSOR / STUDENT). Un User puede tener
   // varias de estas según su rol; todas son opcionales para ADMIN.
-  taughtModules     ModuleTeacher[] // co-docencia: módulos que dicta (vía join)
-  enrollments       Enrollment[]
-  submissions       Submission[]
-  gradedSubmissions Submission[]       @relation("SubmissionGrader")
-  moduleGrades      ModuleGrade[]      @relation("StudentGrades")
-  gradedModules     ModuleGrade[]      @relation("ModuleGrader")
-  notifications     Notification[]
-  sentAnnouncements Announcement[]     @relation("AnnouncementSender")
-  contentProgress   ContentProgress[]
+  taughtModules               ModuleTeacher[] // co-docencia: módulos que dicta (vía join)
+  enrollments                 Enrollment[]
+  submissions                 Submission[]
+  gradedSubmissions           Submission[]        @relation("SubmissionGrader")
+  moduleGrades                ModuleGrade[]       @relation("StudentGrades")
+  gradedModules               ModuleGrade[]       @relation("ModuleGrader")
+  notifications               Notification[]
+  sentAnnouncements           Announcement[]      @relation("AnnouncementSender")
+  contentProgress             ContentProgress[]
   // Chat docente↔estudiante por módulo (mensajería directa).
-  chatAsStudent     ChatMessage[]      @relation("ChatStudent")
-  chatAsTeacher     ChatMessage[]      @relation("ChatTeacher")
-  sentMessages      ChatMessage[]      @relation("ChatSender")
+  chatAsStudent               ChatMessage[]       @relation("ChatStudent")
+  chatAsTeacher               ChatMessage[]       @relation("ChatTeacher")
+  sentMessages                ChatMessage[]       @relation("ChatSender")
   // Apuntes/recordatorios que el usuario marca en su calendario.
-  calendarReminders CalendarReminder[]
+  calendarReminders           CalendarReminder[]
   // Mensajes que el usuario publicó en foros de actividades.
-  forumPosts        ForumPost[]
+  forumPosts                  ForumPost[]
   // Intentos de cuestionarios/exámenes del estudiante.
-  quizAttempts      QuizAttempt[]
+  quizAttempts                QuizAttempt[]
+  teacherEvaluationsReceived  TeacherEvaluation[] @relation("EvaluatedTeacher")
+  teacherEvaluationsSubmitted TeacherEvaluation[] @relation("EvaluatingStudent")
 
   @@map("users")
 }
@@ -542,27 +551,89 @@ model CourseFile {
 
 // Módulo académico dentro de un curso, dictado por un docente.
 model CourseModule {
-  id          String       @id @default(uuid())
-  courseId    String
-  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  order       Int // posición del módulo en la malla del curso
-  name        String
-  description String?
-  credits     Int?
-  startDate   DateTime?
-  endDate     DateTime?
-  status      ModuleStatus @default(ACTIVE) // el admin puede marcarlo Borrador/Concluido
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                       String       @id @default(uuid())
+  courseId                 String
+  course                   Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order                    Int // posición del módulo en la malla del curso
+  name                     String
+  description              String?
+  credits                  Int?
+  startDate                DateTime?
+  endDate                  DateTime?
+  status                   ModuleStatus @default(ACTIVE) // el admin puede marcarlo Borrador/Concluido
+  teacherEvaluationEnabled Boolean      @default(false)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
 
-  teachers      ModuleTeacher[] // co-docencia: varios docentes por módulo
-  contents      ModuleContent[] // contenidos ordenados (temario): tema/video/material/actividad
-  grades        ModuleGrade[]
-  messages      ChatMessage[] // chat docente↔estudiante dentro del módulo
-  classSessions ClassSession[] // cronograma de clases del módulo
+  teachers           ModuleTeacher[] // co-docencia: varios docentes por módulo
+  contents           ModuleContent[] // contenidos ordenados (temario): tema/video/material/actividad
+  grades             ModuleGrade[]
+  messages           ChatMessage[] // chat docente↔estudiante dentro del módulo
+  classSessions      ClassSession[] // cronograma de clases del módulo
+  teacherEvaluations TeacherEvaluation[]
 
   @@unique([courseId, order])
   @@map("course_modules")
+}
+
+// Cuestionario institucional único para evaluar docentes. Las preguntas
+// retiradas se desactivan (no se borran) para conservar el historial.
+model TeacherEvaluationQuestion {
+  id        String                        @id @default(uuid())
+  type      TeacherEvaluationQuestionType
+  prompt    String
+  required  Boolean                       @default(true)
+  options   String[]
+  order     Int
+  isActive  Boolean                       @default(true)
+  createdAt DateTime                      @default(now())
+  updatedAt DateTime                      @updatedAt
+
+  answers TeacherEvaluationAnswer[]
+
+  @@unique([order])
+  @@index([isActive, order])
+  @@map("teacher_evaluation_questions")
+}
+
+// Una evaluación identificada por estudiante, módulo y docente. En módulos
+// con co-docencia cada estudiante crea una evaluación independiente por
+// docente. El borrado del módulo elimina estas filas y sus respuestas.
+model TeacherEvaluation {
+  id        String       @id @default(uuid())
+  moduleId  String
+  module    CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   User         @relation("EvaluatedTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User         @relation("EvaluatingStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  answers TeacherEvaluationAnswer[]
+
+  @@unique([moduleId, teacherId, studentId])
+  @@index([teacherId])
+  @@index([studentId])
+  @@map("teacher_evaluations")
+}
+
+model TeacherEvaluationAnswer {
+  id           String                    @id @default(uuid())
+  evaluationId String
+  evaluation   TeacherEvaluation         @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     TeacherEvaluationQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  questionPromptSnapshot String
+  questionTypeSnapshot   TeacherEvaluationQuestionType
+  questionOrderSnapshot  Int
+  scaleValue             Int?
+  selectedOptions        String[]
+  textValue              String?
+
+  @@unique([evaluationId, questionId])
+  @@index([questionId])
+  @@map("teacher_evaluation_answers")
 }
 
 // Una clase del cronograma de un módulo (creada por el docente/admin). El

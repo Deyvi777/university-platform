@@ -99,6 +99,28 @@ export async function setModuleStatusAction(
   }
 }
 
+/** Activa o desactiva la evaluación docente al concluir el módulo. */
+export async function setTeacherEvaluationEnabledAction(
+  courseId: string,
+  moduleId: string,
+  enabled: boolean,
+): Promise<ActionResult> {
+  try {
+    await mutateAdmin(
+      "PATCH",
+      `/admin/teacher-evaluations/courses/${courseId}/modules/${moduleId}/enabled`,
+      { enabled },
+    );
+    revalidateCourses(courseId);
+    revalidatePath(`/dashboard/aula/${moduleId}`);
+    revalidatePath(`/dashboard/aula/${moduleId}/evaluacion`);
+    return { ok: true, data: undefined };
+  } catch (error) {
+    handleAdminActionError(error);
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
 /** Inscribe estudiantes al programa (acceso a todos los módulos). */
 export async function addEnrollmentsAction(
   courseId: string,

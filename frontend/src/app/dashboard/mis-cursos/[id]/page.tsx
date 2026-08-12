@@ -19,7 +19,10 @@ export const metadata = {
 };
 
 const COURSE_STATUS: Record<CourseStatus, { label: string; badge: string }> = {
-  DRAFT: { label: "Borrador", badge: "bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/30" },
+  DRAFT: {
+    label: "Borrador",
+    badge: "bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/30",
+  },
   ACTIVE: {
     label: "En curso",
     badge: "bg-emerald-400/20 text-emerald-100 ring-1 ring-emerald-300/30",
@@ -50,7 +53,7 @@ export default async function MyCourseDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const session = await requireUser();
   const { id } = await params;
   const course = await getMyCourse(id);
   if (!course) {
@@ -169,7 +172,10 @@ export default async function MyCourseDetailPage({
                       </span>
                     )}
                   </span>
-                  <Download className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" aria-hidden="true" />
+                  <Download
+                    className="size-4 shrink-0 text-muted-foreground group-hover:text-primary"
+                    aria-hidden="true"
+                  />
                 </a>
               </li>
             ))}
@@ -201,7 +207,7 @@ export default async function MyCourseDetailPage({
               <li key={module.id}>
                 <CourseModuleItem
                   module={module}
-                  courseId={course.id}
+                  isStudent={session.user.role === "STUDENT"}
                   defaultOpen={i === 0}
                 />
               </li>

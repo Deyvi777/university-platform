@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useId, useState } from "react";
-import { AlertCircle, Eye, EyeOff, Info, Loader2 } from "lucide-react";
+import { AlertCircle, Check, Eye, EyeOff, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,18 @@ export function LoginForm({
   if (state.values?.email !== prevReturnedEmail) {
     setPrevReturnedEmail(state.values?.email);
     setEmail(state.values?.email ?? "");
+  }
+
+  // El form de React 19 también resetea los checkboxes no controlados después
+  // de una acción. Conservamos la elección para que un error de credenciales no
+  // cambie silenciosamente la duración pedida por el usuario.
+  const [remember, setRemember] = useState(state.values?.remember ?? false);
+  const [prevReturnedRemember, setPrevReturnedRemember] = useState(
+    state.values?.remember,
+  );
+  if (state.values?.remember !== prevReturnedRemember) {
+    setPrevReturnedRemember(state.values?.remember);
+    setRemember(state.values?.remember ?? false);
   }
 
   const emailId = useId();
@@ -111,7 +123,7 @@ export function LoginForm({
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
-            minLength={8}
+            minLength={6}
             placeholder="••••••••"
             className="border-white/20 bg-white/10 pr-10 text-white placeholder:text-white/50 focus-visible:border-amber-300/70 focus-visible:ring-amber-300/40 disabled:bg-white/5 aria-invalid:border-red-300/70 aria-invalid:ring-red-400/30"
             aria-invalid={passwordError ? true : undefined}
@@ -143,15 +155,31 @@ export function LoginForm({
       </div>
 
       <div className="flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-white/80 select-none">
-          <input
-            type="checkbox"
-            name="remember"
-            className="size-4 rounded border-white/30 bg-white/10 text-amber-400 accent-amber-400 focus-visible:ring-3 focus-visible:ring-amber-300/40 focus-visible:outline-none"
-            disabled={pending}
-          />
+        {/* El valor se envía en un hidden no deshabilitado. React puede marcar
+            `pending` antes de serializar controles deshabilitados, y un
+            checkbox disabled quedaría fuera del FormData. */}
+        <input
+          type="hidden"
+          name="remember"
+          value={remember ? "true" : "false"}
+        />
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={remember}
+          onClick={() => setRemember((current) => !current)}
+          disabled={pending}
+          className="flex cursor-pointer items-center gap-2 text-sm text-white/80 select-none focus-visible:ring-3 focus-visible:ring-amber-300/40 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span
+            aria-hidden="true"
+            className="flex size-4 items-center justify-center rounded border border-white/35 bg-white/10 text-slate-950 transition-colors data-[checked=true]:border-amber-400 data-[checked=true]:bg-amber-400"
+            data-checked={remember}
+          >
+            {remember && <Check className="size-3" strokeWidth={3} />}
+          </span>
           Recordarme
-        </label>
+        </button>
       </div>
 
       <Button

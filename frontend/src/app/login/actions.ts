@@ -5,6 +5,11 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { AuthError, CredentialsSignin } from "next-auth";
 import { z } from "zod";
 import { signIn } from "@/auth";
+import {
+  isAuthSessionCookieName,
+  REMEMBER_PREFERENCE_COOKIE,
+  REMEMBER_SESSION_MAX_AGE,
+} from "@/lib/auth-cookie-policy";
 
 // Espeja el contrato de credenciales del backend (ver src/auth.ts).
 const loginSchema = z.object({
@@ -24,10 +29,12 @@ export type LoginState = {
   };
   // Valores a re-hidratar tras un intento fallido. React 19 resetea el
   // <form action={fn}> en cada submit, así que devolvemos el correo enviado
-  // para usarlo como defaultValue y que el usuario no tenga que re-teclearlo.
+  // para que el usuario no tenga que re-teclearlo ni volver a marcar su
+  // preferencia de sesión.
   // La contraseña no se conserva (práctica habitual de seguridad).
   values?: {
     email?: string;
+    remember?: boolean;
   };
 };
 
@@ -53,7 +60,8 @@ export async function authenticate(
     typeof formData.get("email") === "string"
       ? (formData.get("email") as string)
       : "";
-  const values = { email: submittedEmail };
+  const remember = formData.get("remember") === "true";
+  const values = { email: submittedEmail, remember };
 
   const parsed = loginSchema.safeParse({
     email: submittedEmail,
@@ -71,15 +79,14 @@ export async function authenticate(
     };
   }
 
-  // Checkbox "Recordarme": presente como "on" cuando está marcado, ausente si no.
+  // "Recordarme" llega desde el hidden asociado al checkbox: "true" cuando
+  // está marcado y "false" cuando no lo está.
   // - Marcado  → token de larga duración en el backend (JWT_REMEMBER_EXPIRES_IN)
   //   y cookie de sesión *persistente* (la que pone NextAuth por defecto, con
   //   Max-Age = session.maxAge). El usuario sigue logueado entre reinicios del
   //   navegador hasta que caduque.
   // - Sin marcar → token corto y, además, rebajamos la cookie a *cookie de
   //   sesión* (sin Max-Age/Expires) para que el navegador la borre al cerrarse.
-  const remember = formData.get("remember") === "on";
-
   // Usamos redirect:false para recuperar el control tras el signIn y poder
   // ajustar la cookie antes de redirigir nosotros mismos. Con redirect:false,
   // una credencial inválida NO lanza: signIn devuelve una URL con `?error=`.
@@ -112,11 +119,11 @@ export async function authenticate(
     return { values, error: INVALID_CREDENTIALS };
   }
 
-  // Éxito: signIn ya escribió la cookie de sesión (persistente). Si el usuario
-  // no marcó "Recordarme", la convertimos en cookie de sesión-only.
-  if (!remember) {
-    await makeSessionCookieEphemeral();
-  }
+  // Éxito: guardamos la preferencia en una cookie HttpOnly. Auth.js renueva su
+  // JWT desde el proxy y `/api/auth/session`; ambos consultan esta preferencia
+  // para no volver persistente una sesión que debía terminar al cerrar el
+  // navegador. También ajustamos la cookie que signIn acaba de escribir.
+  await applyRememberPreference(remember);
 
   // redirect() lanza NEXT_REDIRECT (fuera del try → se propaga correctamente).
   redirect("/dashboard");
@@ -129,22 +136,33 @@ export async function authenticate(
  * (`authjs.session-token`), su variante `__Secure-` en HTTPS y los fragmentos
  * (`.0`, `.1`, …) cuando el JWT es grande y NextAuth lo parte en varias cookies.
  */
-async function makeSessionCookieEphemeral(): Promise<void> {
+async function applyRememberPreference(remember: boolean): Promise<void> {
   const jar = await cookies();
-  for (const c of jar.getAll()) {
-    const isSessionToken =
-      c.name === "authjs.session-token" ||
-      c.name === "__Secure-authjs.session-token" ||
-      c.name.startsWith("authjs.session-token.") ||
-      c.name.startsWith("__Secure-authjs.session-token.");
-    if (!isSessionToken) continue;
+  const sessionCookies = jar.getAll().filter((cookie) =>
+    isAuthSessionCookieName(cookie.name),
+  );
+  const secure = sessionCookies.some((cookie) =>
+    cookie.name.startsWith("__Secure-"),
+  );
+
+  jar.set(REMEMBER_PREFERENCE_COOKIE, remember ? "persistent" : "session", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    secure,
+    ...(remember ? { maxAge: REMEMBER_SESSION_MAX_AGE } : {}),
+  });
+
+  if (remember) return;
+
+  for (const c of sessionCookies) {
 
     jar.set(c.name, c.value, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
       // El prefijo __Secure- exige el flag secure; en dev (http) no lo lleva.
-      secure: c.name.startsWith("__Secure-"),
+      secure,
       // Sin maxAge ni expires ⇒ cookie de sesión (se borra al cerrar el navegador).
     });
   }

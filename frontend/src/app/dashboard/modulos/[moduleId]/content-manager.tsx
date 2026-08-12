@@ -439,6 +439,8 @@ function SortableRow({
   const recovery = content.recoveryStage
     ? RECOVERY_META[content.recoveryStage]
     : null;
+  const opensQuestionBuilder =
+    content.activityType === "QUIZ" || content.activityType === "EXAM";
   // Un examen de recuperación vive en un módulo concluido: se gestiona igual
   // (la segunda instancia solo por el admin; el backend también lo exige).
   const canManage =
@@ -510,16 +512,17 @@ function SortableRow({
           {content.kind === "ACTIVITY" && (
             <Button
               type="button"
-              variant="outline"
+              variant={opensQuestionBuilder ? "outline" : "default"}
               size="sm"
+              className={cn(
+                !opensQuestionBuilder &&
+                  "border-amber-400 bg-amber-500 font-semibold text-slate-950 shadow-sm shadow-amber-500/25 ring-1 ring-amber-300/30 hover:bg-amber-400 focus-visible:border-amber-400 focus-visible:ring-amber-400/50 dark:bg-amber-400 dark:hover:bg-amber-300",
+              )}
               render={<Link href={`/dashboard/actividades/${content.id}`} />}
             >
               <ClipboardCheck className="size-4" />
               <span className="hidden sm:inline">
-                {content.activityType === "QUIZ" ||
-                content.activityType === "EXAM"
-                  ? "Preguntas"
-                  : "Calificar"}
+                {opensQuestionBuilder ? "Preguntas" : "Calificar"}
               </span>
             </Button>
           )}

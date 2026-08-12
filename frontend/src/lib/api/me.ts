@@ -48,6 +48,11 @@ export interface MyCourse {
 
 export type ModuleStatus = "DRAFT" | "ACTIVE" | "FINISHED";
 export type ModuleGradeStatus = "IN_PROGRESS" | "PASSED" | "FAILED";
+export type TeacherEvaluationQuestionType =
+  | "SCALE_1_5"
+  | "SINGLE_CHOICE"
+  | "MULTIPLE_CHOICE"
+  | "TEXT";
 export type MaterialType = "FILE" | "LINK" | "VIDEO";
 export type ActivityType = "ASSIGNMENT" | "QUIZ" | "EXAM" | "PROJECT" | "FORUM";
 export type SubmissionStatus = "PENDING" | "SUBMITTED" | "LATE" | "GRADED";
@@ -277,6 +282,8 @@ export interface CourseModuleDetail {
   description: string | null;
   credits: number | null;
   status: ModuleStatus;
+  teacherEvaluationEnabled: boolean;
+  evaluatedTeacherIds: string[];
   /** El docente dicta este módulo (siempre `false` para estudiantes). */
   mine: boolean;
   teachers: CourseTeacher[];
@@ -445,6 +452,7 @@ export interface LearnModule {
   description: string | null;
   /** Estado del módulo; si es `FINISHED` el aula queda en solo lectura. */
   status: ModuleStatus;
+  teacherEvaluationEnabled: boolean;
   course: { id: string; name: string; code: string };
   /** Docentes a cargo del módulo (co-docencia); puede estar vacío. */
   teachers: ModuleTeacherName[];
@@ -455,6 +463,48 @@ export interface LearnModule {
     observations: string | null;
   } | null;
   contents: LearnContent[];
+}
+
+export interface StudentTeacherEvaluationData {
+  module: {
+    id: string;
+    order: number;
+    name: string;
+    course: { id: string; code: string; name: string };
+  };
+  enabled: boolean;
+  questions: Array<{
+    id: string;
+    type: TeacherEvaluationQuestionType;
+    prompt: string;
+    required: boolean;
+    options: string[];
+    order: number;
+  }>;
+  teachers: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    submittedAt: string | null;
+  }>;
+}
+
+export async function getStudentTeacherEvaluation(
+  moduleId: string,
+): Promise<StudentTeacherEvaluationData | null> {
+  const session = await auth();
+  const token = session?.accessToken;
+  if (!token) return null;
+  const res = await fetch(
+    `${API_URL}/me/modules/${encodeURIComponent(moduleId)}/teacher-evaluations`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) return null;
+  return (await res.json()) as StudentTeacherEvaluationData;
 }
 
 /**

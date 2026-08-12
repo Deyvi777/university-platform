@@ -577,6 +577,14 @@ Apunte/recordatorio que un usuario marca en una fecha de su calendario.
 
 Índice: `@@index([userId, date])`. CRUD (cada usuario solo los suyos): `GET/POST /me/calendar/reminders`, `PATCH/DELETE /me/calendar/reminders/:id` (valida pertenencia → 403/404).
 
+## Evaluación docente
+
+El cuestionario institucional es global para todos los programas y módulos. `TeacherEvaluationQuestion` conserva las preguntas activas y su orden; admite escala de 1 a 5, selección única, selección múltiple y texto libre. Cuando el ADMIN edita el formulario, las preguntas retiradas se desactivan en lugar de borrarse para preservar sus relaciones históricas.
+
+Cada `TeacherEvaluation` identifica al módulo, al docente evaluado y al estudiante que responde. La restricción única `[moduleId, teacherId, studentId]` permite evaluar por separado a todos los docentes de un módulo con co-docencia, pero impide una segunda respuesta para la misma combinación. `TeacherEvaluationAnswer` guarda tanto la respuesta como snapshots del enunciado, tipo y orden de la pregunta.
+
+`CourseModule.teacherEvaluationEnabled` controla la disponibilidad por módulo y comienza en `false`; el formulario solo se habilita cuando el módulo está `FINISHED`. La relación `TeacherEvaluation.module` usa `onDelete: Cascade`, y las respuestas también dependen por cascada de su evaluación, por lo que eliminar un módulo elimina todos los resultados asociados. Los resultados son identificados y únicamente se consultan desde rutas protegidas para ADMIN.
+
 ## Convocatorias públicas
 
 `Call` representa una convocatoria publicable con vigencia opcional (`opensAt`/`closesAt`). Tiene preguntas ordenadas `CallQuestion` de tipo `SINGLE_CHOICE`, `MULTIPLE_CHOICE`, `TEXT` o `FILE`. Cada envío crea una `CallApplication` y una `CallApplicationAnswer` por respuesta; selección múltiple usa `selectedOptions String[]` y los metadatos de archivos se guardan en `files Json` como `[{name,url,size,mimeType}]`.
@@ -614,6 +622,10 @@ User (STUDENT)   1───N Enrollment            (inscripción a curso)
                  1───N ContentProgress       (avance por contenido)
                  1───N ModuleGrade           (kárdex)
 User (calificador) 1───N Submission / ModuleGrade  (gradedBy)
+TeacherEvaluationQuestion 1───N TeacherEvaluationAnswer N───1 TeacherEvaluation
+CourseModule 1───N TeacherEvaluation (cascade al borrar módulo)
+User (STUDENT) 1───N TeacherEvaluation (identificada, una por módulo+docente)
+User (PROFESSOR) 1───N TeacherEvaluation (docente evaluado)
 User (docente/estudiante) N───N (vía ChatMessage: ChatStudent / ChatTeacher / ChatSender)
 
 ── Notificaciones ───────────────────────────────────────────────────
