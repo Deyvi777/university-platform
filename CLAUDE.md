@@ -114,6 +114,10 @@ The **backend is the source of truth for identity and RBAC**. NextAuth does not 
 
 - **Portafolio documental del curso académico:** `Course.files` es una relación ordenada `CourseFile[]` (`name`/`url`/`size`/`order`) para reglamentos, cronogramas y documentación general. El admin administra varios archivos desde el formulario `/dashboard/cursos/{nuevo|[id]/editar}`; estudiantes y docentes entran por el ítem **Portafolio** del sidebar (antes de los módulos) a `/dashboard/mis-cursos/[id]/portafolio`, que reutiliza `MaterialViewer` para previsualizar los archivos en el panel central. El update reemplaza la lista y limpia blobs retirados después del commit; el borrado del curso y el barrido de huérfanos también incluyen `CourseFile.url`.
 
+### Quiz/Exam teacher draft safety
+
+The shared `QuizManager` question builder keeps unsaved questions in local state plus tab-scoped `sessionStorage` (`quiz-question-draft:<activityId>`), restores them after remount/reload, and warns on `beforeunload`. Its React Query fetch is pure and uses `refetchOnWindowFocus:false` + infinite `staleTime`; never write editor state inside `queryFn`, because focusing the browser would refetch the saved server version and erase the draft.
+
 ## Despliegue (producción)
 
 Producción corre en un **VPS de Hostinger** (Ubuntu 24.04) con **Coolify** (self-hosted PaaS), con **auto-deploy desde GitHub**: cada `git push` a `main` dispara un webhook → Coolify reconstruye y redespliega. Toda credencial/secreto vive en `.deploy/` (carpeta **gitignoreada** — accesos al VPS, secretos de producción, token de API de Coolify, respaldo del `.env` de Coolify, y `README.md` con el checklist de estado del despliegue). Ver ese `README.md` al retomar tareas de infra.

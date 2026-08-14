@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
@@ -71,6 +71,75 @@ function newQuestion(): EditQuestion {
   };
 }
 
+const DRAFT_VERSION = 1;
+const subscribeToMount = () => () => {};
+const getMountedSnapshot = () => true;
+const getServerMountedSnapshot = () => false;
+
+type QuestionDraft = {
+  version: typeof DRAFT_VERSION;
+  items: EditQuestion[];
+};
+
+function editableQuestions(editor: QuizEditor): EditQuestion[] {
+  return editor.questions.map((question) => ({
+    key: question.id,
+    type: question.type,
+    prompt: question.prompt,
+    points: String(question.points),
+    boolAnswer: question.boolAnswer,
+    acceptedText: question.acceptedAnswers.join("\n"),
+    options: question.options.map((option) => ({
+      key: option.id,
+      text: option.text,
+      isCorrect: option.isCorrect,
+    })),
+  }));
+}
+
+function readQuestionDraft(storageKey: string): EditQuestion[] | null {
+  try {
+    const parsed = JSON.parse(
+      window.sessionStorage.getItem(storageKey) ?? "null",
+    ) as QuestionDraft | null;
+    if (
+      parsed?.version !== DRAFT_VERSION ||
+      !Array.isArray(parsed.items) ||
+      !parsed.items.every(
+        (question) =>
+          question &&
+          typeof question.key === "string" &&
+          typeof question.prompt === "string" &&
+          Array.isArray(question.options),
+      )
+    ) {
+      return null;
+    }
+    return parsed.items;
+  } catch {
+    return null;
+  }
+}
+
+function writeQuestionDraft(storageKey: string, items: EditQuestion[]) {
+  try {
+    window.sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({ version: DRAFT_VERSION, items } satisfies QuestionDraft),
+    );
+  } catch {
+    // El editor sigue funcionando aunque el navegador bloquee sessionStorage.
+  }
+}
+
+function clearQuestionDraft(storageKey: string) {
+  try {
+    window.sessionStorage.removeItem(storageKey);
+  } catch {
+    // El guardado del servidor ya concluyó; no bloqueamos por almacenamiento.
+  }
+}
+
 export function QuizManager({ activityId }: { activityId: string }) {
   const [tab, setTab] = useState<"questions" | "attempts">("questions");
 
@@ -117,33 +186,57 @@ export function QuizManager({ activityId }: { activityId: string }) {
 function QuestionBuilder({ activityId }: { activityId: string }) {
   const qc = useQueryClient();
   const queryKey = ["me-quiz-editor", activityId];
-  const [items, setItems] = useState<EditQuestion[] | null>(null);
+  const storageKey = `quiz-question-draft:${activityId}`;
+  const mounted = useSyncExternalStore(
+    subscribeToMount,
+    getMountedSnapshot,
+    getServerMountedSnapshot,
+  );
+  const restoredDraft = useMemo(
+    () => (mounted ? readQuestionDraft(storageKey) : null),
+    [mounted, storageKey],
+  );
+  const [draft, setDraft] = useState<{
+    items: EditQuestion[];
+    dirty: boolean;
+  } | null>(null);
 
-  const { data, isLoading } = useQuery<QuizEditor>({
+  const { data, isLoading, isError, refetch } = useQuery<QuizEditor>({
     queryKey,
     queryFn: async () => {
       const res = await fetch(`/api/me/quiz/${activityId}/editor`);
       if (!res.ok) throw new Error("No se pudo cargar");
-      const data: QuizEditor = await res.json();
-      // Inicializa el estado local una sola vez con lo del servidor.
-      setItems(
-        data.questions.map((q) => ({
-          key: q.id,
-          type: q.type,
-          prompt: q.prompt,
-          points: String(q.points),
-          boolAnswer: q.boolAnswer,
-          acceptedText: q.acceptedAnswers.join("\n"),
-          options: q.options.map((o) => ({
-            key: o.id,
-            text: o.text,
-            isCorrect: o.isCorrect,
-          })),
-        })),
-      );
-      return data;
+      return res.json();
     },
+    // Recuperar el foco no debe reemplazar preguntas todavía no guardadas.
+    refetchOnWindowFocus: false,
+    staleTime: Number.POSITIVE_INFINITY,
   });
+
+  const serverItems = useMemo(
+    () => (data ? editableQuestions(data) : null),
+    [data],
+  );
+  const locked = (data?.attemptCount ?? 0) > 0;
+  const items = locked
+    ? serverItems
+    : (draft?.items ?? restoredDraft ?? serverItems);
+  const hasUnsavedChanges = !locked && (draft?.dirty ?? restoredDraft !== null);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [hasUnsavedChanges]);
+
+  function replaceItems(next: EditQuestion[]) {
+    setDraft({ items: next, dirty: true });
+    writeQuestionDraft(storageKey, next);
+  }
 
   const saveMut = useMutation({
     mutationFn: async (questions: EditQuestion[]) => {
@@ -179,14 +272,38 @@ function QuestionBuilder({ activityId }: { activityId: string }) {
         throw new Error(m.message ?? "No se pudo guardar");
       }
     },
-    onSuccess: () => {
+    onSuccess: (_result, savedItems) => {
+      setDraft({ items: savedItems, dirty: false });
+      clearQuestionDraft(storageKey);
       toast.success("Preguntas guardadas");
       qc.invalidateQueries({ queryKey });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (isLoading || items === null) {
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm">
+        <p className="font-medium text-destructive">
+          No se pudieron cargar las preguntas.
+        </p>
+        <p className="mt-1 text-muted-foreground">
+          Verifica tu conexión e inténtalo nuevamente.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          onClick={() => void refetch()}
+        >
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
+
+  if (isLoading || !data || items === null) {
     return (
       <div className="flex items-center gap-2 rounded-xl border bg-background p-6 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" /> Cargando preguntas…
@@ -194,21 +311,21 @@ function QuestionBuilder({ activityId }: { activityId: string }) {
     );
   }
 
+  const currentItems = items;
+
   function update(key: string, patch: Partial<EditQuestion>) {
-    setItems((prev) =>
-      (prev ?? []).map((q) => (q.key === key ? { ...q, ...patch } : q)),
+    replaceItems(
+      currentItems.map((question) =>
+        question.key === key ? { ...question, ...patch } : question,
+      ),
     );
   }
   function remove(key: string) {
-    setItems((prev) => (prev ?? []).filter((q) => q.key !== key));
+    replaceItems(currentItems.filter((question) => question.key !== key));
   }
   function add() {
-    setItems((prev) => [...(prev ?? []), newQuestion()]);
+    replaceItems([...currentItems, newQuestion()]);
   }
-
-  // Con intentos rendidos el banco queda bloqueado: editarlo destruiría las
-  // respuestas de los estudiantes (el backend también lo rechaza con 409).
-  const locked = (data?.attemptCount ?? 0) > 0;
 
   return (
     <div className="space-y-3">
@@ -218,6 +335,15 @@ function QuestionBuilder({ activityId }: { activityId: string }) {
           no invalidar las notas emitidas.
         </p>
       )}
+      {hasUnsavedChanges && (
+        <p
+          role="status"
+          className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200"
+        >
+          Cambios sin guardar. El borrador está protegido en esta pestaña y no
+          se perderá al cambiar de ventana o recargar la página.
+        </p>
+      )}
       {items.length === 0 && (
         <p className="rounded-xl border border-dashed bg-muted/20 px-6 py-8 text-center text-sm text-muted-foreground">
           Aún no hay preguntas. Agrega la primera.
@@ -225,113 +351,119 @@ function QuestionBuilder({ activityId }: { activityId: string }) {
       )}
 
       <fieldset disabled={locked} className="min-w-0 disabled:opacity-70">
-      <ol className="space-y-3">
-        {items.map((q, i) => (
-          <li key={q.key} className="rounded-xl border bg-background p-4">
-            <div className="flex items-center gap-2">
-              <GripVertical className="size-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Pregunta {i + 1}</span>
-              <select
-                value={q.type}
-                onChange={(e) =>
-                  update(q.key, { type: e.target.value as QuestionType })
-                }
-                className="ml-auto h-8 rounded-lg border bg-background px-2 text-sm"
-              >
-                {Object.entries(TYPE_LABELS).map(([v, label]) => (
-                  <option key={v} value={v}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => remove(q.key)}
-                className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                aria-label="Eliminar pregunta"
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </div>
-
-            <Textarea
-              value={q.prompt}
-              onChange={(e) => update(q.key, { prompt: e.target.value })}
-              placeholder="Enunciado de la pregunta…"
-              className="mt-2 min-h-16 bg-background"
-            />
-
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Puntaje</span>
-              <Input
-                type="number"
-                min={0}
-                value={q.points}
-                onChange={(e) => update(q.key, { points: e.target.value })}
-                className="h-8 w-24"
-              />
-            </div>
-
-            {/* Editor según tipo */}
-            <div className="mt-3">
-              {(q.type === "SINGLE_CHOICE" || q.type === "MULTIPLE_CHOICE") && (
-                <OptionsEditor question={q} onChange={(patch) => update(q.key, patch)} />
-              )}
-
-              {q.type === "TRUE_FALSE" && (
-                <div className="flex gap-2 text-sm">
-                  {[
-                    { label: "Verdadero", value: true },
-                    { label: "Falso", value: false },
-                  ].map((opt) => (
-                    <label
-                      key={opt.label}
-                      className={cn(
-                        "inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5",
-                        q.boolAnswer === opt.value
-                          ? "border-primary bg-primary/5"
-                          : "",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name={`tf-${q.key}`}
-                        checked={q.boolAnswer === opt.value}
-                        onChange={() => update(q.key, { boolAnswer: opt.value })}
-                        className="size-4 accent-primary"
-                      />
-                      {opt.label}
-                    </label>
+        <ol className="space-y-3">
+          {items.map((q, i) => (
+            <li key={q.key} className="rounded-xl border bg-background p-4">
+              <div className="flex items-center gap-2">
+                <GripVertical className="size-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Pregunta {i + 1}</span>
+                <select
+                  value={q.type}
+                  onChange={(e) =>
+                    update(q.key, { type: e.target.value as QuestionType })
+                  }
+                  className="ml-auto h-8 rounded-lg border bg-background px-2 text-sm"
+                >
+                  {Object.entries(TYPE_LABELS).map(([v, label]) => (
+                    <option key={v} value={v}>
+                      {label}
+                    </option>
                   ))}
-                </div>
-              )}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => remove(q.key)}
+                  className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  aria-label="Eliminar pregunta"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
 
-              {q.type === "SHORT_TEXT" && (
-                <div>
-                  <span className="text-xs text-muted-foreground">
-                    Respuestas aceptadas (una por línea; sin distinguir
-                    mayúsculas/acentos)
-                  </span>
-                  <Textarea
-                    value={q.acceptedText}
-                    onChange={(e) =>
-                      update(q.key, { acceptedText: e.target.value })
-                    }
-                    placeholder={"respuesta 1\nrespuesta 2"}
-                    className="mt-1 min-h-16 bg-background"
+              <Textarea
+                value={q.prompt}
+                onChange={(e) => update(q.key, { prompt: e.target.value })}
+                placeholder="Enunciado de la pregunta…"
+                className="mt-2 min-h-16 bg-background"
+              />
+
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Puntaje</span>
+                <Input
+                  type="number"
+                  min={0}
+                  value={q.points}
+                  onChange={(e) => update(q.key, { points: e.target.value })}
+                  className="h-8 w-24"
+                />
+              </div>
+
+              {/* Editor según tipo */}
+              <div className="mt-3">
+                {(q.type === "SINGLE_CHOICE" ||
+                  q.type === "MULTIPLE_CHOICE") && (
+                  <OptionsEditor
+                    question={q}
+                    onChange={(patch) => update(q.key, patch)}
                   />
-                </div>
-              )}
+                )}
 
-              {q.type === "ESSAY" && (
-                <p className="text-xs text-muted-foreground">
-                  Respuesta abierta: la corriges tú en la pestaña “Intentos”.
-                </p>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
+                {q.type === "TRUE_FALSE" && (
+                  <div className="flex gap-2 text-sm">
+                    {[
+                      { label: "Verdadero", value: true },
+                      { label: "Falso", value: false },
+                    ].map((opt) => (
+                      <label
+                        key={opt.label}
+                        className={cn(
+                          "inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5",
+                          q.boolAnswer === opt.value
+                            ? "border-primary bg-primary/5"
+                            : "",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name={`tf-${q.key}`}
+                          checked={q.boolAnswer === opt.value}
+                          onChange={() =>
+                            update(q.key, { boolAnswer: opt.value })
+                          }
+                          className="size-4 accent-primary"
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {q.type === "SHORT_TEXT" && (
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Respuestas aceptadas (una por línea; sin distinguir
+                      mayúsculas/acentos)
+                    </span>
+                    <Textarea
+                      value={q.acceptedText}
+                      onChange={(e) =>
+                        update(q.key, { acceptedText: e.target.value })
+                      }
+                      placeholder={"respuesta 1\nrespuesta 2"}
+                      className="mt-1 min-h-16 bg-background"
+                    />
+                  </div>
+                )}
+
+                {q.type === "ESSAY" && (
+                  <p className="text-xs text-muted-foreground">
+                    Respuesta abierta: la corriges tú en la pestaña “Intentos”.
+                  </p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
       </fieldset>
 
       {!locked && (
@@ -341,7 +473,7 @@ function QuestionBuilder({ activityId }: { activityId: string }) {
               <Plus className="size-4" /> Agregar pregunta
             </Button>
             <QuizBulkImport
-              onImport={(qs) => setItems((prev) => [...(prev ?? []), ...qs])}
+              onImport={(questions) => replaceItems([...items, ...questions])}
             />
           </div>
           <Button
@@ -598,7 +730,8 @@ function AttemptRow({
           <DialogHeader>
             <DialogTitle>{name}</DialogTitle>
             <DialogDescription>
-              Respuestas del estudiante — {score != null ? `${score} / ${maxScore}` : "sin calificar"}
+              Respuestas del estudiante —{" "}
+              {score != null ? `${score} / ${maxScore}` : "sin calificar"}
               {status === "SUBMITTED" && " · pendiente de corregir ensayos"}
             </DialogDescription>
           </DialogHeader>
@@ -635,7 +768,9 @@ function AttemptRow({
                           // montarse dispara el warning de Base UI (uncontrolled
                           // → controlled). El valor inicial es el puntaje ya
                           // asignado; luego lo gobierna `grades`.
-                          value={grades[q.id] ?? String(q.answer?.pointsAwarded ?? 0)}
+                          value={
+                            grades[q.id] ?? String(q.answer?.pointsAwarded ?? 0)
+                          }
                           onChange={(e) =>
                             setGrades((prev) => ({
                               ...prev,
