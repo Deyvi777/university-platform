@@ -49,6 +49,9 @@ const DOCUMENT_MIME_TO_EXT: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.presentationml.presentation':
     'pptx',
   'text/plain': 'txt',
+  'application/rtf': 'rtf',
+  'text/rtf': 'rtf',
+  'application/vnd.oasis.opendocument.text': 'odt',
   'text/csv': 'csv',
   'application/zip': 'zip',
   'application/x-zip-compressed': 'zip',

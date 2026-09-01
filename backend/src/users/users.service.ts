@@ -203,7 +203,7 @@ export class UsersService {
   async remove(id: string) {
     const user = await this.findOneAdmin(id);
     // Borrar un ESTUDIANTE cascadea sus entregas; recolectar antes los archivos
-    // (Tarea `fileUrl` + archivos de cada `ProjectDelivery`) para limpiar el
+    // (Tarea, Proyecto y respuestas FILE de quiz/examen) para limpiar el
     // bucket tras el commit (mismo contrato que removeContent).
     const blobUrls: (string | null)[] = [];
     if (user.role === Role.STUDENT) {
@@ -220,6 +220,11 @@ export class UsersService {
           ...s.deliveries.flatMap((d) => d.files.map((f) => f.url)),
         ]),
       );
+      const quizAnswers = await this.prisma.quizAnswer.findMany({
+        where: { attempt: { studentId: id }, fileUrl: { not: null } },
+        select: { fileUrl: true },
+      });
+      blobUrls.push(...quizAnswers.map((answer) => answer.fileUrl));
     }
     await this.prisma.user.delete({ where: { id } });
     await this.storage.deleteByUrls(blobUrls);

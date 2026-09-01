@@ -100,6 +100,18 @@ const EXAMPLES: string[][] = [
     "",
     "",
   ],
+  [
+    "Archivo",
+    "Adjunta el trabajo final en formato PDF o Word.",
+    "10",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ],
 ];
 
 const INSTRUCTIONS: string[][] = [
@@ -108,7 +120,7 @@ const INSTRUCTIONS: string[][] = [
   ["Columna", "Indicaciones"],
   [
     "Tipo",
-    "Uno de: Opción única, Opción múltiple, Verdadero/Falso, Respuesta corta, Ensayo.",
+    "Uno de: Opción única, Opción múltiple, Verdadero/Falso, Respuesta corta, Ensayo, Archivo.",
   ],
   ["Pregunta", "El enunciado de la pregunta. Obligatorio."],
   ["Puntaje", "Puntos que vale la pregunta. Si se deja vacío, vale 1."],
@@ -118,7 +130,7 @@ const INSTRUCTIONS: string[][] = [
       "Opción múltiple: las letras separadas por coma (ej. A, C). " +
       "Verdadero/Falso: escribe Verdadero o Falso. " +
       "Respuesta corta: las respuestas aceptadas separadas por punto y coma (ej. 1825; mil ochocientos). " +
-      "Ensayo: dejar vacío (la corrige el docente).",
+      "Ensayo o Archivo: dejar vacío (los corrige el docente).",
   ],
   [
     "Opción A – F",
@@ -190,12 +202,13 @@ function parseRow(row: Record<string, unknown>): EditQuestion | string | null {
   if (/verdadero|falso|^v ?\/ ?f$/.test(t)) type = "TRUE_FALSE";
   else if (t.includes("corta")) type = "SHORT_TEXT";
   else if (/ensayo|abierta/.test(t)) type = "ESSAY";
+  else if (/archivo|adjunto|documento/.test(t)) type = "FILE";
   else if (t.includes("varias")) type = "MULTIPLE_CHOICE";
   else if (/unica|una/.test(t)) type = "SINGLE_CHOICE";
   else if (t.includes("multiple")) type = "MULTIPLE_CHOICE";
   if (!type) {
     return typeText
-      ? `Tipo no reconocido: «${typeText}». Usa: Opción única, Opción múltiple, Verdadero/Falso, Respuesta corta o Ensayo.`
+      ? `Tipo no reconocido: «${typeText}». Usa: Opción única, Opción múltiple, Verdadero/Falso, Respuesta corta, Ensayo o Archivo.`
       : "Falta el Tipo de pregunta.";
   }
 

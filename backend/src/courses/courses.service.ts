@@ -699,8 +699,8 @@ export class CoursesService {
 
   /**
    * URLs de blobs propios que el borrado en cascada de estos módulos dejaría
-   * huérfanas: materiales, adjuntos de actividades, archivos de carpetas y las entregas
-   * de estudiantes (Tarea `fileUrl` + archivos de cada `ProjectDelivery`).
+   * huérfanas: materiales, carpetas y entregas de estudiantes (Tarea,
+   * Proyecto y respuestas FILE de quiz/examen).
    */
   private async collectModuleBlobUrls(
     moduleIds: string[],
@@ -718,6 +718,9 @@ export class CoursesService {
             deliveries: { select: { files: { select: { url: true } } } },
           },
         },
+        quizAttempts: {
+          select: { answers: { select: { fileUrl: true } } },
+        },
       },
     });
     return contents.flatMap((c) => [
@@ -728,6 +731,9 @@ export class CoursesService {
         s.fileUrl,
         ...s.deliveries.flatMap((d) => d.files.map((f) => f.url)),
       ]),
+      ...c.quizAttempts.flatMap((attempt) =>
+        attempt.answers.map((answer) => answer.fileUrl),
+      ),
     ]);
   }
 

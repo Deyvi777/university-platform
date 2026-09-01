@@ -18,6 +18,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { GradingService } from '../grading/grading.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 import {
   AutosaveQuizDto,
   GradeEssaysDto,
@@ -69,6 +70,7 @@ export class QuizService {
     private readonly prisma: PrismaService,
     private readonly grading: GradingService,
     private readonly notifications: NotificationsService,
+    private readonly storage: StorageService,
   ) {}
 
   // ── Autorización ────────────────────────────────────────────────────────────
@@ -263,7 +265,7 @@ export class QuizService {
     return byLimit ?? byWindow;
   }
 
-  /** Califica una respuesta según el tipo de pregunta (null/null para ensayos). */
+  /** Califica una respuesta (null/null para tipos manuales ESSAY/FILE). */
   private scoreAnswer(
     q: {
       type: QuestionType;
@@ -276,10 +278,11 @@ export class QuizService {
       selectedOptionIds?: string[];
       boolValue?: boolean | null;
       textValue?: string | null;
+      fileUrl?: string | null;
     } | null,
   ): { isCorrect: boolean | null; awarded: number | null } {
     const points = Number(q.points);
-    if (q.type === QuestionType.ESSAY) {
+    if (q.type === QuestionType.ESSAY || q.type === QuestionType.FILE) {
       return { isCorrect: null, awarded: null };
     }
     if (
@@ -314,7 +317,7 @@ export class QuizService {
   /**
    * Cierra un intento vencido que nunca se envió calificando lo AUTOGUARDADO
    * (ver `autosave`): las respuestas que el estudiante alcanzó a guardar
-   * cuentan; sin nada guardado la nota es 0. Si respondió algún ensayo, el
+   * cuentan; sin nada guardado la nota es 0. Si hay respuesta manual, el
    * intento queda SUBMITTED para que el docente lo corrija. Con reintentos
    * habilitados el estudiante puede volver a rendir mientras siga abierto.
    */
@@ -342,19 +345,25 @@ export class QuizService {
           selectedOptionIds: true,
           boolValue: true,
           textValue: true,
+          fileUrl: true,
         },
       }),
     ]);
     const answerOf = new Map(saved.map((a) => [a.questionId, a]));
     const totalPoints = questions.reduce((s, q) => s + Number(q.points), 0);
     let autoEarned = 0;
-    let essayAnswered = false;
+    let manualAnswerProvided = false;
 
     await this.prisma.$transaction(async (tx) => {
       for (const q of questions) {
         const a = answerOf.get(q.id);
-        if (q.type === QuestionType.ESSAY) {
-          if (a?.textValue?.trim()) essayAnswered = true;
+        if (q.type === QuestionType.ESSAY || q.type === QuestionType.FILE) {
+          if (
+            (q.type === QuestionType.ESSAY && a?.textValue?.trim()) ||
+            (q.type === QuestionType.FILE && a?.fileUrl)
+          ) {
+            manualAnswerProvided = true;
+          }
           continue;
         }
         if (!a) continue; // sin respuesta guardada → cuenta 0, sin fila
@@ -378,8 +387,8 @@ export class QuizService {
         (totalPoints > 0 ? (autoEarned / totalPoints) * maxScore : 0) * 100,
       ) / 100;
 
-    // Ensayos respondidos → pendiente de corrección (igual que un envío normal).
-    if (essayAnswered) {
+    // Respuesta manual guardada → pendiente de corrección.
+    if (manualAnswerProvided) {
       await this.prisma.quizAttempt.update({
         where: { id: attemptId },
         data: {
@@ -533,6 +542,9 @@ export class QuizService {
           selectedOptionIds: true,
           boolValue: true,
           textValue: true,
+          fileUrl: true,
+          fileName: true,
+          fileSize: true,
         },
       });
       return {
@@ -549,7 +561,7 @@ export class QuizService {
 
     // Intento enviado/calificado → estado + (si procede) revisión. Si el
     // cuestionario admite varios intentos y sigue abierto, se puede reintentar
-    // (solo tras estar calificado; con ensayos pendientes se espera al docente).
+    // (solo tras calificarse; con respuestas manuales se espera al docente).
     if (attempt) {
       // En un examen de recuperación el reintento exige seguir elegible (si ya
       // aprobó con él, no hay nada que recuperar); en una actividad normal, que
@@ -655,7 +667,7 @@ export class QuizService {
     if ((content.singleAttempt ?? false) && attempts.length > 0) {
       throw new BadRequestException('Ya rendiste este cuestionario');
     }
-    // Con ensayos pendientes de corrección no se abre otro intento (el nuevo
+    // Con corrección manual pendiente no se abre otro intento (el nuevo
     // envío pisaría la Submission que el docente está por calificar).
     if (attempts[0]?.status === QuizAttemptStatus.SUBMITTED) {
       throw new BadRequestException(
@@ -754,16 +766,28 @@ export class QuizService {
 
     const totalPoints = questions.reduce((s, q) => s + Number(q.points), 0);
     let autoEarned = 0;
-    let hasEssay = false;
+    let hasManualQuestion = false;
+    const previousFileUrls = (
+      await this.prisma.quizAnswer.findMany({
+        where: { attemptId: attempt.id, fileUrl: { not: null } },
+        select: { fileUrl: true },
+      })
+    ).map((answer) => answer.fileUrl);
+    const retainedFileUrls = new Set<string>();
 
     await this.prisma.$transaction(async (tx) => {
       // El envío final reemplaza cualquier autoguardado previo.
       await tx.quizAnswer.deleteMany({ where: { attemptId: attempt.id } });
       for (const q of questions) {
         const a = answerOf.get(q.id);
-        if (q.type === QuestionType.ESSAY) hasEssay = true;
+        if (q.type === QuestionType.ESSAY || q.type === QuestionType.FILE) {
+          hasManualQuestion = true;
+        }
         const { isCorrect, awarded } = this.scoreAnswer(q, a);
         if (awarded != null) autoEarned += awarded;
+        const fileUrl =
+          q.type === QuestionType.FILE ? (a?.fileUrl ?? null) : null;
+        if (fileUrl) retainedFileUrls.add(fileUrl);
 
         await tx.quizAnswer.create({
           data: {
@@ -772,6 +796,15 @@ export class QuizService {
             selectedOptionIds: a?.selectedOptionIds ?? [],
             boolValue: a?.boolValue ?? null,
             textValue: a?.textValue?.trim() || null,
+            fileUrl,
+            fileName:
+              q.type === QuestionType.FILE && fileUrl
+                ? (a?.fileName?.trim() ?? null)
+                : null,
+            fileSize:
+              q.type === QuestionType.FILE && fileUrl
+                ? (a?.fileSize ?? null)
+                : null,
             isCorrect,
             pointsAwarded: awarded != null ? new Prisma.Decimal(awarded) : null,
           },
@@ -779,12 +812,18 @@ export class QuizService {
       }
     });
 
+    await this.storage.deleteByUrls(
+      previousFileUrls.filter(
+        (url): url is string => url !== null && !retainedFileUrls.has(url),
+      ),
+    );
+
     const maxScore = content.maxScore !== null ? Number(content.maxScore) : 0;
     const autoScaled =
       totalPoints > 0 ? (autoEarned / totalPoints) * maxScore : 0;
 
-    if (hasEssay) {
-      // Quedan ensayos por corregir → SUBMITTED, sin nota aún.
+    if (hasManualQuestion) {
+      // Quedan ensayos/archivos por corregir → SUBMITTED, sin nota aún.
       await this.prisma.quizAttempt.update({
         where: { id: attempt.id },
         data: {
@@ -854,19 +893,30 @@ export class QuizService {
       throw new BadRequestException('El intento ya venció');
     }
 
-    // Solo respuestas a preguntas reales del cuestionario.
-    const known = new Set(
+    // Solo respuestas a preguntas reales. El tipo guardado en el banco manda:
+    // el cliente no puede convertir otra pregunta en FILE enviando más campos.
+    const known = new Map(
       (
         await this.prisma.question.findMany({
           where: { contentId },
-          select: { id: true },
+          select: { id: true, type: true },
         })
-      ).map((q) => q.id),
+      ).map((q) => [q.id, q.type]),
     );
     const answers = dto.answers.filter((a) => known.has(a.questionId));
+    const previousFiles = await this.prisma.quizAnswer.findMany({
+      where: {
+        attemptId: attempt.id,
+        questionId: { in: answers.map((answer) => answer.questionId) },
+        fileUrl: { not: null },
+      },
+      select: { fileUrl: true },
+    });
     await this.prisma.$transaction(
-      answers.map((a) =>
-        this.prisma.quizAnswer.upsert({
+      answers.map((a) => {
+        const isFile = known.get(a.questionId) === QuestionType.FILE;
+        const fileUrl = isFile ? (a.fileUrl ?? null) : null;
+        return this.prisma.quizAnswer.upsert({
           where: {
             attemptId_questionId: {
               attemptId: attempt.id,
@@ -879,16 +929,33 @@ export class QuizService {
             selectedOptionIds: a.selectedOptionIds ?? [],
             boolValue: a.boolValue ?? null,
             textValue: a.textValue?.trim() || null,
+            fileUrl,
+            fileName: fileUrl ? (a.fileName?.trim() ?? null) : null,
+            fileSize: fileUrl ? (a.fileSize ?? null) : null,
           },
           update: {
             selectedOptionIds: a.selectedOptionIds ?? [],
             boolValue: a.boolValue ?? null,
             textValue: a.textValue?.trim() || null,
+            fileUrl,
+            fileName: fileUrl ? (a.fileName?.trim() ?? null) : null,
+            fileSize: fileUrl ? (a.fileSize ?? null) : null,
             isCorrect: null,
             pointsAwarded: null,
           },
-        }),
-      ),
+        });
+      }),
+    );
+    const currentFiles = new Set(
+      answers
+        .filter((answer) => known.get(answer.questionId) === QuestionType.FILE)
+        .map((answer) => answer.fileUrl)
+        .filter((url): url is string => Boolean(url)),
+    );
+    await this.storage.deleteByUrls(
+      previousFiles
+        .map((answer) => answer.fileUrl)
+        .filter((url): url is string => url !== null && !currentFiles.has(url)),
     );
     return { ok: true, saved: answers.length };
   }
@@ -919,6 +986,9 @@ export class QuizService {
           selectedOptionIds: true,
           boolValue: true,
           textValue: true,
+          fileUrl: true,
+          fileName: true,
+          fileSize: true,
           isCorrect: true,
           pointsAwarded: true,
         },
@@ -940,6 +1010,9 @@ export class QuizService {
               selectedOptionIds: a.selectedOptionIds,
               boolValue: a.boolValue,
               textValue: a.textValue,
+              fileUrl: a.fileUrl,
+              fileName: a.fileName,
+              fileSize: a.fileSize,
               isCorrect: a.isCorrect,
               pointsAwarded:
                 a.pointsAwarded !== null ? Number(a.pointsAwarded) : null,
@@ -1007,7 +1080,7 @@ export class QuizService {
     };
   }
 
-  /** El docente puntúa los ensayos → recombina la nota y cierra el intento. */
+  /** El docente puntúa ensayos/archivos → recombina y cierra el intento. */
   async gradeEssays(viewer: Viewer, attemptId: string, dto: GradeEssaysDto) {
     const attempt = await this.prisma.quizAttempt.findUnique({
       where: { id: attemptId },
@@ -1023,7 +1096,7 @@ export class QuizService {
     }
     const content = await this.loadQuiz(attempt.contentId);
     await this.ensureTeacher(viewer, content.moduleId);
-    // Los ensayos de un examen de recuperación se corrigen con el módulo
+    // Las respuestas manuales de una recuperación se corrigen con el módulo
     // concluido (es su estado natural).
     if (
       !content.recoveryStage &&
@@ -1036,16 +1109,18 @@ export class QuizService {
       where: { contentId: attempt.contentId },
       select: { id: true, type: true, points: true },
     });
-    const essayPoints = new Map(
+    const manualPoints = new Map(
       questions
-        .filter((q) => q.type === QuestionType.ESSAY)
+        .filter(
+          (q) => q.type === QuestionType.ESSAY || q.type === QuestionType.FILE,
+        )
         .map((q) => [q.id, Number(q.points)]),
     );
     const gradeOf = new Map(dto.grades.map((g) => [g.questionId, g.points]));
 
-    // Aplica los puntos de cada ensayo (acotados a su puntaje máximo).
+    // Aplica los puntos de cada respuesta manual (acotados al máximo).
     await this.prisma.$transaction(async (tx) => {
-      for (const [qid, maxPts] of essayPoints) {
+      for (const [qid, maxPts] of manualPoints) {
         if (!gradeOf.has(qid)) continue;
         const pts = Math.min(Math.max(gradeOf.get(qid)!, 0), maxPts);
         await tx.quizAnswer.updateMany({
@@ -1058,7 +1133,7 @@ export class QuizService {
       }
     });
 
-    // Recalcula la nota total con auto + ensayos.
+    // Recalcula la nota total con auto + respuestas manuales.
     const answers = await this.prisma.quizAnswer.findMany({
       where: { attemptId },
       select: { pointsAwarded: true },
@@ -1080,12 +1155,12 @@ export class QuizService {
         status: QuizAttemptStatus.GRADED,
         totalScore: new Prisma.Decimal(scaled),
         manualScore: new Prisma.Decimal(
-          [...essayPoints.keys()].reduce(
+          [...manualPoints.keys()].reduce(
             (s, qid) =>
               s +
               Math.min(
                 Math.max(gradeOf.get(qid) ?? 0, 0),
-                essayPoints.get(qid)!,
+                manualPoints.get(qid)!,
               ),
             0,
           ),

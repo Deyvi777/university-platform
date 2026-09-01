@@ -382,7 +382,7 @@ export class ModuleContentService {
 
   async removeContent(userId: string, contentId: string) {
     // Traemos, antes de borrar, todo lo que el borrado en cascada eliminará:
-    // los archivos físicos referenciados (material/carpeta/entregas) para
+    // los archivos físicos (material/carpeta/entregas/respuestas FILE) para
     // limpiarlos del bucket, y los estudiantes con nota de módulo para
     // recalcularla (una actividad evaluable borrada cambia la ponderación).
     const content = await this.prisma.moduleContent.findUnique({
@@ -399,6 +399,9 @@ export class ModuleContentService {
             fileUrl: true, // Tarea
             deliveries: { select: { files: { select: { url: true } } } }, // Proyecto
           },
+        },
+        quizAttempts: {
+          select: { answers: { select: { fileUrl: true } } },
         },
       },
     });
@@ -426,6 +429,9 @@ export class ModuleContentService {
         s.fileUrl,
         ...s.deliveries.flatMap((d) => d.files.map((f) => f.url)),
       ]),
+      ...content.quizAttempts.flatMap((attempt) =>
+        attempt.answers.map((answer) => answer.fileUrl),
+      ),
     ];
 
     const isActivity = content.kind === ContentKind.ACTIVITY;

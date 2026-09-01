@@ -7,6 +7,7 @@ const questionTypeEnum = z.enum([
   'TRUE_FALSE',
   'SHORT_TEXT',
   'ESSAY',
+  'FILE',
 ]);
 
 const optionSchema = z.object({
@@ -71,18 +72,48 @@ export const saveQuestionsSchema = z.object({
 
 export class SaveQuestionsDto extends createZodDto(saveQuestionsSchema) {}
 
+const quizAnswerSchema = z
+  .object({
+    questionId: z.string().uuid(),
+    selectedOptionIds: z.array(z.string().uuid()).max(12).default([]),
+    boolValue: z.boolean().nullish(),
+    textValue: z.string().max(10000).nullish(),
+    fileUrl: z
+      .string()
+      .trim()
+      .regex(
+        /^\/files\/submissions\/[0-9a-f-]+\.[a-z0-9]+$/i,
+        'La ruta del archivo no es válida',
+      )
+      .nullish(),
+    fileName: z.string().trim().min(1).max(255).nullish(),
+    fileSize: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(20 * 1024 * 1024)
+      .nullish(),
+  })
+  .superRefine((answer, ctx) => {
+    if (answer.fileUrl && !answer.fileName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['fileName'],
+        message: 'El nombre del archivo es requerido',
+      });
+    }
+    if (!answer.fileUrl && (answer.fileName || answer.fileSize != null)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['fileUrl'],
+        message: 'La ruta del archivo es requerida',
+      });
+    }
+  });
+
 // Envío del estudiante: una respuesta por pregunta.
 export const submitQuizSchema = z.object({
-  answers: z
-    .array(
-      z.object({
-        questionId: z.string().uuid(),
-        selectedOptionIds: z.array(z.string().uuid()).max(12).default([]),
-        boolValue: z.boolean().nullish(),
-        textValue: z.string().max(10000).nullish(),
-      }),
-    )
-    .max(100),
+  answers: z.array(quizAnswerSchema).max(100),
 });
 
 export class SubmitQuizDto extends createZodDto(submitQuizSchema) {}
@@ -92,7 +123,7 @@ export class SubmitQuizDto extends createZodDto(submitQuizSchema) {}
 // intento que venza sin envío y para restaurar el formulario al recargar.
 export class AutosaveQuizDto extends createZodDto(submitQuizSchema) {}
 
-// Corrección de ensayos por el docente: puntaje por pregunta de ensayo.
+// Corrección manual (ensayos/archivos): puntaje por pregunta.
 export const gradeEssaysSchema = z.object({
   grades: z
     .array(

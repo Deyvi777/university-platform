@@ -62,13 +62,14 @@ enum QuestionType {
   TRUE_FALSE // verdadero / falso
   SHORT_TEXT // respuesta corta (autocalificada por coincidencia)
   ESSAY // respuesta abierta (la califica el docente)
+  FILE // entrega de archivo (la califica el docente)
 }
 
 // Estado del intento de un estudiante en un cuestionario/examen.
 enum QuizAttemptStatus {
   IN_PROGRESS // iniciado, sin enviar
-  SUBMITTED // enviado, con ensayos pendientes de corrección manual
-  GRADED // calificado del todo (auto + ensayos)
+  SUBMITTED // enviado, con respuestas manuales pendientes de corrección
+  GRADED // calificado del todo (automático + manual)
 }
 
 enum SubmissionStatus {
@@ -102,8 +103,8 @@ enum ModuleGradeStatus {
 
 // Etapa de recuperación de una actividad QUIZ/EXAM. Un examen de recuperación
 // se habilita sobre un módulo CONCLUIDO para los estudiantes reprobados; su
-// nota NO pondera con las demás actividades: REEMPLAZA la nota final del
-// módulo del estudiante que lo rinde.
+// nota NO pondera con las demás actividades: puede mejorar la nota final hasta
+// el mínimo de aprobación, sin reducir una nota previa más alta.
 enum RecoveryStage {
   RECUPERATORIO // lo habilita el docente (o admin) para los reprobados
   SEGUNDA_INSTANCIA // lo habilita SOLO el admin si se reprueba el recuperatorio
@@ -734,8 +735,8 @@ model ModuleContent {
   shuffle        Boolean? // barajar preguntas y opciones por estudiante
   revealAnswers  Boolean? // resultados: true = corrección completa, false/null = solo nota
   // Examen de recuperación (solo QUIZ/EXAM, en módulo CONCLUIDO): su nota
-  // reemplaza la nota final del módulo del estudiante que lo rinde. Máx. uno
-  // por etapa por módulo. null = actividad normal (pondera por peso).
+  // se compara con la nota final y puede elevarla hasta el mínimo de
+  // aprobación. Máx. uno por etapa por módulo. null = actividad normal.
   recoveryStage  RecoveryStage?
 
   createdAt DateTime @default(now())
@@ -936,7 +937,7 @@ model QuestionOption {
 }
 
 // Intento de un estudiante en un cuestionario/examen. `autoScore` es lo
-// autocalificado; `manualScore` lo que el docente sumó por los ensayos;
+// autocalificado; `manualScore` lo que el docente sumó por ensayos/archivos;
 // `totalScore` la nota final escalada a la maxScore de la actividad.
 model QuizAttempt {
   id            String            @id @default(uuid())
@@ -969,7 +970,10 @@ model QuizAnswer {
   selectedOptionIds String[]    @default([]) // SINGLE/MULTIPLE_CHOICE
   boolValue         Boolean? // TRUE_FALSE
   textValue         String? // SHORT_TEXT / ESSAY
-  isCorrect         Boolean? // null para ESSAY hasta corregir
+  fileUrl           String? // FILE: ruta /files/submissions/...
+  fileName          String? // FILE: nombre original visible
+  fileSize          Int? // FILE: tamaño en bytes
+  isCorrect         Boolean? // null para ESSAY/FILE hasta corregir
   pointsAwarded     Decimal?    @db.Decimal(6, 2)
 
   @@unique([attemptId, questionId])

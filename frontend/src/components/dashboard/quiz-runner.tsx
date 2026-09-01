@@ -15,7 +15,9 @@ import {
   RotateCcw,
   Send,
   Timer,
+  Trash2,
   Trophy,
+  Upload,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,12 +31,20 @@ import type {
   SavedQuizAnswer,
 } from "@/lib/api/me";
 import { DUE_URGENCY_CLS, dueUrgency, formatDueDateTime } from "@/lib/due-date";
+import {
+  fileSizeError,
+  MAX_DOCUMENT_UPLOAD_BYTES,
+  MAX_DOCUMENT_UPLOAD_MB,
+} from "@/lib/upload-limits";
 import { cn } from "@/lib/utils";
 
 type AnswerState = {
   selectedOptionIds: string[];
   boolValue: boolean | null;
   textValue: string;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileSize: number | null;
 };
 
 function fmtRemaining(ms: number): string {
@@ -113,14 +123,14 @@ export function QuizRunner({ activityId }: { activityId: string }) {
     );
   }
 
-  // Intento enviado, pendiente de corrección de ensayos.
+  // Intento enviado, pendiente de corrección manual.
   if (data.attempt?.status === "SUBMITTED") {
     return (
       <StateCard
         icon={<Clock className="size-5" />}
         tone="amber"
         title="Tu intento fue enviado"
-        text="Tiene preguntas abiertas que el docente debe corregir. Tu nota aparecerá cuando termine la revisión."
+        text="Tiene respuestas abiertas o archivos que el docente debe corregir. Tu nota aparecerá cuando termine la revisión."
       />
     );
   }
@@ -229,9 +239,13 @@ export function QuizRunner({ activityId }: { activityId: string }) {
           <div className="mt-3.5 flex flex-wrap gap-2">
             {from && (
               <p className="inline-flex items-center gap-1.5 rounded-lg bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
-                <CalendarPlus className="size-3.5 shrink-0" aria-hidden="true" />
+                <CalendarPlus
+                  className="size-3.5 shrink-0"
+                  aria-hidden="true"
+                />
                 <span>
-                  Disponible desde: <span className="font-semibold">{from}</span>
+                  Disponible desde:{" "}
+                  <span className="font-semibold">{from}</span>
                 </span>
               </p>
             )}
@@ -271,8 +285,8 @@ export function QuizRunner({ activityId }: { activityId: string }) {
         )}
         {data.settings.shuffle && (
           <li className="flex items-center gap-2">
-            <ListChecks className="size-4" /> Las preguntas se presentan en orden
-            aleatorio.
+            <ListChecks className="size-4" /> Las preguntas se presentan en
+            orden aleatorio.
           </li>
         )}
       </ul>
@@ -334,6 +348,9 @@ function QuizForm({
             selectedOptionIds: s?.selectedOptionIds ?? [],
             boolValue: s?.boolValue ?? null,
             textValue: s?.textValue ?? "",
+            fileUrl: s?.fileUrl ?? null,
+            fileName: s?.fileName ?? null,
+            fileSize: s?.fileSize ?? null,
           },
         ];
       }),
@@ -346,6 +363,9 @@ function QuizForm({
   // llamar Date.now() en render — regla react-hooks/purity).
   const [remaining, setRemaining] = useState<number | null>(null);
   const submittedRef = useRef(false);
+  const [uploadingQuestionIds, setUploadingQuestionIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   function answersPayload() {
     const current = answersRef.current;
@@ -355,6 +375,9 @@ function QuizForm({
         selectedOptionIds: current[q.id]?.selectedOptionIds ?? [],
         boolValue: current[q.id]?.boolValue ?? null,
         textValue: current[q.id]?.textValue || null,
+        fileUrl: current[q.id]?.fileUrl ?? null,
+        fileName: current[q.id]?.fileName ?? null,
+        fileSize: current[q.id]?.fileSize ?? null,
       })),
     };
   }
@@ -376,7 +399,9 @@ function QuizForm({
 
   // Actualiza estado + ref a la vez (la escritura del ref ocurre dentro del
   // updater de setState, en un manejador de eventos, no en render).
-  function commit(updater: (prev: Record<string, AnswerState>) => Record<string, AnswerState>) {
+  function commit(
+    updater: (prev: Record<string, AnswerState>) => Record<string, AnswerState>,
+  ) {
     setAnswers((prev) => {
       const next = updater(prev);
       answersRef.current = next;
@@ -471,7 +496,19 @@ function QuizForm({
     selectedOptionIds: [],
     boolValue: null,
     textValue: "",
+    fileUrl: null,
+    fileName: null,
+    fileSize: null,
   });
+
+  function setUploading(qid: string, uploading: boolean) {
+    setUploadingQuestionIds((previous) => {
+      const next = new Set(previous);
+      if (uploading) next.add(qid);
+      else next.delete(qid);
+      return next;
+    });
+  }
 
   function setAnswer(qid: string, patch: Partial<AnswerState>) {
     commit((prev) => ({
@@ -563,11 +600,7 @@ function QuizForm({
                         name={`q-${q.id}`}
                         checked={selected}
                         onChange={() =>
-                          toggleOption(
-                            q.id,
-                            o.id,
-                            q.type === "MULTIPLE_CHOICE",
-                          )
+                          toggleOption(q.id, o.id, q.type === "MULTIPLE_CHOICE")
                         }
                         className="size-4 accent-primary"
                       />
@@ -596,7 +629,9 @@ function QuizForm({
                         type="radio"
                         name={`q-${q.id}`}
                         checked={selected}
-                        onChange={() => setAnswer(q.id, { boolValue: opt.value })}
+                        onChange={() =>
+                          setAnswer(q.id, { boolValue: opt.value })
+                        }
                         className="size-4 accent-primary"
                       />
                       <span>{opt.label}</span>
@@ -607,7 +642,9 @@ function QuizForm({
               {q.type === "SHORT_TEXT" && (
                 <Input
                   value={answers[q.id]?.textValue ?? ""}
-                  onChange={(e) => setAnswer(q.id, { textValue: e.target.value })}
+                  onChange={(e) =>
+                    setAnswer(q.id, { textValue: e.target.value })
+                  }
                   placeholder="Tu respuesta…"
                 />
               )}
@@ -615,9 +652,22 @@ function QuizForm({
               {q.type === "ESSAY" && (
                 <Textarea
                   value={answers[q.id]?.textValue ?? ""}
-                  onChange={(e) => setAnswer(q.id, { textValue: e.target.value })}
+                  onChange={(e) =>
+                    setAnswer(q.id, { textValue: e.target.value })
+                  }
                   placeholder="Escribe tu respuesta…"
                   className="min-h-28"
+                />
+              )}
+
+              {q.type === "FILE" && (
+                <FileAnswerField
+                  questionId={q.id}
+                  value={answers[q.id] ?? emptyAnswer()}
+                  onChange={(patch) => setAnswer(q.id, patch)}
+                  onUploadingChange={(uploading) =>
+                    setUploading(q.id, uploading)
+                  }
                 />
               )}
             </div>
@@ -628,7 +678,7 @@ function QuizForm({
       <div className="flex justify-end">
         <Button
           type="button"
-          disabled={submitMut.isPending}
+          disabled={submitMut.isPending || uploadingQuestionIds.size > 0}
           onClick={confirmSubmit}
         >
           {submitMut.isPending ? (
@@ -639,6 +689,177 @@ function QuizForm({
           Enviar respuestas
         </Button>
       </div>
+    </div>
+  );
+}
+
+function FileAnswerField({
+  questionId,
+  value,
+  onChange,
+  onUploadingChange,
+}: {
+  questionId: string;
+  value: AnswerState;
+  onChange: (patch: Partial<AnswerState>) => void;
+  onUploadingChange: (uploading: boolean) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  async function upload(file: File) {
+    const sizeError = fileSizeError(file, MAX_DOCUMENT_UPLOAD_BYTES);
+    if (sizeError) {
+      toast.error(sizeError);
+      return;
+    }
+
+    setUploading(true);
+    onUploadingChange(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/me/upload", {
+        method: "POST",
+        body: form,
+      });
+      const result = (await response.json().catch(() => ({}))) as {
+        url?: string;
+        message?: string;
+      };
+      if (!response.ok || !result.url) {
+        throw new Error(result.message ?? "No se pudo subir el archivo");
+      }
+      onChange({
+        fileUrl: result.url,
+        fileName: file.name,
+        fileSize: file.size,
+      });
+      toast.success("Archivo adjuntado");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo subir el archivo",
+      );
+    } finally {
+      setUploading(false);
+      onUploadingChange(false);
+    }
+  }
+
+  function openPicker() {
+    if (!uploading) inputRef.current?.click();
+  }
+
+  return (
+    <div className="space-y-2">
+      <input
+        ref={inputRef}
+        id={`file-answer-${questionId}`}
+        type="file"
+        accept=".pdf,.doc,.docx,.odt,.rtf,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,application/rtf,text/rtf,text/plain"
+        className="sr-only"
+        disabled={uploading}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void upload(file);
+          event.target.value = "";
+        }}
+      />
+
+      {value.fileUrl ? (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5">
+          <Paperclip
+            className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+            aria-hidden="true"
+          />
+          <a
+            href={value.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-w-0 flex-1 truncate text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {value.fileName ?? "Archivo adjunto"}
+          </a>
+          {value.fileSize != null && (
+            <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+              {(value.fileSize / 1024 / 1024).toFixed(2)} MB
+            </span>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={uploading}
+            aria-label="Quitar archivo adjunto"
+            onClick={() =>
+              onChange({ fileUrl: null, fileName: null, fileSize: null })
+            }
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={openPicker}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            if (!uploading) setDragOver(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            if (!uploading) setDragOver(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+              setDragOver(false);
+            }
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragOver(false);
+            if (uploading) return;
+            const file = event.dataTransfer.files[0];
+            if (file) void upload(file);
+          }}
+          className={cn(
+            "flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors outline-none hover:border-primary/50 hover:bg-primary/[0.03] focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60",
+            dragOver &&
+              "border-primary bg-primary/[0.06] ring-2 ring-primary/20",
+          )}
+        >
+          {uploading ? (
+            <Loader2 className="size-6 animate-spin text-primary" />
+          ) : (
+            <Upload className="size-6 text-primary" aria-hidden="true" />
+          )}
+          <span className="text-sm font-medium">
+            {uploading
+              ? "Subiendo archivo…"
+              : dragOver
+                ? "Suelta el archivo aquí"
+                : "Arrastra tu trabajo aquí o haz clic para seleccionarlo"}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            PDF, Word, ODT, RTF o TXT · máximo {MAX_DOCUMENT_UPLOAD_MB} MB
+          </span>
+        </button>
+      )}
+
+      {value.fileUrl && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={uploading}
+          onClick={openPicker}
+        >
+          <Upload className="size-4" /> Reemplazar archivo
+        </Button>
+      )}
     </div>
   );
 }
@@ -690,7 +911,7 @@ function ReviewList({ review }: { review: QuizReviewQuestion[] }) {
                 <p className="text-sm font-medium">
                   {i + 1}. {q.prompt}
                 </p>
-                {q.type !== "ESSAY" && correct != null && (
+                {q.type !== "ESSAY" && q.type !== "FILE" && correct != null && (
                   <span
                     className={cn(
                       "inline-flex shrink-0 items-center gap-1 text-xs font-semibold",
@@ -753,8 +974,7 @@ function ReviewList({ review }: { review: QuizReviewQuestion[] }) {
 
                 {q.type === "SHORT_TEXT" && (
                   <p className="text-muted-foreground">
-                    Tu respuesta:{" "}
-                    <strong>{q.answer?.textValue || "—"}</strong>
+                    Tu respuesta: <strong>{q.answer?.textValue || "—"}</strong>
                     {" · "}Aceptadas: {q.acceptedAnswers.join(", ")}
                   </p>
                 )}
@@ -771,6 +991,29 @@ function ReviewList({ review }: { review: QuizReviewQuestion[] }) {
                       </>
                     )}
                   </p>
+                )}
+
+                {q.type === "FILE" && (
+                  <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                    {q.answer?.fileUrl ? (
+                      <a
+                        href={q.answer.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline"
+                      >
+                        <Paperclip className="size-4" aria-hidden="true" />
+                        {q.answer.fileName ?? "Archivo entregado"}
+                      </a>
+                    ) : (
+                      <span>Sin archivo entregado</span>
+                    )}
+                    {q.answer?.pointsAwarded != null && (
+                      <strong>
+                        {q.answer.pointsAwarded}/{q.points} pts
+                      </strong>
+                    )}
+                  </div>
                 )}
               </div>
             </li>

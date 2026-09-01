@@ -90,7 +90,7 @@ export interface ForumThread {
 
 /**
  * Examen de recuperación: se habilita sobre un módulo CONCLUIDO para los
- * reprobados y su nota REEMPLAZA la nota final del módulo (no pondera).
+ * reprobados y puede mejorar la nota final hasta el mínimo de aprobación.
  */
 export type RecoveryStage = "RECUPERATORIO" | "SEGUNDA_INSTANCIA";
 
@@ -99,7 +99,8 @@ export type QuestionType =
   | "MULTIPLE_CHOICE"
   | "TRUE_FALSE"
   | "SHORT_TEXT"
-  | "ESSAY";
+  | "ESSAY"
+  | "FILE";
 
 export type QuizAttemptStatus = "IN_PROGRESS" | "SUBMITTED" | "GRADED";
 
@@ -115,6 +116,9 @@ export interface QuizReviewAnswer {
   selectedOptionIds: string[];
   boolValue: boolean | null;
   textValue: string | null;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileSize: number | null;
   isCorrect: boolean | null;
   pointsAwarded: number | null;
 }
@@ -136,6 +140,9 @@ export interface SavedQuizAnswer {
   selectedOptionIds: string[];
   boolValue: boolean | null;
   textValue: string | null;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileSize: number | null;
 }
 
 export interface QuizRunner {
@@ -166,14 +173,12 @@ export interface QuizRunner {
   };
   open: boolean;
   moduleFinished: boolean;
-  attempt:
-    | null
-    | {
-        id: string;
-        status: QuizAttemptStatus;
-        deadline?: string | null;
-        score?: number | null;
-      };
+  attempt: null | {
+    id: string;
+    status: QuizAttemptStatus;
+    deadline?: string | null;
+    score?: number | null;
+  };
   canStart?: boolean;
   questions?: QuizRunnerQuestion[];
   /** Autoguardado del intento en curso (restaura las respuestas al recargar). */
@@ -392,12 +397,7 @@ export async function listMyCourses(): Promise<MyCourse[]> {
 
 // ── Vista de aprendizaje (aula) del estudiante ───────────────────────────────
 
-export type ContentKind =
-  | "TEXT"
-  | "VIDEO"
-  | "MATERIAL"
-  | "ACTIVITY"
-  | "FOLDER";
+export type ContentKind = "TEXT" | "VIDEO" | "MATERIAL" | "ACTIVITY" | "FOLDER";
 
 /** Archivo dentro de una carpeta (kind = FOLDER). */
 export interface FolderFile {

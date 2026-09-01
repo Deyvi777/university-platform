@@ -40,6 +40,7 @@ const TYPE_LABELS: Record<QuestionType, string> = {
   TRUE_FALSE: "Verdadero / Falso",
   SHORT_TEXT: "Respuesta corta",
   ESSAY: "Respuesta abierta (ensayo)",
+  FILE: "Entrega de archivo",
 };
 
 export type EditOption = { key: string; text: string; isCorrect: boolean };
@@ -460,6 +461,14 @@ function QuestionBuilder({ activityId }: { activityId: string }) {
                     Respuesta abierta: la corriges tú en la pestaña “Intentos”.
                   </p>
                 )}
+
+                {q.type === "FILE" && (
+                  <p className="text-xs text-muted-foreground">
+                    El estudiante adjuntará un PDF, Word u otro documento de
+                    hasta 20 MB. Lo descargarás y calificarás en la pestaña
+                    “Intentos”.
+                  </p>
+                )}
               </div>
             </li>
           ))}
@@ -652,9 +661,11 @@ function AttemptRow({
 
   const gradeMut = useMutation({
     mutationFn: async () => {
-      const essays = (data?.review ?? []).filter((q) => q.type === "ESSAY");
+      const manualQuestions = (data?.review ?? []).filter(
+        (q) => q.type === "ESSAY" || q.type === "FILE",
+      );
       const payload = {
-        grades: essays.map((q) => ({
+        grades: manualQuestions.map((q) => ({
           questionId: q.id,
           points: Number(grades[q.id] ?? q.answer?.pointsAwarded ?? 0) || 0,
         })),
@@ -673,7 +684,7 @@ function AttemptRow({
       }
     },
     onSuccess: () => {
-      toast.success("Ensayos calificados");
+      toast.success("Respuestas calificadas");
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["me-quiz-attempts", activityId] });
       qc.invalidateQueries({ queryKey: ["me-quiz-attempt", attemptId] });
@@ -693,7 +704,9 @@ function AttemptRow({
     },
   }[status];
 
-  const essays = (data?.review ?? []).filter((q) => q.type === "ESSAY");
+  const manualQuestions = (data?.review ?? []).filter(
+    (q) => q.type === "ESSAY" || q.type === "FILE",
+  );
 
   return (
     <li className="flex items-center gap-3 rounded-xl border bg-background p-3">
@@ -732,7 +745,7 @@ function AttemptRow({
             <DialogDescription>
               Respuestas del estudiante —{" "}
               {score != null ? `${score} / ${maxScore}` : "sin calificar"}
-              {status === "SUBMITTED" && " · pendiente de corregir ensayos"}
+              {status === "SUBMITTED" && " · pendiente de corrección manual"}
             </DialogDescription>
           </DialogHeader>
 
@@ -750,11 +763,32 @@ function AttemptRow({
                       ({q.points} pt{q.points === 1 ? "" : "s"})
                     </span>
                   </p>
-                  {q.type === "ESSAY" ? (
+                  {q.type === "ESSAY" || q.type === "FILE" ? (
                     <div className="mt-1.5">
-                      <p className="rounded bg-muted/40 px-3 py-2 whitespace-pre-wrap text-foreground/80">
-                        {q.answer?.textValue || "(sin respuesta)"}
-                      </p>
+                      {q.type === "ESSAY" ? (
+                        <p className="rounded bg-muted/40 px-3 py-2 whitespace-pre-wrap text-foreground/80">
+                          {q.answer?.textValue || "(sin respuesta)"}
+                        </p>
+                      ) : q.answer?.fileUrl ? (
+                        <a
+                          href={q.answer.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 rounded-lg border border-sky-500/25 bg-sky-500/5 px-3 py-2 font-medium text-sky-700 transition-colors hover:border-sky-500/50 hover:bg-sky-500/10 dark:text-sky-300"
+                        >
+                          <Eye className="size-4 shrink-0" aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate">
+                            {q.answer.fileName ?? "Abrir archivo entregado"}
+                          </span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            Abrir
+                          </span>
+                        </a>
+                      ) : (
+                        <p className="rounded bg-muted/40 px-3 py-2 text-muted-foreground">
+                          (sin archivo entregado)
+                        </p>
+                      )}
                       <div className="mt-2 flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">
                           Puntaje
@@ -809,7 +843,7 @@ function AttemptRow({
                 >
                   Cerrar
                 </Button>
-                {essays.length > 0 && (
+                {manualQuestions.length > 0 && (
                   <Button
                     type="button"
                     size="sm"
