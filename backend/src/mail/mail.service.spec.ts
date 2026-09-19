@@ -1,4 +1,7 @@
-import { buildCallApplicationNoticeEmail } from './mail.service';
+import {
+  buildCallApplicationNoticeEmail,
+  buildStudentCredentialsEmail,
+} from './mail.service';
 
 describe('buildCallApplicationNoticeEmail', () => {
   it('incluye respuestas, archivos y enlace seguro al panel', () => {
@@ -50,5 +53,41 @@ describe('buildCallApplicationNoticeEmail', () => {
     expect(email.html).toContain(
       'https://certificate.example/dashboard/convocatorias/call-1/postulaciones',
     );
+  });
+});
+
+describe('buildStudentCredentialsEmail', () => {
+  it('incluye el mensaje institucional, las credenciales y los primeros pasos', () => {
+    const email = buildStudentCredentialsEmail({
+      email: 'estudiante@example.com',
+      password: 'AB123456',
+      platformUrl: 'https://certificatebolivia.com.bo',
+    });
+
+    expect(email.subject).toBe('🎓 ¡BIENVENIDO(A) A CERTIFÍCATE BOLIVIA!');
+    expect(email.text).toContain('👤 USUARIO: estudiante@example.com');
+    expect(email.text).toContain('🔑 CONTRASEÑA: AB123456');
+    expect(email.text).toContain(
+      '🌐 Ingresa a: https://certificatebolivia.com.bo/',
+    );
+    expect(email.text).toContain('📌 PRIMEROS PASOS');
+    expect(email.text).toContain(
+      '5. Consulta en la plataforma la documentación, materiales, clases y grabaciones correspondientes a tu programa.',
+    );
+    expect(email.text).toContain('CERTIFÍCATE BOLIVIA SRL.');
+  });
+
+  it('escapa las credenciales antes de insertarlas en el HTML', () => {
+    const email = buildStudentCredentialsEmail({
+      email: 'nombre+<prueba>@example.com',
+      password: '<clave&segura>',
+      platformUrl: 'https://certificatebolivia.com.bo/',
+    });
+
+    expect(email.html).toContain('nombre+&lt;prueba&gt;@example.com');
+    expect(email.html).toContain('&lt;clave&amp;segura&gt;');
+    expect(email.html).not.toContain('<clave&segura>');
+    expect(email.html).toContain('https://certificatebolivia.com.bo/');
+    expect(email.html).not.toContain('https://certificatebolivia.com.bo//');
   });
 });

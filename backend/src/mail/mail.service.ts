@@ -20,6 +20,11 @@ export interface CredentialsMailPayload {
   email: string;
   /** Contraseña en claro (solo disponible al momento del alta). */
   password: string;
+  /**
+   * Tipo de destinatario. Es opcional para que los jobs creados antes de
+   * desplegar este campo sigan usando la plantilla genérica.
+   */
+  recipientRole?: 'STUDENT' | 'PROFESSOR';
 }
 
 /** Datos para el aviso por correo de una nueva solicitud de inscripción. */
@@ -284,19 +289,25 @@ export class MailService implements OnModuleInit {
       );
       return;
     }
-    const loginUrl = this.loginUrl();
-    const { subject, html, text } = buildCredentialsEmail({
-      firstName: payload.firstName,
-      email: payload.email,
-      password: payload.password,
-      loginUrl,
-    });
+    const email =
+      payload.recipientRole === 'STUDENT'
+        ? buildStudentCredentialsEmail({
+            email: payload.email,
+            password: payload.password,
+            platformUrl: this.frontendBase(),
+          })
+        : buildCredentialsEmail({
+            firstName: payload.firstName,
+            email: payload.email,
+            password: payload.password,
+            loginUrl: this.loginUrl(),
+          });
     await this.transporter.sendMail({
       from: this.from,
       to: payload.to,
-      subject,
-      text,
-      html,
+      subject: email.subject,
+      text: email.text,
+      html: email.html,
     });
     this.logger.log(`Correo de credenciales enviado a ${payload.email}.`);
   }
@@ -309,6 +320,90 @@ function escapeHtml(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/** Arma el correo institucional de bienvenida para estudiantes nuevos. */
+export function buildStudentCredentialsEmail(data: {
+  email: string;
+  password: string;
+  platformUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = '🎓 ¡BIENVENIDO(A) A CERTIFÍCATE BOLIVIA!';
+  const platformUrl = data.platformUrl.replace(/\/$/, '');
+  const visiblePlatformUrl = `${platformUrl}/`;
+  const text = [
+    subject,
+    '',
+    'Estimado(a) participante:',
+    '',
+    'Te damos la bienvenida a tu programa académico. A continuación, te enviamos tus datos de acceso a nuestra plataforma académica, donde encontrarás toda la información necesaria para el desarrollo de tu formación.',
+    '',
+    `👤 USUARIO: ${data.email}`,
+    '',
+    `🔑 CONTRASEÑA: ${data.password}`,
+    '',
+    `🌐 Ingresa a: ${visiblePlatformUrl}`,
+    '',
+    '📌 PRIMEROS PASOS',
+    '',
+    '1. Ingresa a la plataforma con tu usuario y contraseña.',
+    '2. Revisa los videos tutoriales para conocer su funcionamiento.',
+    '3. Lee el Reglamento del programa.',
+    '4. Revisa tu cronograma y fechas importantes.',
+    '5. Consulta en la plataforma la documentación, materiales, clases y grabaciones correspondientes a tu programa.',
+    '',
+    '📢 Importante: Revisa periódicamente tu plataforma, ya que allí se publicarán actualizaciones, comunicados y documentación académica.',
+    '',
+    'Te recomendamos guardar tus datos de acceso y no compartirlos con terceros.',
+    '',
+    '🎓 ¡Te deseamos mucho éxito en esta nueva etapa de formación!',
+    '',
+    'CERTIFÍCATE BOLIVIA SRL.',
+  ].join('\n');
+
+  const html = `<!-- bienvenida estudiante -->
+<div style="margin:0;padding:24px;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+  <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
+    <div style="background:#1e3a8a;padding:24px;text-align:center;">
+      <div style="color:#ffffff;font-size:22px;font-weight:bold;line-height:1.35;">🎓 ¡BIENVENIDO(A) A CERTIFÍCATE BOLIVIA!</div>
+    </div>
+    <div style="padding:28px 24px;">
+      <p style="margin:0 0 16px;font-size:15px;"><strong>Estimado(a) participante:</strong></p>
+      <p style="margin:0 0 22px;font-size:14px;line-height:1.65;color:#334155;">
+        Te damos la bienvenida a tu programa académico. A continuación, te enviamos tus datos de acceso a nuestra plataforma académica, donde encontrarás toda la información necesaria para el desarrollo de tu formación.
+      </p>
+      <table role="presentation" style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:10px;margin:0 0 22px;">
+        <tr>
+          <td style="padding:13px 14px;font-size:14px;color:#334155;width:130px;">👤 <strong>USUARIO:</strong></td>
+          <td style="padding:13px 14px;font-size:14px;font-weight:bold;word-break:break-word;">${escapeHtml(data.email)}</td>
+        </tr>
+        <tr>
+          <td style="padding:13px 14px;font-size:14px;color:#334155;border-top:1px solid #e2e8f0;">🔑 <strong>CONTRASEÑA:</strong></td>
+          <td style="padding:13px 14px;font-size:14px;font-weight:bold;border-top:1px solid #e2e8f0;font-family:'Courier New',monospace;word-break:break-word;">${escapeHtml(data.password)}</td>
+        </tr>
+      </table>
+      <p style="margin:0 0 22px;font-size:14px;line-height:1.6;">🌐 <strong>Ingresa a:</strong> <a href="${escapeHtml(visiblePlatformUrl)}" style="color:#1e3a8a;font-weight:bold;">${escapeHtml(visiblePlatformUrl)}</a></p>
+      <div style="margin:0 0 22px;padding:20px;background:#eff6ff;border-left:4px solid #1e3a8a;border-radius:8px;">
+        <p style="margin:0 0 12px;font-size:15px;font-weight:bold;">📌 PRIMEROS PASOS</p>
+        <ol style="margin:0;padding-left:22px;font-size:14px;line-height:1.75;color:#334155;">
+          <li>Ingresa a la plataforma con tu usuario y contraseña.</li>
+          <li>Revisa los videos tutoriales para conocer su funcionamiento.</li>
+          <li>Lee el Reglamento del programa.</li>
+          <li>Revisa tu cronograma y fechas importantes.</li>
+          <li>Consulta en la plataforma la documentación, materiales, clases y grabaciones correspondientes a tu programa.</li>
+        </ol>
+      </div>
+      <p style="margin:0 0 18px;padding:14px;background:#fffbeb;border-radius:8px;font-size:14px;line-height:1.65;color:#713f12;">
+        📢 <strong>Importante:</strong> Revisa periódicamente tu plataforma, ya que allí se publicarán actualizaciones, comunicados y documentación académica.
+      </p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.65;color:#334155;">Te recomendamos guardar tus datos de acceso y no compartirlos con terceros.</p>
+      <p style="margin:0;font-size:15px;line-height:1.65;font-weight:bold;">🎓 ¡Te deseamos mucho éxito en esta nueva etapa de formación!</p>
+    </div>
+    <div style="padding:17px 24px;background:#0f172a;color:#ffffff;font-size:12px;font-weight:bold;text-align:center;">CERTIFÍCATE BOLIVIA SRL.</div>
+  </div>
+</div>`;
+
+  return { subject, html, text };
 }
 
 /** Arma el asunto + cuerpo (HTML y texto plano) del correo de credenciales. */

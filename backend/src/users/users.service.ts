@@ -148,6 +148,7 @@ export class UsersService {
         phone: user.phone,
         email: user.email,
         password,
+        recipientRole: dto.role,
       });
       return user;
     } catch (e) {
@@ -311,6 +312,7 @@ export class UsersService {
           phone: data.phone,
           email,
           password,
+          recipientRole: 'STUDENT',
         });
       } catch (e) {
         if (

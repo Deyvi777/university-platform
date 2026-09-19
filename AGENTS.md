@@ -25,6 +25,8 @@ Cada cambio debe incluir una revisión de la documentación para agentes. Antes 
 
 ## Contratos transversales
 
+- Los jobs de credenciales de usuario incluyen `recipientRole`: los estudiantes nuevos reciben la bienvenida institucional de Certifícate Bolivia y el enlace a la raíz de la plataforma; los docentes y jobs antiguos sin rol conservan el correo genérico de acceso. Mantén ambas rutas al modificar `MailService` o el alta individual/masiva de usuarios.
+
 - El motor de cuestionarios/exámenes admite preguntas `SINGLE_CHOICE | MULTIPLE_CHOICE | TRUE_FALSE | SHORT_TEXT | ESSAY | FILE`. `FILE` es una entrega individual de hasta 20 MB (PDF/Word/ODT/RTF/TXT) subida por el estudiante a `submissions/`, persistida en `QuizAnswer.fileUrl/fileName/fileSize`, autoguardada con el intento y calificada manualmente igual que `ESSAY`. Al reemplazarla o borrar el intento, actividad, curso o estudiante, conserva la limpieza best-effort del blob; el barrido de huérfanos también debe considerar `QuizAnswer.fileUrl`.
 
 - Las evaluaciones docentes usan un cuestionario institucional global (`SCALE_1_5 | SINGLE_CHOICE | MULTIPLE_CHOICE | TEXT`) editable solo por ADMIN. Cada módulo decide con `teacherEvaluationEnabled` si lo ofrece al quedar `FINISHED`; un estudiante inscrito evalúa por separado a cada docente asignado, de forma identificada y una sola vez por combinación módulo+docente+estudiante. Solo ADMIN puede leer resultados. Las respuestas guardan snapshots de pregunta/tipo/orden y el borrado del módulo elimina evaluaciones y respuestas por cascada.
