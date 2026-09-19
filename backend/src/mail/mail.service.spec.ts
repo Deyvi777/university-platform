@@ -61,14 +61,14 @@ describe('buildStudentCredentialsEmail', () => {
     const email = buildStudentCredentialsEmail({
       email: 'estudiante@example.com',
       password: 'AB123456',
-      platformUrl: 'https://certificatebolivia.com.bo',
+      loginUrl: 'https://certificatebolivia.com.bo/login',
     });
 
     expect(email.subject).toBe('🎓 ¡BIENVENIDO(A) A CERTIFÍCATE BOLIVIA!');
     expect(email.text).toContain('👤 USUARIO: estudiante@example.com');
     expect(email.text).toContain('🔑 CONTRASEÑA: AB123456');
     expect(email.text).toContain(
-      '🌐 Ingresa a: https://certificatebolivia.com.bo/',
+      '🌐 Ingresa a: https://certificatebolivia.com.bo/login',
     );
     expect(email.text).toContain('📌 PRIMEROS PASOS');
     expect(email.text).toContain(
@@ -81,13 +81,15 @@ describe('buildStudentCredentialsEmail', () => {
     const email = buildStudentCredentialsEmail({
       email: 'nombre+<prueba>@example.com',
       password: '<clave&segura>',
-      platformUrl: 'https://certificatebolivia.com.bo/',
+      loginUrl: 'https://certificatebolivia.com.bo/login/',
     });
 
     expect(email.html).toContain('nombre+&lt;prueba&gt;@example.com');
     expect(email.html).toContain('&lt;clave&amp;segura&gt;');
     expect(email.html).not.toContain('<clave&segura>');
-    expect(email.html).toContain('https://certificatebolivia.com.bo/');
-    expect(email.html).not.toContain('https://certificatebolivia.com.bo//');
+    expect(email.html).toContain('https://certificatebolivia.com.bo/login');
+    expect(email.html).not.toContain(
+      'https://certificatebolivia.com.bo/login/',
+    );
   });
 });

@@ -294,7 +294,7 @@ export class MailService implements OnModuleInit {
         ? buildStudentCredentialsEmail({
             email: payload.email,
             password: payload.password,
-            platformUrl: this.frontendBase(),
+            loginUrl: this.loginUrl(),
           })
         : buildCredentialsEmail({
             firstName: payload.firstName,
@@ -326,11 +326,10 @@ function escapeHtml(s: string): string {
 export function buildStudentCredentialsEmail(data: {
   email: string;
   password: string;
-  platformUrl: string;
+  loginUrl: string;
 }): { subject: string; html: string; text: string } {
   const subject = '🎓 ¡BIENVENIDO(A) A CERTIFÍCATE BOLIVIA!';
-  const platformUrl = data.platformUrl.replace(/\/$/, '');
-  const visiblePlatformUrl = `${platformUrl}/`;
+  const loginUrl = data.loginUrl.replace(/\/$/, '');
   const text = [
     subject,
     '',
@@ -342,7 +341,7 @@ export function buildStudentCredentialsEmail(data: {
     '',
     `🔑 CONTRASEÑA: ${data.password}`,
     '',
-    `🌐 Ingresa a: ${visiblePlatformUrl}`,
+    `🌐 Ingresa a: ${loginUrl}`,
     '',
     '📌 PRIMEROS PASOS',
     '',
@@ -382,7 +381,7 @@ export function buildStudentCredentialsEmail(data: {
           <td style="padding:13px 14px;font-size:14px;font-weight:bold;border-top:1px solid #e2e8f0;font-family:'Courier New',monospace;word-break:break-word;">${escapeHtml(data.password)}</td>
         </tr>
       </table>
-      <p style="margin:0 0 22px;font-size:14px;line-height:1.6;">🌐 <strong>Ingresa a:</strong> <a href="${escapeHtml(visiblePlatformUrl)}" style="color:#1e3a8a;font-weight:bold;">${escapeHtml(visiblePlatformUrl)}</a></p>
+      <p style="margin:0 0 22px;font-size:14px;line-height:1.6;">🌐 <strong>Ingresa a:</strong> <a href="${escapeHtml(loginUrl)}" style="color:#1e3a8a;font-weight:bold;">${escapeHtml(loginUrl)}</a></p>
       <div style="margin:0 0 22px;padding:20px;background:#eff6ff;border-left:4px solid #1e3a8a;border-radius:8px;">
         <p style="margin:0 0 12px;font-size:15px;font-weight:bold;">📌 PRIMEROS PASOS</p>
         <ol style="margin:0;padding-left:22px;font-size:14px;line-height:1.75;color:#334155;">
