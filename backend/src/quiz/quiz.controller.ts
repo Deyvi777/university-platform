@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -53,6 +54,17 @@ export class QuizController {
       { id: user.id, role: user.role },
       attemptId,
       dto,
+    );
+  }
+
+  @Delete('attempts/:attemptId')
+  deleteAttempts(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('attemptId') attemptId: string,
+  ) {
+    return this.quiz.deleteStudentAttempts(
+      { id: user.id, role: user.role },
+      attemptId,
     );
   }
 

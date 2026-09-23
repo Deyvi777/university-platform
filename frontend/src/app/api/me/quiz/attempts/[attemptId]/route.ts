@@ -27,3 +27,27 @@ export async function GET(
     status: res.status,
   });
 }
+
+// Docente/ADMIN: borra los intentos del estudiante en esta actividad y
+// habilita un nuevo comienzo (el backend recalcula la nota asociada).
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ attemptId: string }> },
+) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ message: "No autenticado" }, { status: 401 });
+  }
+  const { attemptId } = await params;
+  const res = await fetch(
+    `${API_URL}/me/quiz/attempts/${encodeURIComponent(attemptId)}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+      cache: "no-store",
+    },
+  );
+  return NextResponse.json(await res.json().catch(() => ({})), {
+    status: res.status,
+  });
+}

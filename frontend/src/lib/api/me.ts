@@ -205,6 +205,8 @@ export interface QuizEditor {
 
 export interface QuizAttemptRow {
   attemptId: string;
+  /** Total de intentos del estudiante que se borrarán al reiniciar. */
+  attemptCount: number;
   student: { id: string; firstName: string; lastName: string; email: string };
   status: QuizAttemptStatus;
   submittedAt: string | null;
@@ -213,7 +215,14 @@ export interface QuizAttemptRow {
 }
 
 export interface QuizAttemptsList {
-  activity: { id: string; title: string; type: ActivityType; maxScore: number };
+  activity: {
+    id: string;
+    title: string;
+    type: ActivityType;
+    maxScore: number;
+    /** False para actividades normales dentro de un módulo concluido. */
+    canDeleteAttempts: boolean;
+  };
   attempts: QuizAttemptRow[];
 }
 

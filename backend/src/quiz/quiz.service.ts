@@ -13,6 +13,7 @@ import {
   Prisma,
   QuestionType,
   QuizAttemptStatus,
+  RecoveryStage,
   Role,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -1043,9 +1044,17 @@ export class QuizService {
       },
     });
     // Solo el último intento por estudiante.
-    const latest = new Map<string, (typeof attempts)[number]>();
+    const latest = new Map<
+      string,
+      { attempt: (typeof attempts)[number]; count: number }
+    >();
     for (const a of attempts) {
-      if (!latest.has(a.student.id)) latest.set(a.student.id, a);
+      const current = latest.get(a.student.id);
+      if (current) {
+        current.count += 1;
+      } else {
+        latest.set(a.student.id, { attempt: a, count: 1 });
+      }
     }
     return {
       activity: {
@@ -1053,9 +1062,13 @@ export class QuizService {
         title: content.title,
         type: content.activityType,
         maxScore: content.maxScore !== null ? Number(content.maxScore) : 0,
+        canDeleteAttempts:
+          content.recoveryStage !== null ||
+          content.module.status !== ModuleStatus.FINISHED,
       },
-      attempts: [...latest.values()].map((a) => ({
+      attempts: [...latest.values()].map(({ attempt: a, count }) => ({
         attemptId: a.id,
+        attemptCount: count,
         student: a.student,
         status: a.status,
         submittedAt: a.submittedAt,
@@ -1063,6 +1076,99 @@ export class QuizService {
         totalScore: a.totalScore !== null ? Number(a.totalScore) : null,
       })),
     };
+  }
+
+  /**
+   * Borra todos los intentos de un estudiante en esta actividad para que pueda
+   * comenzar de cero. También retira la Submission derivada, recalcula la nota
+   * del módulo y limpia los archivos FILE después del commit de PostgreSQL.
+   */
+  async deleteStudentAttempts(viewer: Viewer, attemptId: string) {
+    const target = await this.prisma.quizAttempt.findUnique({
+      where: { id: attemptId },
+      select: { contentId: true, studentId: true },
+    });
+    if (!target) throw new NotFoundException('Intento no encontrado');
+
+    const content = await this.loadQuiz(target.contentId);
+    await this.ensureTeacher(viewer, content.moduleId);
+    if (
+      !content.recoveryStage &&
+      content.module.status === ModuleStatus.FINISHED
+    ) {
+      throw new ForbiddenException(
+        'El módulo está concluido. Actívalo antes de habilitar un nuevo intento.',
+      );
+    }
+
+    // La segunda instancia depende de haber reprobado el recuperatorio. No se
+    // puede borrar ese antecedente mientras exista un intento posterior.
+    if (content.recoveryStage === RecoveryStage.RECUPERATORIO) {
+      const secondInstanceAttempt = await this.prisma.quizAttempt.findFirst({
+        where: {
+          studentId: target.studentId,
+          content: {
+            moduleId: content.moduleId,
+            recoveryStage: RecoveryStage.SEGUNDA_INSTANCIA,
+          },
+        },
+        select: { id: true },
+      });
+      if (secondInstanceAttempt) {
+        throw new ConflictException(
+          'Primero borra el intento de segunda instancia de este estudiante.',
+        );
+      }
+    }
+
+    const attempts = await this.prisma.quizAttempt.findMany({
+      where: {
+        contentId: target.contentId,
+        studentId: target.studentId,
+      },
+      select: {
+        answers: {
+          where: { fileUrl: { not: null } },
+          select: { fileUrl: true },
+        },
+      },
+    });
+    const fileUrls = attempts.flatMap((attempt) =>
+      attempt.answers.map((answer) => answer.fileUrl),
+    );
+
+    const deletedAttempts = await this.prisma.$transaction(async (tx) => {
+      const deleted = await tx.quizAttempt.deleteMany({
+        where: {
+          contentId: target.contentId,
+          studentId: target.studentId,
+        },
+      });
+      if (deleted.count === 0) {
+        throw new NotFoundException('Intento no encontrado');
+      }
+      await tx.submission.deleteMany({
+        where: {
+          contentId: target.contentId,
+          studentId: target.studentId,
+        },
+      });
+      return deleted.count;
+    });
+
+    try {
+      await this.grading.recomputeModuleGrade(
+        target.studentId,
+        content.moduleId,
+        null,
+      );
+    } finally {
+      // Best-effort y siempre después del commit: un fallo del storage no
+      // revierte el reinicio ni deja referencias rotas en la base de datos.
+      await this.storage.deleteByUrls(fileUrls);
+    }
+
+    return { success: true, deletedAttempts };
   }
 
   /** Detalle de un intento para corregir (preguntas + respuestas). */

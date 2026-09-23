@@ -12,10 +12,22 @@ import {
   Plus,
   Save,
   Trash2,
+  TriangleAlert,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   QuestionType,
@@ -585,7 +598,7 @@ function OptionsEditor({
 }
 
 function AttemptsPanel({ activityId }: { activityId: string }) {
-  const { data, isLoading } = useQuery<QuizAttemptsList>({
+  const { data, isLoading, isError, refetch } = useQuery<QuizAttemptsList>({
     queryKey: ["me-quiz-attempts", activityId],
     queryFn: async () => {
       const res = await fetch(`/api/me/quiz/${activityId}/attempts`);
@@ -594,10 +607,32 @@ function AttemptsPanel({ activityId }: { activityId: string }) {
     },
   });
 
+  if (isError) {
+    return (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+      >
+        <span>No se pudieron cargar los intentos.</span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="ml-auto"
+          onClick={() => void refetch()}
+        >
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
+
   if (isLoading || !data) {
     return (
-      <div className="flex items-center gap-2 rounded-xl border bg-background p-6 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Cargando intentos…
+      <div className="space-y-2" aria-label="Cargando intentos">
+        {[0, 1, 2].map((item) => (
+          <Skeleton key={item} className="h-16 w-full rounded-xl" />
+        ))}
       </div>
     );
   }
@@ -611,19 +646,29 @@ function AttemptsPanel({ activityId }: { activityId: string }) {
   }
 
   return (
-    <ul className="space-y-2">
-      {data.attempts.map((a) => (
-        <AttemptRow
-          key={a.attemptId}
-          activityId={activityId}
-          attemptId={a.attemptId}
-          name={`${a.student.lastName} ${a.student.firstName}`}
-          status={a.status}
-          score={a.totalScore}
-          maxScore={data.activity.maxScore}
-        />
-      ))}
-    </ul>
+    <div className="space-y-3">
+      {!data.activity.canDeleteAttempts && (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+          El módulo está concluido. Para habilitar otro intento de esta
+          actividad, primero vuelve a marcar el módulo como activo.
+        </p>
+      )}
+      <ul className="space-y-2">
+        {data.attempts.map((a) => (
+          <AttemptRow
+            key={a.attemptId}
+            activityId={activityId}
+            attemptId={a.attemptId}
+            name={`${a.student.lastName} ${a.student.firstName}`}
+            status={a.status}
+            score={a.totalScore}
+            maxScore={data.activity.maxScore}
+            attemptCount={a.attemptCount}
+            canDelete={data.activity.canDeleteAttempts}
+          />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -634,6 +679,8 @@ function AttemptRow({
   status,
   score,
   maxScore,
+  attemptCount,
+  canDelete,
 }: {
   activityId: string;
   attemptId: string;
@@ -641,9 +688,12 @@ function AttemptRow({
   status: "IN_PROGRESS" | "SUBMITTED" | "GRADED";
   score: number | null;
   maxScore: number;
+  attemptCount: number;
+  canDelete: boolean;
 }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [grades, setGrades] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery<{
@@ -692,6 +742,42 @@ function AttemptRow({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMut = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/me/quiz/attempts/${attemptId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as {
+          message?: string | string[];
+        };
+        const message = Array.isArray(body.message)
+          ? body.message.join(". ")
+          : body.message;
+        throw new Error(message ?? "No se pudo borrar el intento");
+      }
+      return res.json() as Promise<{
+        success: true;
+        deletedAttempts: number;
+      }>;
+    },
+    onSuccess: () => {
+      toast.success(
+        "Intento borrado. El estudiante puede comenzar nuevamente.",
+      );
+      setDeleteOpen(false);
+      setOpen(false);
+      qc.removeQueries({ queryKey: ["me-quiz-attempt", attemptId] });
+      void Promise.all([
+        qc.invalidateQueries({
+          queryKey: ["me-quiz-attempts", activityId],
+        }),
+        qc.invalidateQueries({ queryKey: ["me-quiz-editor", activityId] }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const statusMeta = {
     IN_PROGRESS: { label: "En curso", cls: "bg-muted text-muted-foreground" },
     SUBMITTED: {
@@ -709,8 +795,8 @@ function AttemptRow({
   );
 
   return (
-    <li className="flex items-center gap-3 rounded-xl border bg-background p-3">
-      <span className="text-sm font-medium">{name}</span>
+    <li className="flex flex-wrap items-center gap-3 rounded-xl border bg-background p-3">
+      <span className="min-w-40 text-sm font-medium">{name}</span>
       <span
         className={cn(
           "rounded-full px-2 py-0.5 text-[0.65rem] font-semibold",
@@ -737,6 +823,18 @@ function AttemptRow({
             <Eye className="size-4" /> Ver
           </Button>
         ))}
+      {canDelete && (
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          disabled={deleteMut.isPending}
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 className="size-4" aria-hidden="true" />
+          Borrar intento
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
@@ -863,6 +961,52 @@ function AttemptRow({
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(next) => {
+          if (!deleteMut.isPending) setDeleteOpen(next);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <TriangleAlert aria-hidden="true" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>¿Borrar el intento de {name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {attemptCount === 1
+                ? "Se eliminarán el intento, sus respuestas, archivos y la nota asociada."
+                : `Se eliminarán los ${attemptCount} intentos, sus respuestas, archivos y la nota asociada.`}{" "}
+              El estudiante podrá comenzar desde cero mientras la actividad siga
+              disponible. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMut.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              variant="destructive"
+              disabled={deleteMut.isPending}
+              onClick={() => deleteMut.mutate()}
+            >
+              {deleteMut.isPending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  Borrando…
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-4" aria-hidden="true" />
+                  Borrar y habilitar
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   );
 }
