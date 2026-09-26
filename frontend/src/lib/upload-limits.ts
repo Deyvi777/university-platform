@@ -1,9 +1,9 @@
 // Límites de tamaño de subida (deben coincidir con los del backend):
-// - documentos de docente/estudiante (`/me/uploads`): 20 MB
+// - documentos de docente/estudiante (`/me/uploads`): 40 MB
 // - imágenes del landing del admin (`/uploads`): 5 MB
 
 /** Límite (MB) para materiales del docente y entregas del estudiante. */
-export const MAX_DOCUMENT_UPLOAD_MB = 20;
+export const MAX_DOCUMENT_UPLOAD_MB = 40;
 /** Límite (MB) para imágenes del landing (admin). */
 export const MAX_IMAGE_UPLOAD_MB = 5;
 /** Límite (MB) para el video promocional de un programa (admin). */

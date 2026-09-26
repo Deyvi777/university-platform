@@ -44,6 +44,7 @@ import type {
   QuizEditor,
   QuizReviewQuestion,
 } from "@/lib/api/me";
+import { MAX_DOCUMENT_UPLOAD_MB } from "@/lib/upload-limits";
 import { QuizBulkImport } from "@/components/dashboard/quiz-bulk-import";
 import { cn } from "@/lib/utils";
 
@@ -478,8 +479,8 @@ function QuestionBuilder({ activityId }: { activityId: string }) {
                 {q.type === "FILE" && (
                   <p className="text-xs text-muted-foreground">
                     El estudiante adjuntará un PDF, Word u otro documento de
-                    hasta 20 MB. Lo descargarás y calificarás en la pestaña
-                    “Intentos”.
+                    hasta {MAX_DOCUMENT_UPLOAD_MB} MB. Lo descargarás y
+                    calificarás en la pestaña “Intentos”.
                   </p>
                 )}
               </div>

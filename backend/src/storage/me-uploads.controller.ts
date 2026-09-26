@@ -21,9 +21,10 @@ import {
   StorageService,
   type UploadedFileLike,
 } from './storage.service';
+import { MAX_DOCUMENT_UPLOAD_BYTES } from './upload-limits';
 
 // Subida de archivos de docentes/admin (materiales de sus módulos) y estudiantes
-// (entregas de actividades): PDF, Office, imágenes, etc. Hasta 20 MB. La carpeta
+// (entregas de actividades): PDF, Office, imágenes, etc. Hasta 40 MB. La carpeta
 // depende del rol (`materials` vs `submissions`). El archivo solo queda
 // vinculado al crear el Material / la entrega (operaciones autorizadas).
 @ApiTags('me-uploads')
@@ -38,7 +39,7 @@ export class MeUploadsController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 20 * 1024 * 1024 },
+      limits: { fileSize: MAX_DOCUMENT_UPLOAD_BYTES },
       fileFilter: (_req, file, cb) => {
         if (ALLOWED_DOCUMENT_MIME.includes(file.mimetype)) {
           cb(null, true);

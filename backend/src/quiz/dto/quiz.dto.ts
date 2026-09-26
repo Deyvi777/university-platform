@@ -1,5 +1,6 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
+import { MAX_DOCUMENT_UPLOAD_BYTES } from '../../storage/upload-limits';
 
 const questionTypeEnum = z.enum([
   'SINGLE_CHOICE',
@@ -91,7 +92,7 @@ const quizAnswerSchema = z
       .number()
       .int()
       .min(0)
-      .max(20 * 1024 * 1024)
+      .max(MAX_DOCUMENT_UPLOAD_BYTES)
       .nullish(),
   })
   .superRefine((answer, ctx) => {
