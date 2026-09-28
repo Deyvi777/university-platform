@@ -1,8 +1,12 @@
+import { BadRequestException } from '@nestjs/common';
 import {
+  ActivityType,
+  ContentKind,
   ModuleGradeStatus,
   ModuleStatus,
   Prisma,
   RecoveryStage,
+  SubmissionStatus,
 } from '@prisma/client';
 import { GradingService } from './grading.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -229,5 +233,124 @@ describe('GradingService.getModuleGradebook (estado de módulo concluido)', () =
       ModuleGradeStatus.PASSED,
       ModuleGradeStatus.FAILED,
     ]);
+  });
+});
+
+describe('GradingService.removeAssignmentGrade', () => {
+  function buildRemoveGrade(opts?: {
+    activityType?: ActivityType;
+    dueDate?: Date | null;
+  }) {
+    const update = jest.fn().mockResolvedValue({});
+    const prisma = {
+      moduleContent: {
+        findUnique: jest.fn().mockResolvedValue({
+          kind: ContentKind.ACTIVITY,
+          activityType: opts?.activityType ?? ActivityType.ASSIGNMENT,
+          dueDate: opts?.dueDate ?? new Date(Date.now() + 60_000),
+          moduleId: 'module',
+        }),
+      },
+      moduleTeacher: { findUnique: jest.fn().mockResolvedValue({ id: 'rel' }) },
+      courseModule: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: ModuleStatus.ACTIVE }),
+      },
+      submission: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'submission',
+          status: SubmissionStatus.GRADED,
+          text: 'Mi tarea',
+          fileUrl: '/files/submissions/tarea.pdf',
+          submittedAt: new Date(),
+        }),
+        update,
+        delete: jest.fn().mockResolvedValue({}),
+      },
+    } as unknown as PrismaService;
+    const service = new GradingService(prisma, {} as NotificationsService);
+    const recompute = jest
+      .spyOn(service, 'recomputeModuleGrade')
+      .mockResolvedValue(undefined);
+    return { service, update, recompute };
+  }
+
+  it('quita nota y retroalimentación y devuelve la Tarea a Entregada', async () => {
+    const { service, update, recompute } = buildRemoveGrade();
+
+    await service.removeAssignmentGrade('teacher', 'activity', 'student');
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'submission' },
+      data: {
+        status: SubmissionStatus.SUBMITTED,
+        score: null,
+        feedback: null,
+        gradedById: null,
+        gradedAt: null,
+      },
+    });
+    expect(recompute).toHaveBeenCalledWith('student', 'module', null);
+  });
+
+  it('rechaza quitar la nota cuando el plazo ya finalizó', async () => {
+    const { service, update } = buildRemoveGrade({
+      dueDate: new Date(Date.now() - 60_000),
+    });
+
+    await expect(
+      service.removeAssignmentGrade('teacher', 'activity', 'student'),
+    ).rejects.toThrow(BadRequestException);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('rechaza quitar la nota de otros tipos de actividad', async () => {
+    const { service, update } = buildRemoveGrade({
+      activityType: ActivityType.PROJECT,
+    });
+
+    await expect(
+      service.removeAssignmentGrade('teacher', 'activity', 'student'),
+    ).rejects.toThrow(
+      'Solo se puede quitar la calificación de actividades tipo Tarea',
+    );
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe('GradingService.submitActivity (edición de Tarea)', () => {
+  it('rechaza reemplazar una entrega existente después del plazo', async () => {
+    const upsert = jest.fn();
+    const prisma = {
+      moduleContent: {
+        findUnique: jest.fn().mockResolvedValue({
+          kind: ContentKind.ACTIVITY,
+          activityType: ActivityType.ASSIGNMENT,
+          isPublished: true,
+          dueDate: new Date(Date.now() - 60_000),
+          module: {
+            courseId: 'course',
+            status: ModuleStatus.ACTIVE,
+            course: { status: 'ACTIVE' },
+          },
+        }),
+      },
+      enrollment: { findUnique: jest.fn().mockResolvedValue({ id: 'enroll' }) },
+      submission: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ status: SubmissionStatus.SUBMITTED }),
+        upsert,
+      },
+    } as unknown as PrismaService;
+    const service = new GradingService(prisma, {} as NotificationsService);
+
+    await expect(
+      service.submitActivity('student', 'activity', { content: 'Cambio' }),
+    ).rejects.toThrow(
+      'El plazo de entrega finalizó; ya no puedes modificar tu entrega',
+    );
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

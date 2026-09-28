@@ -90,6 +90,20 @@ export class GradingService {
     }
 
     const now = new Date();
+    // Una Tarea ya entregada solo puede reemplazarse mientras su plazo siga
+    // abierto. Las entregas iniciales tardías conservan el comportamiento
+    // institucional existente; esta regla protege específicamente la edición.
+    if (
+      existing &&
+      content.activityType === ActivityType.ASSIGNMENT &&
+      content.dueDate &&
+      now > content.dueDate
+    ) {
+      throw new BadRequestException(
+        'El plazo de entrega finalizó; ya no puedes modificar tu entrega',
+      );
+    }
+
     const status =
       content.dueDate && now > content.dueDate
         ? SubmissionStatus.LATE
@@ -156,7 +170,9 @@ export class GradingService {
       where: { id: contentId },
       select: {
         kind: true,
+        activityType: true,
         isPublished: true,
+        dueDate: true,
         module: {
           select: {
             courseId: true,
@@ -195,6 +211,15 @@ export class GradingService {
     }
     if (submission.status === SubmissionStatus.GRADED) {
       throw new BadRequestException('Tu entrega ya fue calificada');
+    }
+    if (
+      content.activityType === ActivityType.ASSIGNMENT &&
+      content.dueDate &&
+      new Date() > content.dueDate
+    ) {
+      throw new BadRequestException(
+        'El plazo de entrega finalizó; ya no puedes modificar tu entrega',
+      );
     }
 
     // Si la entrega tiene texto, se conserva sin el archivo; si no, se elimina.
@@ -392,6 +417,82 @@ export class GradingService {
       },
     ]);
 
+    return { success: true };
+  }
+
+  /**
+   * Quita la calificación de una Tarea ya entregada. Solo se permite mientras
+   * el módulo esté activo y el plazo de entrega no haya finalizado. La entrega
+   * vuelve a SUBMITTED para que el estudiante pueda reemplazar texto/archivo;
+   * si el docente había calificado sin entrega, se elimina la fila artificial.
+   */
+  async removeAssignmentGrade(
+    teacherId: string,
+    contentId: string,
+    studentId: string,
+  ) {
+    const content = await this.prisma.moduleContent.findUnique({
+      where: { id: contentId },
+      select: {
+        kind: true,
+        activityType: true,
+        dueDate: true,
+        moduleId: true,
+      },
+    });
+    if (
+      !content ||
+      content.kind !== ContentKind.ACTIVITY ||
+      content.activityType !== ActivityType.ASSIGNMENT
+    ) {
+      throw new BadRequestException(
+        'Solo se puede quitar la calificación de actividades tipo Tarea',
+      );
+    }
+    await this.ensureTeaches(teacherId, content.moduleId);
+    await this.ensureModuleNotFinished(content.moduleId);
+
+    const now = new Date();
+    if (content.dueDate && now > content.dueDate) {
+      throw new BadRequestException(
+        'El plazo de entrega finalizó; ya no se puede quitar la calificación',
+      );
+    }
+
+    const submission = await this.prisma.submission.findUnique({
+      where: { contentId_studentId: { contentId, studentId } },
+      select: {
+        id: true,
+        status: true,
+        text: true,
+        fileUrl: true,
+        submittedAt: true,
+      },
+    });
+    if (!submission || submission.status !== SubmissionStatus.GRADED) {
+      throw new BadRequestException('La entrega no tiene una calificación');
+    }
+
+    const hasStudentDelivery =
+      submission.submittedAt !== null ||
+      Boolean(submission.text?.trim()) ||
+      Boolean(submission.fileUrl);
+    if (hasStudentDelivery) {
+      await this.prisma.submission.update({
+        where: { id: submission.id },
+        data: {
+          status: SubmissionStatus.SUBMITTED,
+          score: null,
+          feedback: null,
+          gradedById: null,
+          gradedAt: null,
+        },
+      });
+    } else {
+      await this.prisma.submission.delete({ where: { id: submission.id } });
+    }
+
+    await this.recomputeModuleGrade(studentId, content.moduleId, null);
     return { success: true };
   }
 

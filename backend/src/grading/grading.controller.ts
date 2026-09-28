@@ -69,6 +69,17 @@ export class GradingController {
     return this.grading.gradeSubmission(user.id, activityId, studentId, dto);
   }
 
+  // Docente: quita la calificación de una Tarea para que el estudiante pueda
+  // editar su entrega mientras el plazo siga vigente.
+  @Delete('activities/:activityId/students/:studentId/grade')
+  removeGrade(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('activityId') activityId: string,
+    @Param('studentId') studentId: string,
+  ) {
+    return this.grading.removeAssignmentGrade(user.id, activityId, studentId);
+  }
+
   // Docente: libreta de calificaciones del módulo (estudiantes × actividades).
   @Get('modules/:moduleId/gradebook')
   gradebook(

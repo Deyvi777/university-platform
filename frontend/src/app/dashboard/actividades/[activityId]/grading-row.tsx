@@ -1,10 +1,28 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Check, Download, Loader2, Save } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import {
+  Check,
+  Download,
+  Loader2,
+  Save,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -16,12 +34,11 @@ import {
 } from "@/components/ui/dialog";
 import { SOCIAL_DEFS } from "@/components/landing/social-defs";
 import type { GradingStudentRow } from "@/lib/api/teacher";
-import type { SubmissionStatus } from "@/lib/api/me";
+import type { ActivityType, SubmissionStatus } from "@/lib/api/me";
 import { cn } from "@/lib/utils";
-import { gradeSubmissionAction } from "./actions";
+import { gradeSubmissionAction, removeAssignmentGradeAction } from "./actions";
 
-const WHATSAPP_PATH =
-  SOCIAL_DEFS.find((s) => s.key === "whatsapp")?.path ?? "";
+const WHATSAPP_PATH = SOCIAL_DEFS.find((s) => s.key === "whatsapp")?.path ?? "";
 
 /** Teléfono a formato internacional para `wa.me` (local boliviano → +591). */
 function toWaNumber(phone: string): string {
@@ -42,32 +59,38 @@ function formatWhen(iso: string | null): string | null {
   });
 }
 
-const STATUS_META: Record<SubmissionStatus, { label: string; badge: string }> = {
-  PENDING: { label: "Sin entregar", badge: "bg-muted text-muted-foreground" },
-  SUBMITTED: {
-    label: "Entregada",
-    badge: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
-  },
-  LATE: {
-    label: "Tarde",
-    badge: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-  },
-  GRADED: {
-    label: "Calificada",
-    badge:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-  },
-};
+const STATUS_META: Record<SubmissionStatus, { label: string; badge: string }> =
+  {
+    PENDING: { label: "Sin entregar", badge: "bg-muted text-muted-foreground" },
+    SUBMITTED: {
+      label: "Entregada",
+      badge: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+    },
+    LATE: {
+      label: "Tarde",
+      badge:
+        "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+    },
+    GRADED: {
+      label: "Calificada",
+      badge:
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+    },
+  };
 
 export function GradingRow({
   activityId,
   activityTitle,
+  activityType,
+  dueDate,
   maxScore,
   row,
   readOnly = false,
 }: {
   activityId: string;
   activityTitle: string;
+  activityType: ActivityType;
+  dueDate: string | null;
   maxScore: number;
   row: GradingStudentRow;
   /** Módulo concluido: solo lectura (no se puede calificar). */
@@ -83,7 +106,16 @@ export function GradingRow({
   );
   const [feedback, setFeedback] = useState(sub?.feedback ?? "");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const now = useMemo(() => new Date().getTime(), []);
+  const dueAt = dueDate ? new Date(dueDate).getTime() : null;
+  const deadlineOpen = dueAt === null || Number.isNaN(dueAt) || now <= dueAt;
+  const canRemoveGrade =
+    activityType === "ASSIGNMENT" &&
+    status === "GRADED" &&
+    !readOnly &&
+    deadlineOpen;
 
   const fullName = `${row.student.lastName} ${row.student.firstName}`;
   const waNumber = toWaNumber(row.student.phone);
@@ -121,6 +153,26 @@ export function GradingRow({
       if (result.ok) {
         toast.success("Calificación guardada");
         setConfirmOpen(false);
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function doRemoveGrade() {
+    startTransition(async () => {
+      const result = await removeAssignmentGradeAction(
+        activityId,
+        row.student.id,
+      );
+      if (result.ok) {
+        toast.success(
+          "Calificación eliminada; el estudiante puede editar su entrega",
+        );
+        setScore("");
+        setFeedback("");
+        setRemoveConfirmOpen(false);
         router.refresh();
       } else {
         toast.error(result.error);
@@ -250,54 +302,110 @@ export function GradingRow({
           )}
         </div>
       ) : (
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <div className="w-28">
-          <label
-            htmlFor={`score-${row.student.id}`}
-            className="text-xs font-medium text-muted-foreground"
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <div className="w-28">
+            <label
+              htmlFor={`score-${row.student.id}`}
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Nota / {maxScore}
+            </label>
+            <Input
+              id={`score-${row.student.id}`}
+              type="number"
+              min={0}
+              max={maxScore}
+              value={score}
+              onChange={(e) => setScore(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <label
+              htmlFor={`fb-${row.student.id}`}
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Retroalimentación (opcional)
+            </label>
+            <Textarea
+              id={`fb-${row.student.id}`}
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              placeholder="Comentario para el estudiante…"
+              className="mt-1 min-h-10"
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending}
+            onClick={attemptSave}
           >
-            Nota / {maxScore}
-          </label>
-          <Input
-            id={`score-${row.student.id}`}
-            type="number"
-            min={0}
-            max={maxScore}
-            value={score}
-            onChange={(e) => setScore(e.target.value)}
-            className="mt-1"
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <label
-            htmlFor={`fb-${row.student.id}`}
-            className="text-xs font-medium text-muted-foreground"
-          >
-            Retroalimentación (opcional)
-          </label>
-          <Textarea
-            id={`fb-${row.student.id}`}
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            placeholder="Comentario para el estudiante…"
-            className="mt-1 min-h-10"
-          />
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          disabled={pending}
-          onClick={attemptSave}
-        >
-          {pending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Check className="size-4" />
+            {pending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Check className="size-4" />
+            )}
+            Guardar
+          </Button>
+          {canRemoveGrade && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => setRemoveConfirmOpen(true)}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+              Quitar calificación
+            </Button>
           )}
-          Guardar
-        </Button>
-      </div>
+        </div>
       )}
+
+      <AlertDialog
+        open={removeConfirmOpen}
+        onOpenChange={(next) => {
+          if (pending) return;
+          setRemoveConfirmOpen(next);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <TriangleAlert aria-hidden="true" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>¿Quitar esta calificación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán la nota y la retroalimentación de {fullName}. La
+              entrega volverá a quedar editable para el estudiante mientras el
+              plazo continúe vigente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              variant="destructive"
+              disabled={pending}
+              onClick={doRemoveGrade}
+            >
+              {pending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  Quitando…
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-4" aria-hidden="true" />
+                  Quitar calificación
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirmación: enviar la nota + retroalimentación por WhatsApp o solo guardar */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -306,8 +414,8 @@ export function GradingRow({
             <DialogTitle>Guardar calificación</DialogTitle>
             <DialogDescription>
               ¿Quieres enviar la nota y la retroalimentación a{" "}
-              <span className="font-medium text-foreground">{fullName}</span> por
-              WhatsApp?
+              <span className="font-medium text-foreground">{fullName}</span>{" "}
+              por WhatsApp?
             </DialogDescription>
           </DialogHeader>
 

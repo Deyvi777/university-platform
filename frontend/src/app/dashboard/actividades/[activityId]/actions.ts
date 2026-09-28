@@ -36,3 +36,29 @@ export async function gradeSubmissionAction(
     return { ok: false, error: message };
   }
 }
+
+/**
+ * Quita la calificación de una Tarea para devolver la entrega al estudiante.
+ * El backend valida tipo, estado del módulo y vigencia del plazo.
+ */
+export async function removeAssignmentGradeAction(
+  activityId: string,
+  studentId: string,
+): Promise<ActionResult> {
+  try {
+    await mutateMe(
+      "DELETE",
+      `/me/activities/${activityId}/students/${studentId}/grade`,
+    );
+    revalidatePath(`/dashboard/actividades/${activityId}`);
+    return { ok: true, data: undefined };
+  } catch (error) {
+    const message =
+      error instanceof MeApiError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : "Error inesperado";
+    return { ok: false, error: message };
+  }
+}

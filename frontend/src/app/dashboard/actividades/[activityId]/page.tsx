@@ -50,7 +50,9 @@ export default async function ActivityGradingPage({
 
   return (
     <div className="w-full">
-      <BackLink href={`/dashboard/modulos/${activity.module.id}`}>Volver al módulo</BackLink>
+      <BackLink href={`/dashboard/modulos/${activity.module.id}`}>
+        Volver al módulo
+      </BackLink>
 
       <header className="mt-4 flex items-start gap-3">
         <span
@@ -149,6 +151,8 @@ export default async function ActivityGradingPage({
                   key={row.student.id}
                   activityId={activity.id}
                   activityTitle={activity.title}
+                  activityType={activity.type}
+                  dueDate={activity.dueDate}
                   maxScore={activity.maxScore}
                   row={row}
                   readOnly={readOnly}

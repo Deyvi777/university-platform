@@ -50,25 +50,24 @@ import {
 import { cn } from "@/lib/utils";
 import { removeSubmissionFileAction, submitActivityAction } from "./actions";
 
-const STATUS_META: Record<
-  SubmissionStatus,
-  { label: string; badge: string }
-> = {
-  PENDING: { label: "Sin entregar", badge: "bg-muted text-muted-foreground" },
-  SUBMITTED: {
-    label: "Entregada",
-    badge: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
-  },
-  LATE: {
-    label: "Entregada tarde",
-    badge: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-  },
-  GRADED: {
-    label: "Calificada",
-    badge:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-  },
-};
+const STATUS_META: Record<SubmissionStatus, { label: string; badge: string }> =
+  {
+    PENDING: { label: "Sin entregar", badge: "bg-muted text-muted-foreground" },
+    SUBMITTED: {
+      label: "Entregada",
+      badge: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+    },
+    LATE: {
+      label: "Entregada tarde",
+      badge:
+        "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+    },
+    GRADED: {
+      label: "Calificada",
+      badge:
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+    },
+  };
 
 function formatDue(iso: string | null): string | null {
   if (!iso) return null;
@@ -104,6 +103,10 @@ export function StudentActivity({
   const typeMeta = ACTIVITY_TYPES[activity.type];
   const TypeIcon = typeMeta.Icon;
   const isProject = activity.type === "PROJECT";
+  const canEditSubmission =
+    !isGraded &&
+    !readOnly &&
+    !(activity.type === "ASSIGNMENT" && Boolean(sub) && urgency === "overdue");
   // Proyecto: historial de entregas (la más reciente primero).
   const deliveries = sub?.deliveries ?? [];
 
@@ -239,9 +242,7 @@ export function StudentActivity({
                     </span>
                   )}
                 </div>
-                {d.text && (
-                  <p className="mt-1 text-foreground/80">{d.text}</p>
-                )}
+                {d.text && <p className="mt-1 text-foreground/80">{d.text}</p>}
                 {d.files.length > 0 && (
                   <ul className="mt-1.5 space-y-1">
                     {d.files.map((f) => (
@@ -284,7 +285,7 @@ export function StudentActivity({
                 <Download className="size-3.5" />
                 Ver mi archivo entregado
               </a>
-              {!isGraded && !readOnly && (
+              {canEditSubmission && (
                 <AlertDialog
                   open={confirmDelete}
                   onOpenChange={(next) => {
@@ -313,8 +314,8 @@ export function StudentActivity({
                         ¿Borrar el archivo entregado?
                       </AlertDialogTitle>
                       <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará el archivo
-                        de tu entrega.
+                        Esta acción no se puede deshacer. Se eliminará el
+                        archivo de tu entrega.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -353,7 +354,7 @@ export function StudentActivity({
 
       {/* Acción de entrega (oculta si ya fue calificada o el módulo concluyó).
           Abre un modal con el formulario de entrega. */}
-      {!isGraded && !readOnly && (
+      {canEditSubmission && (
         <div className="mt-3">
           {/* Proyecto: cada envío agrega una entrega nueva (no reemplaza). */}
           <Button
@@ -401,6 +402,16 @@ export function StudentActivity({
           </Dialog>
         </div>
       )}
+
+      {!isGraded &&
+        !readOnly &&
+        activity.type === "ASSIGNMENT" &&
+        Boolean(sub) &&
+        urgency === "overdue" && (
+          <p className="mt-3 text-xs font-medium text-rose-600 dark:text-rose-300">
+            El plazo finalizó; esta entrega ya no se puede modificar.
+          </p>
+        )}
     </div>
   );
 }

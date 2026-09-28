@@ -53,7 +53,7 @@ Usado por `User.gender` (obligatorio, `@default(MALE)`). Se agregó con `db push
 
 > **`ActivityType` ya no es solo una etiqueta — define el funcionamiento de la actividad:**
 >
-> - **`ASSIGNMENT` (Tarea):** entrega simple (texto + **un** archivo en `Submission.fileUrl`). Calificación manual.
+> - **`ASSIGNMENT` (Tarea):** entrega simple (texto + **un** archivo en `Submission.fileUrl`). Calificación manual. Mientras el módulo y el plazo sigan abiertos, el docente puede quitar una calificación para devolver la entrega al estudiante; después de `dueDate` una entrega existente ya no puede modificarse.
 > - **`PROJECT` (Proyecto):** **historial de entregas** — cada envío crea una `ProjectDelivery` nueva (con sus `SubmissionFile[]`), las previas quedan fijas. La `Submission` guarda **una sola** calificación manual sobre toda la actividad.
 > - **`FORUM` (Foro):** **hilo de discusión público** del módulo (`ForumPost`, no usa `Submission` para los mensajes); el docente pone una **nota de participación** por estudiante (eso sí escribe `Submission.score`).
 > - **`QUIZ` / `EXAM`:** **motor de preguntas autocalificable** (`Question`/`QuestionOption`/`QuizAttempt`/`QuizAnswer` + ajustes en `ModuleContent`). El `EXAM` añade cronómetro/ventana/intento único/barajado.
@@ -386,6 +386,8 @@ Entrega de un estudiante para un contenido de tipo `ACTIVITY`; calificada por el
 | `deliveries`              | `ProjectDelivery[]` | 1:N — **historial de entregas** del **Proyecto** (PROJECT)                                  |
 
 Índices: `@@unique([contentId, studentId])` (una entrega por estudiante/actividad), `@@index([studentId])`. En **Proyecto** la `Submission` es el registro **calificable único** (una sola `score`/`status`/`feedback`); las entregas concretas (con sus archivos) viven en `ProjectDelivery` como historial.
+
+En una **Tarea** (`ASSIGNMENT`), `DELETE /me/activities/:activityId/students/:studentId/grade` permite al docente asignado o ADMIN retirar una calificación solo si el módulo no está concluido y `dueDate` no venció. Conserva la entrega, cambia `status` a `SUBMITTED`, limpia `score`, `feedback`, `gradedById` y `gradedAt`, y recalcula `ModuleGrade`; si la nota se creó sin una entrega real, elimina esa `Submission` vacía. El estudiante puede reemplazar texto/archivo únicamente antes del vencimiento.
 
 ### `ProjectDelivery` → tabla `project_deliveries`
 
