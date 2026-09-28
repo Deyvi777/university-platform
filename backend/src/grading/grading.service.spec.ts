@@ -1,4 +1,9 @@
-import { ModuleGradeStatus, Prisma, RecoveryStage } from '@prisma/client';
+import {
+  ModuleGradeStatus,
+  ModuleStatus,
+  Prisma,
+  RecoveryStage,
+} from '@prisma/client';
 import { GradingService } from './grading.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -20,6 +25,8 @@ describe('GradingService.recomputeModuleGrade (regla de recuperación)', () => {
     recuperatorio?: number;
     segunda?: number;
     passing?: number;
+    moduleStatus?: ModuleStatus;
+    includeWeightedSubmission?: boolean;
   }) {
     const contents = [
       { id: 'act', maxScore: 100, weight: 100, recoveryStage: null },
@@ -29,7 +36,10 @@ describe('GradingService.recomputeModuleGrade (regla de recuperación)', () => {
       weight: number | null;
       recoveryStage: RecoveryStage | null;
     }[];
-    const subs = [{ contentId: 'act', score: opts.weightedScore }];
+    const subs =
+      opts.includeWeightedSubmission === false
+        ? []
+        : [{ contentId: 'act', score: opts.weightedScore }];
     if (opts.recuperatorio !== undefined) {
       contents.push({
         id: 'rec',
@@ -53,6 +63,7 @@ describe('GradingService.recomputeModuleGrade (regla de recuperación)', () => {
     const prisma = {
       courseModule: {
         findUnique: jest.fn().mockResolvedValue({
+          status: opts.moduleStatus ?? ModuleStatus.ACTIVE,
           course: {
             passingScore: new Prisma.Decimal(opts.passing ?? PASSING),
           },
@@ -142,5 +153,81 @@ describe('GradingService.recomputeModuleGrade (regla de recuperación)', () => {
     expect(
       await finalGrade({ weightedScore: 40, recuperatorio: 85, passing: 80 }),
     ).toEqual({ score: 80, status: ModuleGradeStatus.PASSED });
+  });
+
+  it('mantiene En curso si faltan notas y el módulo sigue activo', async () => {
+    expect(
+      await finalGrade({
+        weightedScore: 90,
+        includeWeightedSubmission: false,
+        moduleStatus: ModuleStatus.ACTIVE,
+      }),
+    ).toEqual({ score: 0, status: ModuleGradeStatus.IN_PROGRESS });
+  });
+
+  it('finaliza como Reprobado si faltan notas pero el módulo ya concluyó', async () => {
+    expect(
+      await finalGrade({
+        weightedScore: 90,
+        includeWeightedSubmission: false,
+        moduleStatus: ModuleStatus.FINISHED,
+      }),
+    ).toEqual({ score: 0, status: ModuleGradeStatus.FAILED });
+  });
+});
+
+describe('GradingService.getModuleGradebook (estado de módulo concluido)', () => {
+  it('normaliza notas históricas En curso a Aprobado/Reprobado según el mínimo', async () => {
+    const student = (id: string) => ({
+      id,
+      firstName: id,
+      lastName: 'ESTUDIANTE',
+      email: `${id}@example.com`,
+      phone: '70000000',
+    });
+    const prisma = {
+      moduleTeacher: { findUnique: jest.fn().mockResolvedValue({ id: 'rel' }) },
+      courseModule: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'module',
+          name: 'Módulo',
+          order: 1,
+          status: ModuleStatus.FINISHED,
+          course: {
+            id: 'course',
+            name: 'Programa',
+            passingScore: new Prisma.Decimal(71),
+            enrollments: [
+              { student: student('aprobado') },
+              { student: student('reprobado') },
+            ],
+          },
+          contents: [],
+          grades: [
+            {
+              studentId: 'aprobado',
+              finalScore: new Prisma.Decimal(85.26),
+              status: ModuleGradeStatus.IN_PROGRESS,
+              observations: null,
+            },
+            {
+              studentId: 'reprobado',
+              finalScore: new Prisma.Decimal(68.42),
+              status: ModuleGradeStatus.IN_PROGRESS,
+              observations: null,
+            },
+          ],
+        }),
+      },
+      submission: { findMany: jest.fn().mockResolvedValue([]) },
+    } as unknown as PrismaService;
+    const service = new GradingService(prisma, {} as NotificationsService);
+
+    const result = await service.getModuleGradebook('teacher', 'module');
+
+    expect(result.students.map((row) => row.moduleGrade?.status)).toEqual([
+      ModuleGradeStatus.PASSED,
+      ModuleGradeStatus.FAILED,
+    ]);
   });
 });

@@ -454,6 +454,7 @@ export class GradingService {
     const module = await this.prisma.courseModule.findUnique({
       where: { id: moduleId },
       select: {
+        status: true,
         course: { select: { passingScore: true } },
         contents: {
           where: { kind: ContentKind.ACTIVITY, isPublished: true },
@@ -527,11 +528,15 @@ export class GradingService {
     } else {
       finalScore = Math.round((acc / totalWeight) * 100) / 100;
       const allGraded = gradedCount === weighted.length;
-      status = !allGraded
-        ? ModuleGradeStatus.IN_PROGRESS
-        : finalScore >= passing
-          ? ModuleGradeStatus.PASSED
-          : ModuleGradeStatus.FAILED;
+      // Una vez concluido el módulo la nota ya es definitiva: las actividades
+      // no calificadas cuentan como 0 y nunca debe volver a "En curso" por un
+      // recálculo posterior (p. ej. al reiniciar un recuperatorio).
+      status =
+        module.status !== ModuleStatus.FINISHED && !allGraded
+          ? ModuleGradeStatus.IN_PROGRESS
+          : finalScore >= passing
+            ? ModuleGradeStatus.PASSED
+            : ModuleGradeStatus.FAILED;
     }
 
     await this.prisma.moduleGrade.upsert({
@@ -666,6 +671,7 @@ export class GradingService {
         id: true,
         name: true,
         order: true,
+        status: true,
         course: {
           select: {
             id: true,
@@ -754,7 +760,15 @@ export class GradingService {
           moduleGrade: g
             ? {
                 finalScore: g.finalScore !== null ? Number(g.finalScore) : null,
-                status: g.status,
+                // Normaliza filas históricas que quedaron IN_PROGRESS antes de
+                // que el cierre del módulo finalizara todos los estados.
+                status:
+                  module.status === ModuleStatus.FINISHED &&
+                  g.finalScore !== null
+                    ? Number(g.finalScore) >= Number(module.course.passingScore)
+                      ? ModuleGradeStatus.PASSED
+                      : ModuleGradeStatus.FAILED
+                    : g.status,
               }
             : null,
           observation: g?.observations ?? '',
