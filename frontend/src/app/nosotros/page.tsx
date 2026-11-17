@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo";
 import { Footer } from "@/components/landing/footer";
 import { Navbar } from "@/components/landing/navbar";
 import { Nosotros } from "@/components/landing/nosotros";
 
-export const metadata: Metadata = {
+export const metadata = publicMetadata({
   title: "Nosotros — Certificate",
   description:
     "Escuela Multidisciplinaria de Postgrado y Formación Continua con sede en Cochabamba, Bolivia. Conoce nuestra misión, visión y valores.",
-};
+  path: "/nosotros",
+});
 
 export default function NosotrosPage() {
   return (

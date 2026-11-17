@@ -15,6 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `Inscripción — ${program.title} — Certificate`,
     description: `Formulario de inscripción al programa ${program.title}.`,
+    robots: { index: false, follow: true },
   };
 }
 

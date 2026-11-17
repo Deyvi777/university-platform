@@ -6,6 +6,8 @@ import { notFound } from "next/navigation";
 import { Navbar } from "@/components/landing/navbar";
 import { ProgramVideoPlayer } from "@/components/landing/program-video-player";
 import { BackToPrograms } from "./back-to-programs";
+import { StructuredData } from "@/components/landing/structured-data";
+import { programDescription, programStructuredData, publicMetadata } from "@/lib/seo";
 import {
   formatAmount,
   formatStartDate,
@@ -18,11 +20,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const program = await getProgramBySlug(slug);
   if (!program) return { title: "Programa no encontrado — Certificate" };
-  return {
-    title: `${program.title} — Certificate`,
-    description:
-      program.objective ?? `${program.title} — ${program.category.name}`,
-  };
+  return publicMetadata({
+    title: `${program.title} | Certificate Bolivia`,
+    description: programDescription(program),
+    path: `/programas/${program.slug}`,
+    image: program.flyerUrl,
+  });
 }
 
 function getInitials(fullName: string) {
@@ -95,6 +98,7 @@ export default async function ProgramPage({ params }: Props) {
 
   return (
     <>
+      <StructuredData data={programStructuredData(program)} />
       <Navbar />
       <main className="bg-slate-950 pb-24 pt-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">

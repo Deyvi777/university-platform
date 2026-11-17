@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, CalendarClock, ClipboardList } from "lucide-react";
@@ -11,11 +11,12 @@ import {
   type CallSummary,
 } from "@/lib/api/calls";
 
-export const metadata: Metadata = {
+export const metadata = publicMetadata({
   title: "Convocatorias | Certificate Bolivia",
   description:
     "Conoce y postula a las convocatorias académicas y profesionales de Certificate Bolivia.",
-};
+  path: "/convocatorias",
+});
 
 export default async function ConvocatoriasPage() {
   let calls: CallSummary[] = [];

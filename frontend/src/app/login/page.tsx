@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LoginForm } from "./login-form";
+
+export const metadata: Metadata = {
+  title: "Acceso a la plataforma | Certificate Bolivia",
+  robots: { index: false, follow: true },
+};
 
 export default async function LoginPage({
   searchParams,

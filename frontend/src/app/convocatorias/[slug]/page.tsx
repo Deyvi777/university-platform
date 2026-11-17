@@ -7,6 +7,7 @@ import { Footer } from "@/components/landing/footer";
 import { Navbar } from "@/components/landing/navbar";
 import { formatCallDate, getCallBySlug } from "@/lib/api/calls";
 import { ApplicationForm } from "./application-form";
+import { publicMetadata } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -16,7 +17,12 @@ export async function generateMetadata({
   const { slug } = await params;
   const call = await getCallBySlug(slug);
   return call
-    ? { title: `${call.title} | Convocatorias`, description: call.summary }
+    ? publicMetadata({
+        title: `${call.title} | Certificate Bolivia`,
+        description: call.summary,
+        path: `/convocatorias/${call.slug}`,
+        image: call.coverUrl ?? undefined,
+      })
     : { title: "Convocatoria no encontrada" };
 }
 

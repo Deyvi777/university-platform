@@ -5,6 +5,7 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { FloatingWhatsAppButton } from "@/components/landing/floating-whatsapp-button";
 import { Toaster } from "@/components/ui/sonner";
+import { SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 // Analíticas con Umami (self-hosted en Coolify). Ambas variables se inlinean
@@ -28,6 +29,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Certificate — Escuela Multidisciplinaria de Postgrado",
   description:
     "Maestrías, diplomados y certificaciones para profesionales. Formación continua de excelencia en Bolivia.",

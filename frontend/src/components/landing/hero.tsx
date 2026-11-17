@@ -54,27 +54,29 @@ export function Hero() {
           </p>
 
           <h1 className="max-w-[32rem] text-[2.5rem] leading-[1.02] font-semibold tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,0.35)] sm:text-5xl lg:max-w-xl lg:text-[3.5rem]">
-            <span className="block">Impulsa tu carrera</span>
+            <span className="block">Postgrados en Bolivia</span>
             <span className="mt-2 block text-[0.72em] leading-[1.12] font-medium tracking-[-0.02em] text-slate-100 sm:text-[0.74em]">
-              con maestrías y diplomados
+              Maestrías y diplomados
             </span>
-            <span className="mt-1 block">de excelencia</span>
           </h1>
 
           <p className="mt-6 max-w-lg text-lg leading-8 text-slate-200">
-            Formación continua para profesionales que buscan liderar. Programas
-            acreditados, docentes expertos y modalidades flexibles diseñadas
-            para tu crecimiento académico y laboral.
+            Impulsa tu carrera con la formación de Certificate, Escuela
+            Multidisciplinaria de Postgrado con sede en Cochabamba. Explora
+            nuestros programas, sus modalidades, requisitos y planes de estudio.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={() => scrollTo("programas")}
+            <a
+              href="#programas"
+              onClick={(event) => {
+                event.preventDefault();
+                scrollTo("programas");
+              }}
               className="rounded-full bg-amber-400 px-8 py-3.5 text-base font-semibold text-slate-950 shadow-lg shadow-amber-400/20 transition-all hover:bg-amber-300 hover:shadow-amber-300/30"
             >
               Explorar programas
-            </button>
+            </a>
             <a
               href={WHATSAPP_URL}
               target="_blank"

@@ -9,17 +9,18 @@ import {
   ShieldCheck,
   UserRoundCheck,
 } from "lucide-react";
-import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo";
 import Image from "next/image";
 import Link from "next/link";
 
 import { PrivacyTableOfContents } from "./privacy-table-of-contents";
 
-export const metadata: Metadata = {
+export const metadata = publicMetadata({
   title: "Política de privacidad | Certificate Bolivia",
   description:
     "Políticas de privacidad, protección y tratamiento de datos personales de Certificate Bolivia S.R.L.",
-};
+  path: "/privacidad",
+});
 
 const COLLECTED_DATA = [
   "Nombres y apellidos.",

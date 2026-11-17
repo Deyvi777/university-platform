@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getPrograms, type ProgramSummary } from "@/lib/api/programs";
 import { ProgramsGrid } from "./programs-grid";
+import { ProgramCards } from "./program-cards";
 
 export async function Programs() {
   let programs: ProgramSummary[] = [];
@@ -23,8 +24,7 @@ export async function Programs() {
           </p>
 
           <h2 className="text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">
-            Programas diseñados para{" "}
-            <span className="text-white">tu siguiente paso</span>
+            Encuentra tu maestría o diplomado
           </h2>
 
           <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-slate-200">
@@ -34,7 +34,7 @@ export async function Programs() {
         </div>
 
         {programs.length > 0 ? (
-          <Suspense>
+          <Suspense fallback={<ProgramCards programs={programs} />}>
             <ProgramsGrid programs={programs} />
           </Suspense>
         ) : (

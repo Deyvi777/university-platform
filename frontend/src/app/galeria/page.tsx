@@ -1,15 +1,16 @@
-import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo";
 import { Camera } from "lucide-react";
 import { Footer } from "@/components/landing/footer";
 import { GalleryCarousel } from "@/components/landing/gallery-carousel";
 import { Navbar } from "@/components/landing/navbar";
 import { getGallery } from "@/lib/api/gallery";
 
-export const metadata: Metadata = {
+export const metadata = publicMetadata({
   title: "Galería — Certificate",
   description:
     "Fotos y videos de las actividades académicas de Certificate, Escuela Multidisciplinaria de Postgrado y Formación Continua.",
-};
+  path: "/galeria",
+});
 
 export default async function GaleriaPage() {
   const items = await getGallery();
