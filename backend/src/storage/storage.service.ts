@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import { IncomingMessage } from 'node:http';
 import { Readable } from 'node:stream';
 import {
   BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -16,6 +18,7 @@ import {
 
 /** Prefijo de las rutas relativas que sirve `GET /files/:folder/:filename`. */
 const FILES_PREFIX = '/files/';
+const STORAGE_IDLE_TIMEOUT_MS = 60_000;
 
 export interface UploadedFileLike {
   buffer: Buffer;
@@ -70,7 +73,7 @@ const VIDEO_MIME_TO_EXT: Record<string, string> = {
 export const ALLOWED_VIDEO_MIME = Object.keys(VIDEO_MIME_TO_EXT);
 
 @Injectable()
-export class StorageService {
+export class StorageService implements OnModuleDestroy {
   private readonly logger = new Logger(StorageService.name);
   private readonly client: S3Client;
   private readonly bucket: string;
@@ -84,8 +87,19 @@ export class StorageService {
         secretAccessKey: this.config.getOrThrow<string>('S3_SECRET_KEY'),
       },
       forcePathStyle: true,
+      maxAttempts: 2,
+      requestHandler: {
+        connectionTimeout: 5_000,
+        requestTimeout: 120_000,
+        throwOnRequestTimeout: true,
+        socketTimeout: STORAGE_IDLE_TIMEOUT_MS,
+      },
     });
     this.bucket = this.config.getOrThrow<string>('S3_BUCKET');
+  }
+
+  onModuleDestroy() {
+    this.client.destroy();
   }
 
   uploadImage(file: UploadedFileLike, folder: string) {
@@ -181,14 +195,30 @@ export class StorageService {
 
   async getObject(
     key: string,
-  ): Promise<{ stream: Readable; contentType: string }> {
+    abortSignal?: AbortSignal,
+  ): Promise<{
+    stream: Readable;
+    contentType: string;
+    contentLength?: number;
+  }> {
     try {
       const res = await this.client.send(
         new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+        { abortSignal },
       );
+      const stream = res.Body as Readable;
+      // El handler del SDK puede retirar su temporizador al recibir headers.
+      // Mantener un límite de INACTIVIDAD durante el cuerpo, sin imponer una
+      // duración máxima a descargas grandes que siguen transfiriendo datos.
+      if (stream instanceof IncomingMessage) {
+        stream.setTimeout(STORAGE_IDLE_TIMEOUT_MS, () => {
+          stream.destroy(new Error('El almacenamiento dejó de responder'));
+        });
+      }
       return {
-        stream: res.Body as Readable,
+        stream,
         contentType: res.ContentType ?? 'application/octet-stream',
+        contentLength: res.ContentLength,
       };
     } catch (error) {
       if (

@@ -88,6 +88,7 @@ The **backend is the source of truth for identity and RBAC**. NextAuth does not 
 
 ### Infra gotchas
 
+- **Storage pool exhaustion:** a running backend/Garage does not guarantee working uploads or downloads. All download controllers use `backend/src/storage/stream-stored-file.ts` to abort the pending S3 request and destroy its body when the HTTP client disconnects; `StorageService` also bounds connection/header waits and body inactivity. Root `AGENTS.md` is canonical for this lifecycle, the `storage-download` HTTP regression suite, and production incident checks (including schema comparison before restarting a backend whose startup runs `db push`). A restart is temporary recovery, not a fix for accumulating connections.
 - Garage's `command` needs the `--default-bucket` flag for the `GARAGE_DEFAULT_*` env vars to auto-create the bucket/key. S3 clients must use `endpoint: http://localhost:3900` with `forcePathStyle: true` (creds in `backend/.env` `S3_*`).
 - Postgres auth method is baked into the volume at first init — changing auth-related env vars in docker-compose requires recreating the `postgres_data` volume.
 - **macOS port 5432 conflict:** if Postgres.app (or any local Postgres) is running, it binds `127.0.0.1:5432`/`[::1]:5432` ahead of Docker's wildcard bind, so the backend connects to the _wrong_ server (`P1010 / role "university_user" does not exist`) even though `psql` via Docker works. Stop the local one: `pg_ctl -D "~/Library/Application Support/Postgres/var-16" stop`. Disable its autostart to avoid recurrence.

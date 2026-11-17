@@ -6,15 +6,17 @@ import {
   Param,
   Patch,
   Post,
-  StreamableFile,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
+import type { Response } from 'express';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { StorageService } from '../storage/storage.service';
+import { streamStoredFile } from '../storage/stream-stored-file';
 import { CallsService } from './calls.service';
 import { CreateCallDto, UpdateCallDto } from './dto/call.dto';
 
@@ -53,11 +55,15 @@ export class AdminCallsController {
   }
 
   @Get('files/:filename')
-  async downloadFile(@Param('filename') filename: string) {
-    const { stream, contentType } = await this.storage.getObject(
+  async downloadFile(
+    @Param('filename') filename: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return streamStoredFile(
+      this.storage,
       `call-applications/${filename}`,
+      response,
     );
-    return new StreamableFile(stream, { type: contentType });
   }
 
   @Post()

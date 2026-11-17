@@ -4,10 +4,13 @@ import {
   Header,
   NotFoundException,
   Param,
+  Res,
   StreamableFile,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { StorageService } from './storage.service';
+import { streamStoredFile } from './stream-stored-file';
 
 @ApiTags('files')
 @Controller('files')
@@ -20,15 +23,13 @@ export class FilesController {
   async serve(
     @Param('folder') folder: string,
     @Param('filename') filename: string,
+    @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
     // Los documentos de postulaciones pueden contener datos personales y solo
     // se descargan por el endpoint protegido del módulo de convocatorias.
     if (folder === 'call-applications') {
       throw new NotFoundException('Archivo no encontrado');
     }
-    const { stream, contentType } = await this.storage.getObject(
-      `${folder}/${filename}`,
-    );
-    return new StreamableFile(stream, { type: contentType });
+    return streamStoredFile(this.storage, `${folder}/${filename}`, response);
   }
 }
